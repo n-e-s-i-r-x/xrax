@@ -166,6 +166,27 @@
             border-bottom-left-radius: 4px; padding-left: 4px;
         }
 
+        /* ── Thinking indicator ── */
+        .thinking-wrap {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 4px;
+        }
+        .thinking-circle {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent);
+            animation: circleBlink 1.1s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes circleBlink {
+            0%   { opacity: 1;   box-shadow: 0 0 0 0 rgba(16,163,127,0.7); }
+            40%  { opacity: 0.9; box-shadow: 0 0 0 6px rgba(16,163,127,0); }
+            60%  { opacity: 0.15; box-shadow: 0 0 0 0 rgba(16,163,127,0); }
+            100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(16,163,127,0.7); }
+        }
+        .thinking-label {
+            font-size: 13px; color: var(--text-secondary);
+        }
+
         .bubble-img-wrap {
             margin-top: 8px; cursor: pointer;
             border-radius: 12px; overflow: hidden;
@@ -216,6 +237,7 @@
             z-index: 9998; display: flex; align-items: center; justify-content: center;
             opacity: 0; visibility: hidden;
             transition: opacity 0.2s ease, visibility 0.2s ease;
+            backdrop-filter: blur(2px);
         }
         #lightbox.active { opacity: 1; visibility: visible; }
         #lightbox img { max-width: 92vw; max-height: 88dvh; border-radius: 12px; object-fit: contain; animation: popUp 0.25s ease; }
@@ -378,6 +400,7 @@
 <!-- INTRO -->
 <div id="intro">
     <img id="intro-logo" src="icon.webp" alt="Vertigo AI">
+    <div id="intro-title">Vertigo AI</div>
 </div>
 
 <!-- LIGHTBOX -->
@@ -726,23 +749,39 @@ const UI = {
 };
 
 /* ================================================================
-   COT
+   THINKING INDICATOR (blinking circle)
 ================================================================ */
 const cot = {
+    _row: null,
     show: function(label) {
         this.remove();
-        const row  = document.createElement('div');
-        row.id     = 'cot-wrap';
+        const row = document.createElement('div');
+        row.id = 'cot-wrap';
         row.className = 'message ai';
-        const bub  = document.createElement('div');
+        row.style.animation = 'none';
+
+        const bub = document.createElement('div');
         bub.className = 'message-bubble';
-        bub.style.cssText = 'color:var(--text-secondary);font-size:13px;padding:4px 0;background:transparent;';
-        const span = document.createElement('span');
-        span.id    = 'cot-label';
-        span.textContent = label || 'Thinking…';
-        bub.appendChild(span);
+        bub.style.cssText = 'background:transparent;padding:4px 0;';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'thinking-wrap';
+
+        const circle = document.createElement('div');
+        circle.className = 'thinking-circle';
+        circle.id = 'cot-circle';
+
+        const lbl = document.createElement('span');
+        lbl.className = 'thinking-label';
+        lbl.id = 'cot-label';
+        lbl.textContent = label || 'Thinking…';
+
+        wrap.appendChild(circle);
+        wrap.appendChild(lbl);
+        bub.appendChild(wrap);
         row.appendChild(bub);
         UI.chatInner.appendChild(row);
+        this._row = row;
         scrollBottom();
     },
     set: function(label) {
@@ -752,6 +791,7 @@ const cot = {
     remove: function() {
         const el = document.getElementById('cot-wrap');
         if (el) el.remove();
+        this._row = null;
     }
 };
 
@@ -912,13 +952,16 @@ function showLimit(msg) {
 }
 
 /* ================================================================
-   STREAM REPLY
+   STREAM REPLY  — progressive render
 ================================================================ */
 async function streamReply(apiResponse) {
     const row = document.createElement('div');
     row.className = 'message ai';
+    row.style.animation = 'none';
+
     const bub = document.createElement('div');
     bub.className = 'message-bubble';
+
     const contentEl = document.createElement('div');
     bub.appendChild(contentEl);
     row.appendChild(bub);
@@ -966,7 +1009,15 @@ async function streamReply(apiResponse) {
                             buf = buf.slice(start + 7);
                             inThink = true;
                         } else {
-                            if (!firstToken) { firstToken = true; cot.remove(); }
+                            if (!firstToken) {
+                                firstToken = true;
+                                cot.remove();
+                                /* now animate the reply row in */
+                                row.style.animation = '';
+                                row.style.animationName = 'popUp';
+                                row.style.animationDuration = '0.3s';
+                                row.style.animationTimingFunction = 'ease';
+                            }
                             full += buf; buf = '';
                         }
                     }
@@ -980,7 +1031,9 @@ async function streamReply(apiResponse) {
 
                 if (hlTimer) clearTimeout(hlTimer);
                 hlTimer = setTimeout(function() {
-                    contentEl.querySelectorAll('pre code:not([data-hl])').forEach(function(b) { hljs.highlightElement(b); b.dataset.hl = '1'; });
+                    contentEl.querySelectorAll('pre code:not([data-hl])').forEach(function(b) {
+                        hljs.highlightElement(b); b.dataset.hl = '1';
+                    });
                 }, 300);
             }
         }
@@ -988,7 +1041,9 @@ async function streamReply(apiResponse) {
 
     cot.remove();
     if (hlTimer) clearTimeout(hlTimer);
-    contentEl.querySelectorAll('pre code:not([data-hl])').forEach(function(b) { hljs.highlightElement(b); b.dataset.hl = '1'; });
+    contentEl.querySelectorAll('pre code:not([data-hl])').forEach(function(b) {
+        hljs.highlightElement(b); b.dataset.hl = '1';
+    });
 
     if (!full.trim()) { row.remove(); showError('Empty reply. Try again.'); return; }
 
