@@ -11,18 +11,22 @@ export default async function handler(req, res) {
 
     try {
         const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method:  'POST',
+            method: 'POST',
             headers: {
-                'Content-Type':  'application/json',
+                'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + OR_KEY,
-                'HTTP-Referer':  'https://vertigozi.vercel.app',
-                'X-Title':       'Vertigo AI'
+                'HTTP-Referer': 'https://vertigozi.vercel.app',
+                'X-Title': 'Vertigo AI'
             },
-            body: JSON.stringify(req.body)
+            body: JSON.stringify({
+                ...req.body,
+                stream: false
+            })
         });
-        const text = await upstream.text();
-        res.status(upstream.status).setHeader('Content-Type', 'text/event-stream').send(text);
-    } catch(e) {
+
+        const data = await upstream.json();
+        res.status(upstream.status).json(data);
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 }
