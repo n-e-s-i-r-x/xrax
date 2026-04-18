@@ -166,7 +166,6 @@
             border-bottom-left-radius: 4px; padding-left: 4px;
         }
 
-        /* ── Thinking indicator ── */
         .thinking-wrap {
             display: flex; align-items: center; gap: 10px;
             padding: 6px 4px;
@@ -479,13 +478,44 @@
 const CHAT_MODEL   = 'sao10k/l3.3-euryale-70b';
 const VISION_MODEL = 'gemini-2.0-flash';
 
-const SYSTEM_PROMPT = `You are Vertigo. and your model is Vertigo 3B. and "Vin" made you.
-If someone asks who's the friend of "Vin" or "Vince" reply to them (Kidd,Calvin,Aly,Yaruslav).
-If someone asks you who's vin/vince, tell them (This is just a info dont reply all at once >Vin is a human age 16 and from Philippines/CebuCity schools at Abellana.`;
+// ── FIXED SYSTEM PROMPT ──────────────────────────────────────────
+// Keep it behavioural only. Do NOT list facts as bullet points —
+// that causes the model to recite them on any greeting.
+const SYSTEM_PROMPT = `You are Vertigo, a casual and helpful AI assistant. Your model version is Vertigo 3B.
+
+Personality: friendly, concise, a little witty. Never robotic or overly formal.
+
+When someone just says hi, hey, hello, sup, or similar greetings, respond with a short casual greeting and ask what you can help with. Do NOT introduce yourself with a long bio — just say hey back and offer to help.
+
+Only share details about yourself when someone directly and specifically asks (e.g. "who made you?", "what are you?", "who is Vin?"). Even then, be natural and conversational, not listy.
+
+Background knowledge you can draw on if asked directly:
+- You were made by Vin (also called Vince), a 16-year-old student from Cebu City, Philippines who goes to Abellana.
+- Vin's close friends are Kidd, Calvin, Aly, and Yaruslav.
+
+Never volunteer this background info unprompted. Never dump everything at once.`;
 
 const MAX_UPLOADS  = 3;
 const MAX_ANALYZES = 3;
 const MAX_CREATES  = 5;
+
+/* ================================================================
+   GREETING SHORT-CIRCUIT
+   — catch pure greetings and answer instantly without an API call
+================================================================ */
+const GREETING_RE = /^(hey|hi|hello|sup|yo|wassup|what'?s up|hiya|howdy|helo|heya)[^a-z]{0,6}$/i;
+
+const GREETING_REPLIES = [
+    "Hey! What can I help you with?",
+    "Hey there! What's up?",
+    "Hi! What do you need?",
+    "Hey, what's on your mind?",
+    "Yo! What can I do for you?"
+];
+
+function randomGreeting() {
+    return GREETING_REPLIES[Math.floor(Math.random() * GREETING_REPLIES.length)];
+}
 
 /* ================================================================
    ICONS
@@ -525,7 +555,7 @@ const S = {
 };
 
 /* ================================================================
-   INTENT
+   INTENT DETECTION
 ================================================================ */
 function isImageRequest(msg) {
     return /\b(create|generate|make|draw|design|produce|paint|render|show me)\b.{0,40}(image|picture|photo|illustration|art|artwork|painting|drawing|wallpaper|portrait|landscape)/i.test(msg)
@@ -749,7 +779,7 @@ const UI = {
 };
 
 /* ================================================================
-   THINKING INDICATOR (blinking circle)
+   THINKING INDICATOR
 ================================================================ */
 const cot = {
     _row: null,
@@ -1012,7 +1042,6 @@ async function streamReply(apiResponse) {
                             if (!firstToken) {
                                 firstToken = true;
                                 cot.remove();
-                                /* now animate the reply row in */
                                 row.style.animation = '';
                                 row.style.animationName = 'popUp';
                                 row.style.animationDuration = '0.3s';
@@ -1097,6 +1126,21 @@ function newChat() {
 }
 
 /* ================================================================
+   INSTANT GREETING HANDLER
+================================================================ */
+function handleGreetingInstantly(userText) {
+    // Push user message
+    S.messages.push({ role: 'user', content: userText });
+    appendBubble('user', userText, null, true);
+
+    // Reply immediately without API call
+    const reply = randomGreeting();
+    S.messages.push({ role: 'ai', content: reply });
+    appendBubble('ai', reply, null, true);
+    saveChat();
+}
+
+/* ================================================================
    SEND
 ================================================================ */
 let lastSend = 0;
@@ -1108,9 +1152,17 @@ async function send(userText) {
     if (S.busy) return;
     if (Date.now() - lastSend < 600) return;
     lastSend = Date.now();
+
+    // ── Instant greeting short-circuit ──────────────────────────
+    if (!hasImg && GREETING_RE.test(userText)) {
+        handleGreetingInstantly(userText);
+        return; // no API call, stays non-busy
+    }
+
     S.busy = true; UI.sendBtn.disabled = true;
     const imgSnap = S.pendingImg; clearPreview();
 
+    /* ── Image analysis ── */
     if (hasImg) {
         if (S.analyzeCount >= MAX_ANALYZES) { showLimit('Image analysis limit reached.'); S.busy = false; UI.sendBtn.disabled = false; return; }
         S.analyzeCount++;
@@ -1130,6 +1182,7 @@ async function send(userText) {
         return;
     }
 
+    /* ── Image generation ── */
     if (isImageRequest(userText)) {
         if (S.createCount >= MAX_CREATES) { showLimit('Image creation limit reached.'); S.busy = false; UI.sendBtn.disabled = false; return; }
         S.createCount++;
@@ -1152,6 +1205,7 @@ async function send(userText) {
         return;
     }
 
+    /* ── Normal text reply ── */
     S.messages.push({ role: 'user', content: userText });
     appendBubble('user', userText, null, true);
     saveChat();
