@@ -1222,8 +1222,34 @@ async function send(userText) {
         const recallCtx = rr.status === 'fulfilled' ? rr.value : null;
         cot.set('Thinking…');
         const msgs = buildMessages(null, webData, recallCtx);
-        const api  = await chatStream(msgs);
-        await streamReply(api);
+        const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        model: CHAT_MODEL,
+        messages: msgs,
+        stream: false,
+        max_tokens: 1024
+    })
+});
+
+if (!res.ok) {
+    const t = await res.text();
+    throw new Error('API error ' + res.status + ': ' + t.slice(0, 300));
+}
+
+const data = await res.json();
+const full = data?.choices?.[0]?.message?.content || '';
+
+cot.remove();
+
+if (!full.trim()) {
+    showError('Empty reply. Try again.');
+} else {
+    appendBubble('ai', full, null, true);
+    S.messages.push({ role: 'ai', content: full });
+    saveChat();
+}
     } catch(err) { console.error(err); cot.remove(); showError(err.message); }
     finally { S.busy = false; UI.sendBtn.disabled = false; }
 }
