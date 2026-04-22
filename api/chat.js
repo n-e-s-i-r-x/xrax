@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         'X-Title': '0v AI'
       },
       body: JSON.stringify({
-        model:       'qwen/qwen3.6-plus',
+        model:       'z-ai/glm-5.1:exacto',
         messages: [
           { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
           ...messages
