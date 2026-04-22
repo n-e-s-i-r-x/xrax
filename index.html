@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <style>
-        /* ===== ALL EXISTING STYLES UNCHANGED ===== */
         @font-face { font-family: 'M'; src: url('M.ttf') format('truetype'); font-weight: normal; font-style: normal; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         html, body { height: 100%; overflow: hidden; }
@@ -260,7 +259,7 @@
         .view-console.has-errors { display: block; }
         .view-err { color: #e06060; margin-bottom: 4px; }
 
-        /* ===== NEW STYLES FOR IMAGE & CONTINUE ===== */
+        /* NEW: Image and Continue styles */
         .ai-image { margin: 12px 0; border-radius: 12px; overflow: hidden; max-width: 100%; border: 1px solid #1a1a1a; }
         .ai-image img { width: 100%; height: auto; display: block; }
         .continue-btn { background: #1a1a1a; border: 1px solid #2a2a2a; color: #4a9eff; }
@@ -282,7 +281,6 @@
             <div class="input-tools">
                 <button class="web-toggle-btn" id="web-toggle-btn" onclick="toggleWebSearch()" aria-label="Toggle web search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Search</button>
                 <button class="web-toggle-btn" id="code-toggle-btn" onclick="toggleCodeMode()" aria-label="Toggle code mode"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Code</button>
-                <!-- NEW IMAGE TOGGLE BUTTON -->
                 <button class="web-toggle-btn" id="image-toggle-btn" onclick="toggleImageMode()" aria-label="Toggle image generation"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Image</button>
             </div>
             <div class="input-row"><textarea id="user-input" placeholder="Message 0..." rows="1" oninput="autoGrow(this)" onkeydown="onKey(event)"></textarea><button class="send-btn" id="send-btn" onclick="sendMsg()" disabled aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg></button></div>
@@ -290,7 +288,6 @@
     </div>
     <div id="sidebar-ov" onclick="closeSidebar()"></div>
     <div id="sidebar">
-        <!-- Sidebar unchanged -->
         <div class="sb-head"><img class="sb-logo" src="icon.webp" alt="0v"><div class="sb-name"><span></span></div></div>
         <button class="sb-new" onclick="newChat();closeSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>New conversation</button>
         <div class="sb-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" placeholder="Search chats" oninput="filterSB(this.value)"></div>
@@ -347,405 +344,288 @@
 
         const S = { 
             convos: {}, activeId: null, busy: false, abort: null, 
-            webSearch: false, codeMode: false, imageMode: false,  // NEW: imageMode
+            webSearch: false, codeMode: false, imageMode: false,
             settings: { timestamps: false, autoscroll: true, streaming: true, save: true, temperature: 0.7, webSearchAuto: true } 
         };
         let brainTimer = null, brainStepIdx = 0, toastTimeout = null;
 
-        // ---------- NEW: Image Mode ----------
-        function toggleImageMode() {
-            S.imageMode = !S.imageMode;
-            if (S.imageMode) {
-                S.webSearch = false;
-                S.codeMode = false;
-                updateWebToggleUI();
-                updateCodeToggleUI();
-            }
-            updateImageToggleUI();
-            toast(S.imageMode ? 'Image generation on' : 'Image generation off');
-        }
-        function updateImageToggleUI() {
-            const btn = document.getElementById('image-toggle-btn');
-            if (btn) btn.classList.toggle('active', S.imageMode);
-        }
+        function startBrainCycle(id) { brainStepIdx = 0; updateBrainStep(id, 0); brainTimer = setInterval(() => { brainStepIdx++; if (brainStepIdx >= BRAIN_STEPS.length) brainStepIdx = BRAIN_STEPS.length - 1; updateBrainStep(id, brainStepIdx); }, 1600); }
+        function stopBrainCycle() { if (brainTimer) { clearInterval(brainTimer); brainTimer = null; } }
+        function updateBrainStep(id, idx) { const stepEl = document.getElementById(id + 'step'); const pbarEl = document.getElementById(id + 'pbar'); if (stepEl) { stepEl.classList.add('fading'); setTimeout(() => { if (stepEl) stepEl.textContent = BRAIN_STEPS[idx].text; if (stepEl) stepEl.classList.remove('fading'); }, 150); } if (pbarEl) pbarEl.style.width = BRAIN_STEPS[idx].pct + '%'; }
 
-        // ---------- Existing Toggle Functions (updated to respect exclusivity) ----------
         function toggleCodeMode() { 
             S.codeMode = !S.codeMode; 
-            if (S.codeMode) { 
-                S.webSearch = false; 
-                S.imageMode = false;
-                updateWebToggleUI(); 
-                updateImageToggleUI();
-            } 
-            updateCodeToggleUI(); 
-            document.body.classList.toggle('code-mode', S.codeMode); 
+            if (S.codeMode) { S.webSearch = false; S.imageMode = false; updateWebToggleUI(); updateImageToggleUI(); } 
+            updateCodeToggleUI(); document.body.classList.toggle('code-mode', S.codeMode); 
             toast(S.codeMode ? 'Code mode on' : 'Code mode off'); 
         }
         function updateCodeToggleUI() { const btn = document.getElementById('code-toggle-btn'); if (!btn) return; btn.classList.toggle('active', S.codeMode); }
 
         function toggleWebSearch() { 
             S.webSearch = !S.webSearch; 
-            if (S.webSearch) {
-                S.codeMode = false;
-                S.imageMode = false;
-                updateCodeToggleUI();
-                updateImageToggleUI();
-            }
-            updateWebToggleUI(); 
-            toast(S.webSearch ? 'Web search on' : 'Web search off'); 
+            if (S.webSearch) { S.codeMode = false; S.imageMode = false; updateCodeToggleUI(); updateImageToggleUI(); } 
+            updateWebToggleUI(); toast(S.webSearch ? 'Web search on' : 'Web search off'); 
         }
         function updateWebToggleUI() { const btn = document.getElementById('web-toggle-btn'); if (!btn) return; btn.classList.toggle('active', S.webSearch); }
 
-        // ---------- Existing helpers (unchanged) ----------
-        const UNKNOWN_PATTERNS = [ /* ... same as before ... */ ];
-        const CODE_NEEDS_SEARCH = [ /* ... same as before ... */ ];
-        function needsSearch(text) { /* ... unchanged ... */ }
-        function aiDoesNotKnow(text) { /* ... unchanged ... */ }
-        function extractThinking(text) { /* ... unchanged ... */ }
+        function toggleImageMode() {
+            S.imageMode = !S.imageMode;
+            if (S.imageMode) { S.webSearch = false; S.codeMode = false; updateWebToggleUI(); updateCodeToggleUI(); }
+            updateImageToggleUI();
+            toast(S.imageMode ? 'Image generation on' : 'Image generation off');
+        }
+        function updateImageToggleUI() { const btn = document.getElementById('image-toggle-btn'); if (btn) btn.classList.toggle('active', S.imageMode); }
 
-        function dismissIntro() { /* ... unchanged ... */ }
+        const UNKNOWN_PATTERNS = [ /\b(202[4-9]|20[3-9]\d)\b/, /\b(latest|recent|current|newest|today|now|this\s+week|this\s+month|this\s+year|right\s+now|as\s+of)\b/i, /\b(price|stock|weather|score|exchange\s+rate|currency|crypto|bitcoin|ethereum)\b/i, /\b(breaking|just\s+in|happening|live|trending|viral)\b/i, /\b(release|launch|announce|update|patch|version\s+\d)\b/i, /\b(npm\s+package|pypi\s+package|new\s+library|new\s+framework)\b/i, /\b(bug|fix|issue|error|workaround|deprecated|migrated)\b/i, /\b(who\s+is|what\s+is|when\s+did|where\s+is|how\s+much|how\s+many)\b/i, /\b(died|killed|fired|resigned|elected|appointed|acquired|merged)\b/i, ];
+        const CODE_NEEDS_SEARCH = [ /\b(free\s+api|open\s+api|public\s+api|no\s+key|api\s+key|endpoint)\b/i, /\b(integrate|sdk|oauth|firebase|supabase|mongo|postgres|mysql|redis|aws|azure|vercel|netlify|heroku)\b/i, /\b(stripe|paypal|payment|checkout|subscription|webhook)\b/i, /\b(send\s+grid|twilio|email|sms|push\s+notification)\b/i, /\b(map|google\s+maps|mapbox|leaflet)\b/i, /\b(weather\s+api|news\s+api|stock\s+api|currency\s+api)\b/i, /\b(deploy|hosting|domain|ssl|dns|cloudflare)\b/i, /\b(chatgpt|openai|claude|gemini|llm|ai\s+api)\b/i, /\b(scraper|crawl|puppeteer|selenium|playwright)\b/i, ];
+
+        function needsSearch(text) {
+            const txt = text.toLowerCase().trim();
+            if (S.webSearch) return true;
+            if (!S.settings.webSearchAuto) return false;
+            if (txt.length < 10) return false;
+            if (/^(hi|hello|hey|sup|yo|good\s?(morning|afternoon|evening)|thanks?|ok|bye|yes|no|sure|cool|nice|lol)[\s!.?]*$/i.test(txt)) return false;
+            if (UNKNOWN_PATTERNS.some(r => r.test(txt))) return true;
+            if (S.codeMode && CODE_NEEDS_SEARCH.some(r => r.test(txt))) return true;
+            if (/\b(who|what|when|where|why|how)\b.*\b(is|are|was|were|did|does|will|can)\b/i.test(txt) && txt.length > 15) return true;
+            return false;
+        }
+
+        function aiDoesNotKnow(text) { const t = text.toLowerCase(); return [ /\b(i\s+don'?t\s+know|i\s+do\s+not\s+know)\b/, /\b(no\s+idea|not\s+sure|can'?t\s+recall|can'?t\s+remember)\b/, /\b(never\s+heard\s+of|haven'?t\s+heard\s+of|not\s+familiar\s+with)\b/, /\b(i'?m\s+not\s+aware|i\s+am\s+not\s+aware)\b/, /\b(i\s+have\s+no\s+(idea|clue|knowledge|information))\b/, /\b(no\s+(clue|idea)\s+what)\b/, /\b(beyond\s+my\s+knowledge|outside\s+my\s+knowledge)\b/, /\b(i\s+(really\s+)?can'?t\s+(help|answer|tell|say|recall))\b/, /\b(as\s+of\s+my\s+(last\s+)?update|my\s+(knowledge|data)\s+(cutoff|ends|stops|is\s+limited))\b/, /\b(look\s+it\s+up\s+yourself|google\s+it|search\s+it\s+yourself)\b/, /\b(obscure|never\s+played|never\s+watched|never\s+read|never\s+used)\b/, ].some(r => r.test(t)); }
+
+        function extractThinking(text) { const match = text.match(/^<think\s*>([\s\S]*?)<\/think\s*>/i); if (match) return { thinking: match[1].trim(), answer: text.slice(match[0].length).trim() }; const mdMatch = text.match(/^```thinking\s*\n([\s\S]*?)```\s*/i); if (mdMatch) return { thinking: mdMatch[1].trim(), answer: text.slice(mdMatch[0].length).trim() }; return { thinking: null, answer: text }; }
+
+        function dismissIntro() { const intro = document.getElementById('intro'); const app = document.getElementById('app'); if (intro) intro.classList.add('hide'); if (app) app.classList.add('ready'); setTimeout(() => { if (intro) intro.style.display = 'none'; }, 500); }
         setTimeout(dismissIntro, 3000);
         document.addEventListener('DOMContentLoaded', init);
         if (document.readyState !== 'loading') init();
         let inited = false;
-        function init() { 
-            if (inited) return; inited = true; 
-            try { 
-                loadStore(); renderSB(); showEmpty(); setupScrollWatcher(); setupInputListener(); 
-                updateCodeToggleUI(); updateWebToggleUI(); updateImageToggleUI();
-                document.body.classList.toggle('code-mode', S.codeMode); 
-            } catch (e) { console.error('Init error:', e); } 
-            setTimeout(dismissIntro, 4000); 
-        }
+        function init() { if (inited) return; inited = true; try { loadStore(); renderSB(); showEmpty(); setupScrollWatcher(); setupInputListener(); updateCodeToggleUI(); updateWebToggleUI(); updateImageToggleUI(); document.body.classList.toggle('code-mode', S.codeMode); } catch (e) { console.error('Init error:', e); } setTimeout(dismissIntro, 4000); }
 
-        function setupScrollWatcher() { /* ... unchanged ... */ }
-        function setupInputListener() { /* ... unchanged ... */ }
+        function setupScrollWatcher() { const ca = document.getElementById('chat-area'); if (!ca) return; ca.addEventListener('scroll', () => { const far = ca.scrollHeight - ca.scrollTop - ca.clientHeight > 120; const btn = document.getElementById('scroll-btn'); if (btn) btn.classList.toggle('show', far); }); }
+        function setupInputListener() { const inp = document.getElementById('user-input'); if (!inp) return; inp.addEventListener('input', () => { const btn = document.getElementById('send-btn'); if (btn) btn.disabled = !inp.value.trim() || S.busy; }); }
 
-        function saveStore() { 
-            if (!S.settings.save) return; 
-            try { 
-                localStorage.setItem('vg_codemode', JSON.stringify(S.codeMode));
-                localStorage.setItem('vg_imagemode', JSON.stringify(S.imageMode)); // NEW
-                localStorage.setItem('vg_convos', JSON.stringify(S.convos)); 
-                localStorage.setItem('vg_settings', JSON.stringify(S.settings)); 
-            } catch (e) {} 
-        }
-        function loadStore() { 
-            try { 
-                const cm = localStorage.getItem('vg_codemode'); if (cm) S.codeMode = JSON.parse(cm);
-                const im = localStorage.getItem('vg_imagemode'); if (im) S.imageMode = JSON.parse(im); // NEW
-                const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; 
-                const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; 
-            } catch (e) { S.convos = {}; } 
-        }
+        function saveStore() { if (!S.settings.save) return; try { localStorage.setItem('vg_codemode', JSON.stringify(S.codeMode)); localStorage.setItem('vg_imagemode', JSON.stringify(S.imageMode)); localStorage.setItem('vg_convos', JSON.stringify(S.convos)); localStorage.setItem('vg_settings', JSON.stringify(S.settings)); } catch (e) {} }
+        function loadStore() { try { const cm = localStorage.getItem('vg_codemode'); if (cm) S.codeMode = JSON.parse(cm); const im = localStorage.getItem('vg_imagemode'); if (im) S.imageMode = JSON.parse(im); const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; } catch (e) { S.convos = {}; } }
 
-        // ---------- Search (unchanged) ----------
-        async function doSearch(query) { /* ... unchanged ... */ }
-        function buildSearchContext(searchData) { /* ... unchanged ... */ }
+        async function doSearch(query) { try { const res = await fetch('/api/search.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); if (!res.ok) return null; const data = await res.json(); return (data.results?.length || data.answer) ? data : null; } catch (e) { return null; } }
+        function buildSearchContext(searchData) { if (!searchData) return ''; let ctx = '\n\n--- LIVE WEB SEARCH RESULTS ---\n'; ctx += `(Today's date: ${new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })})\n\n`; if (searchData.answer) ctx += `DIRECT ANSWER FROM WEB: ${searchData.answer}\n\n`; const results = searchData.results || []; if (results.length) { ctx += 'SOURCES:\n'; results.forEach((r, i) => { ctx += `[${i+1}] ${r.title}\nURL: ${r.url}\n${r.snippet}\n\n`; }); } ctx += '--- USE THE ABOVE TO ANSWER ACCURATELY. ---\n'; return ctx; }
 
-        // ---------- Sidebar, Conversation, Rendering (unchanged except buildMsg) ----------
-        function openSidebar() { /* ... unchanged ... */ }
-        function closeSidebar() { /* ... unchanged ... */ }
-        function renderSB(filter = '') { /* ... unchanged ... */ }
+        function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-ov').classList.add('show'); }
+        function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-ov').classList.remove('show'); }
+
+        function renderSB(filter = '') { const ct = document.getElementById('chat-list'); if (!ct) return; const ids = Object.keys(S.convos).sort((a, b) => (S.convos[b].ts || 0) - (S.convos[a].ts || 0)); const list = filter ? ids.filter(id => (S.convos[id].title || '').toLowerCase().includes(filter.toLowerCase())) : ids; if (!list.length) { ct.innerHTML = `<div class="empty-list">${filter ? 'No matches' : 'No conversations yet'}</div>`; return; } ct.innerHTML = list.map(id => { const c = S.convos[id]; const active = id === S.activeId ? 'active' : ''; return `<div class="chat-item ${active}" onclick="switchConvo('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="chat-item-txt">${esc(c.title || 'Untitled')}</span><button class="chat-del" onclick="delConvo('${id}',event)" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></div>`; }).join(''); }
         function filterSB(v) { renderSB(v); }
+
         function uid() { return 'c' + Date.now() + Math.random().toString(36).slice(2, 7); }
-        function newChat() { /* ... unchanged ... */ }
-        function switchConvo(id) { /* ... unchanged ... */ }
-        function delConvo(id, e) { /* ... unchanged ... */ }
-        function clearAll() { /* ... unchanged ... */ }
-        function ensureConvo() { /* ... unchanged ... */ }
-        function curConvo() { /* ... unchanged ... */ }
-        function setTitle(t) { /* ... unchanged ... */ }
-        function mkTitle(raw) { /* ... unchanged ... */ }
-        function showEmpty() { /* ... unchanged ... */ }
+        function newChat() { S.activeId = null; showEmpty(); renderSB(); setTitle('New chat'); const inp = document.getElementById('user-input'); if (inp) { inp.value = ''; autoGrow(inp); inp.focus(); } const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true; }
+        function switchConvo(id) { if (!S.convos[id]) return; S.activeId = id; renderMsgs(); renderSB(); setTitle(S.convos[id].title || 'Chat'); saveStore(); closeSidebar(); }
+        function delConvo(id, e) { if (e) e.stopPropagation(); dlgConfirm('Delete conversation?', 'This cannot be undone.', () => { delete S.convos[id]; if (S.activeId === id) { S.activeId = null; showEmpty(); setTitle('New chat'); } renderSB(); saveStore(); toast('Deleted'); }, true); }
+        function clearAll() { dlgConfirm('Clear everything?', 'All conversations will be deleted permanently.', () => { S.convos = {}; S.activeId = null; showEmpty(); renderSB(); setTitle('New chat'); saveStore(); closeSidebar(); toast('Cleared'); }, true); }
+        function ensureConvo() { if (!S.activeId || !S.convos[S.activeId]) { const id = uid(); S.convos[id] = { id, title: 'New chat', msgs: [], ts: Date.now() }; S.activeId = id; } return S.convos[S.activeId]; }
+        function curConvo() { return S.activeId && S.convos[S.activeId] ? S.convos[S.activeId] : null; }
+        function setTitle(t) { const el = document.getElementById('tb-title'); if (el) el.textContent = t; }
+        function mkTitle(raw) { const t = raw.trim().replace(/\s+/g, ' '); return t.length > 40 ? t.slice(0, 40) + '...' : t; }
 
-        function renderMsgs() { 
-            const c = curConvo(); const ca = document.getElementById('chat-area'); 
-            if (!ca) return; 
-            if (!c || !c.msgs.length) { showEmpty(); return; } 
-            ca.innerHTML = c.msgs.map((m, i) => buildMsg(m, i)).join(''); 
-            attachCodeBtns(); 
-            scrollBot(); 
-        }
+        function showEmpty() { const ca = document.getElementById('chat-area'); if (!ca) return; ca.innerHTML = `<div id="empty-state"><img id="empty-logo" src="icon.webp" alt="0v"/><div id="empty-h">How can I help?</div><div id="empty-s">Ask me anything. I can write, explain, code, and more.</div></div>`; }
 
-        // UPDATED: Added "Continue" button for truncated messages
+        function renderMsgs() { const c = curConvo(); const ca = document.getElementById('chat-area'); if (!ca) return; if (!c || !c.msgs.length) { showEmpty(); return; } ca.innerHTML = c.msgs.map((m, i) => buildMsg(m, i)).join(''); attachCodeBtns(); scrollBot(); }
+
         function buildMsg(msg, idx) {
             const ts = S.settings.timestamps && msg.ts ? `<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>` : '';
-            if (msg.role === 'user') { 
-                return `<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`; 
-            }
-            // Assistant message
+            if (msg.role === 'user') { return `<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`; }
             const codeModeAttr = msg.codeMode ? 'data-codemode="true"' : '';
-            const badge = msg.searched ? `<div class="web-badge">...</div>` : '';
+            const badge = msg.searched ? `<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>` : '';
+            const directAnswer = msg.searched && msg.sources?.length ? `<div class="web-answer-box"><strong>📌 Web Answer:</strong> Based on current search results.</div>` : '';
             let thinkHtml = '';
-            if (msg.thinking) { thinkHtml = `...`; }
+            if (msg.thinking) { thinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')"><div class="ai-think-header"><svg class="ai-think-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg><span class="ai-think-label">Thinking...</span></div><div class="ai-think-body"><div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div></div></div>`; }
             let sourcesHtml = '';
-            if (msg.sources && msg.sources.length) { /* unchanged */ }
+            if (msg.sources && msg.sources.length) { const items = msg.sources.map(s => { let hostname = ''; try { hostname = new URL(s.url).hostname.replace('www.', ''); } catch (e) { hostname = s.url; } const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=32`; return `<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><img class="source-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'"/><div class="source-text"><span class="source-name">${esc(s.title || hostname)}</span><span class="source-url">${esc(hostname)}</span></div></a>`; }).join(''); sourcesHtml = `<div class="sources-wrap"><div class="sources-title">Sources</div>${items}</div>`; }
             const html = DOMPurify.sanitize(marked.parse(msg.content || ''));
             
-            // Build action buttons (Continue if truncated)
             let actionsHtml = '';
             if (msg.truncated) {
                 actionsHtml = `<button class="ma-btn continue-btn" onclick="continueMessage(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`;
             }
             
-            // Image display if present
             let imageHtml = '';
             if (msg.imageUrl) {
                 imageHtml = `<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
             }
             
-            return `<div class="msg-row ai" ${codeModeAttr}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt">${imageHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts">${actionsHtml}</div></div></div></div></div>`;
+            return `<div class="msg-row ai" ${codeModeAttr}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body">${badge}${directAnswer}${thinkHtml}<div class="ai-txt">${imageHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts">${actionsHtml}</div></div></div></div></div>`;
         }
 
-        function attachCodeBtns() { /* unchanged */ }
-        function cpyCode(btn) { /* unchanged */ }
-        function downloadCode(btn) { /* unchanged */ }
-        function viewCode(btn) { /* unchanged */ }
-        function closeView() { /* unchanged */ }
+        function attachCodeBtns() {
+            document.querySelectorAll('.ai-txt pre').forEach(pre => {
+                if (pre.closest('.code-wrap')) return;
+                const code = pre.querySelector('code'); const lang = (code?.className || '').replace('language-', '') || 'code';
+                const isCodeMode = pre.closest('.msg-row')?.dataset.codemode === 'true';
+                const wrap = document.createElement('div'); wrap.className = 'code-wrap';
+                const hdr = document.createElement('div'); hdr.className = 'code-hdr';
+                let extraBtns = '';
+                if (isCodeMode) {
+                    extraBtns = `<button class="view-btn" data-lang="${esc(lang)}" onclick="viewCode(this)" title="View"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button><button class="dl-btn" data-lang="${esc(lang)}" onclick="downloadCode(this)" title="Download"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
+                }
+                hdr.innerHTML = `<span class="code-lang">${esc(lang)}</span><div class="code-hdr-btns">${extraBtns}<button class="copy-code" onclick="cpyCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button></div>`;
+                pre.parentNode.insertBefore(wrap, pre); wrap.appendChild(hdr); wrap.appendChild(pre);
+            });
+        }
 
-        // ---------- Main Send Logic ----------
+        function cpyCode(btn) { const code = btn.closest('.code-wrap').querySelector('code').innerText; copyText(code, () => { const orig = btn.innerHTML; btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied`; setTimeout(() => { btn.innerHTML = orig; }, 1800); }); }
+
+        function downloadCode(btn) {
+            const codeEl = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
+            const code = codeEl.innerText; const lang = (btn.dataset.lang || 'code').toLowerCase();
+            const extMap = { 'html':'html','htm':'html','css':'css','scss':'scss','javascript':'js','js':'js','jsx':'jsx','typescript':'ts','ts':'ts','tsx':'tsx','python':'py','py':'py','java':'java','c':'c','cpp':'cpp','csharp':'cs','cs':'cs','go':'go','rust':'rs','rs':'rs','ruby':'rb','rb':'rb','php':'php','swift':'swift','kotlin':'kt','kt':'kt','sql':'sql','json':'json','xml':'xml','yaml':'yml','yml':'yml','markdown':'md','md':'md','bash':'sh','sh':'sh','shell':'sh','vue':'vue','svelte':'svelte','dart':'dart','lua':'lua' };
+            const ext = extMap[lang] || 'txt'; const filename = 'code.' + ext;
+            const blob = new Blob([code], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            toast('Downloaded ' + filename);
+        }
+
+        function viewCode(btn) {
+            const codeEl = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
+            const code = codeEl.innerText; const lang = (btn.dataset.lang || 'code').toLowerCase();
+            const frame = document.getElementById('view-frame'); const titleEl = document.getElementById('view-title');
+            let htmlContent = ''; const l = lang.replace('language-', '').toLowerCase();
+            if (l === 'html' || l === 'htm') { htmlContent = code; }
+            else if (l === 'css' || l === 'scss' || l === 'less') { htmlContent = `<!DOCTYPE html><html><head><style>${code}</style></head><body><h1>CSS View</h1><div class="container"><p>Paragraph text here.</p><button>Button</button><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul><div class="box">Box</div><input type="text" placeholder="Input field"><a href="#">Link</a></div></body></html>`; }
+            else if (l === 'javascript' || l === 'js' || l === 'jsx' || l === 'typescript' || l === 'ts' || l === 'tsx') { htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px;overflow-x:auto;font-size:13px}.error{color:#ff6b6b}</style></head><body><div id="output"></div><script>const _out=document.getElementById('output');const _log=console.log;const _err=console.error;console.log=(...a)=>{_out.innerHTML+='<pre>'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>';_log(...a)};console.error=(...a)=>{_out.innerHTML+='<pre class="error">'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>';_err(...a)};try{${code}}catch(e){_out.innerHTML+='<pre class="error">Error: '+e.message+'</pre>'}<\/script></body></html>`; }
+            else if (l === 'json') { try { const f = JSON.stringify(JSON.parse(code), null, 2); htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(f)}</body></html>`; } catch(e) { htmlContent = `<!DOCTYPE html><html><body style="background:#111;color:#ff6b6b;padding:20px;font-family:monospace">Invalid JSON: ${esc(e.message)}</body></html>`; } }
+            else if (l === 'svg') { htmlContent = `<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`; }
+            else { htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`; }
+            titleEl.textContent = 'View' + (l || 'code');
+            frame.srcdoc = htmlContent;
+            document.getElementById('view-ov').classList.add('show');
+        }
+
+        function closeView() { document.getElementById('view-frame').srcdoc = ''; document.getElementById('view-ov').classList.remove('show'); }
+
         async function sendMsg() {
             const inp = document.getElementById('user-input'); if (!inp) return;
             const raw = inp.value.trim(); if (!raw || S.busy) return;
             
             if (S.imageMode) {
-                // Image generation flow
-                const c = ensureConvo();
-                c.msgs.push({ role: 'user', content: raw, ts: Date.now() });
-                if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); }
-                c.ts = Date.now();
-                inp.value = ''; autoGrow(inp); 
-                const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
+                const c = ensureConvo(); c.msgs.push({ role: 'user', content: raw, ts: Date.now() });
+                if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); } c.ts = Date.now();
+                inp.value = ''; autoGrow(inp); const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
                 renderMsgs(); renderSB();
                 await generateImage(c, raw);
-                S.busy = false;
-                const sbtn = document.getElementById('send-btn'); if (sbtn) sbtn.disabled = !inp.value.trim();
+                S.busy = false; const sbtn = document.getElementById('send-btn'); if (sbtn) sbtn.disabled = !inp.value.trim();
                 return;
             }
             
-            // Existing text generation flow
-            const c = ensureConvo(); 
-            c.msgs.push({ role: 'user', content: raw, ts: Date.now() });
-            if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); } 
-            c.ts = Date.now();
-            inp.value = ''; autoGrow(inp); 
-            const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
+            const c = ensureConvo(); c.msgs.push({ role: 'user', content: raw, ts: Date.now() });
+            if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); } c.ts = Date.now();
+            inp.value = ''; autoGrow(inp); const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
             renderMsgs(); renderSB();
-            
             let searchData = null;
-            if (needsSearch(raw)) { 
-                if (!S.codeMode) showSearchIndicator(); 
-                searchData = await doSearch(raw); 
-                if (!S.codeMode) hideSearchIndicator(); 
-            }
-            const aiId = 'ai' + Date.now(); 
-            appendThinking(aiId); 
-            await generate(c, aiId, searchData);
+            if (needsSearch(raw)) { if (!S.codeMode) showSearchIndicator(); searchData = await doSearch(raw); if (!S.codeMode) hideSearchIndicator(); }
+            const aiId = 'ai' + Date.now(); appendThinking(aiId); await generate(c, aiId, searchData);
         }
 
-        function showSearchIndicator() { /* unchanged */ }
-        function hideSearchIndicator() { /* unchanged */ }
+        function showSearchIndicator() { const ca = document.getElementById('chat-area'); if (!ca) return; const el = document.createElement('div'); el.id = 'search-indicator'; el.className = 'search-indicator'; el.innerHTML = `<div class="search-indicator-inner"><div class="search-dot"></div><div class="search-dot"></div><div class="search-dot"></div><span class="search-label">Searching the web...</span></div>`; ca.appendChild(el); scrollBot(); }
+        function hideSearchIndicator() { document.getElementById('search-indicator')?.remove(); }
 
-        function appendThinking(id) { /* unchanged */ }
+        function appendThinking(id) {
+            const ca = document.getElementById('chat-area'); if (!ca) return;
+            const row = document.createElement('div'); row.className = 'msg-row ai'; row.id = id;
+            if (S.codeMode) {
+                row.innerHTML = `<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body"><div class="brain-wrap" id="${id}brain"><div class="brain-visual"><div class="brain-ring"></div><div class="brain-ring"></div><div class="brain-ring"></div><div class="brain-node" style="top:8px;left:18px"></div><div class="brain-node" style="top:22px;right:10px"></div><div class="brain-node" style="bottom:12px;left:12px"></div><div class="brain-node" style="top:50%;left:6px"></div><div class="brain-node" style="bottom:6px;right:18px"></div><div class="brain-node" style="top:10px;right:28px"></div><div class="brain-core"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0112 4.5V5a1 1 0 001 1 2.5 2.5 0 012.5 2.5v.5a1 1 0 001 1 2.5 2.5 0 010 5 1 1 0 00-1 1v.5A2.5 2.5 0 0112 19a1 1 0 01-1-1 2.5 2.5 0 00-5 0A1 1 0 015 19a2.5 2.5 0 01-2.5-2.5 1 1 0 00-1-1 2.5 2.5 0 010-5 1 1 0 001-1v-.5A2.5 2.5 0 016 6a1 1 0 001-1v-.5A2.5 2.5 0 019.5 2z"/></svg></div></div><div class="brain-step" id="${id}step">Reading your request...</div><div class="brain-progress"><div class="brain-progress-bar" id="${id}pbar"></div></div></div><div class="ai-txt" id="${id}txt" style="display:none"></div></div></div></div>`;
+            } else {
+                row.innerHTML = `<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body"><div class="ai-txt" id="${id}txt"><div class="typing-wrap"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div></div></div></div></div>`;
+            }
+            ca.appendChild(row);
+            const sr = document.createElement('div'); sr.id = 'stop-row'; sr.innerHTML = `<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
+            ca.appendChild(sr); scrollBot();
+            if (S.codeMode) startBrainCycle(id);
+        }
 
-        // UPDATED: generate now captures finish_reason
         async function generate(convo, aiId, searchData, isRetry = false, continueMode = false) {
             S.busy = true; S.abort = new AbortController();
             let sysPrompt = CF.systemPrompt;
-            if (S.codeMode) { sysPrompt += `\n\n- You are in CODE MODE — make things WORK.\n...`; }
+            if (S.codeMode) { sysPrompt += `\n\n- You are in CODE MODE — make things WORK.\n- NEVER say "you need a backend" without a working solution.\n- Use free APIs, CDNs, localStorage, Firebase free tier.\n- Output working code FIRST. Short explanations.\n- Use proper markdown code blocks with language tags.\n- Never leave "your-api-key-here" placeholders.\n- Prefer: client-side > free API > free BaaS > mock > "you can't"\n`; }
             if (searchData && (searchData.results?.length || searchData.answer)) { sysPrompt += buildSearchContext(searchData); }
-            
-            // If continuing, add instruction
-            if (continueMode) {
-                sysPrompt += `\n\n[SYSTEM NOTE: The previous response was cut off. Please continue exactly where you left off, maintaining the same style and content. Do not repeat any part of the previous message.]`;
-            }
-            
+            if (continueMode) { sysPrompt += `\n\n[SYSTEM NOTE: The previous response was cut off. Please continue exactly where you left off, maintaining the same style and content. Do not repeat any part of the previous message.]`; }
             const msgs = convo.msgs.map(m => ({ role: m.role, content: m.content }));
-            const txtEl = document.getElementById(aiId + 'txt'); 
-            const brainEl = document.getElementById(aiId + 'brain');
+            const txtEl = document.getElementById(aiId + 'txt'); const brainEl = document.getElementById(aiId + 'brain');
             let full = '', errored = false, brainRevealed = false, finishReason = null;
-            
             try {
-                const res = await fetch('/api/chat.js', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        messages: msgs, 
-                        systemPrompt: sysPrompt, 
-                        temperature: S.settings.temperature, 
-                        maxTokens: continueMode ? 4096 : 4096  // can increase if needed
-                    }), 
-                    signal: S.abort.signal 
-                });
+                const res = await fetch('/api/chat.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: msgs, systemPrompt: sysPrompt, temperature: S.settings.temperature, maxTokens: 4096 }), signal: S.abort.signal });
                 if (!res.ok) throw new Error('Request failed');
-                
-                function revealText() { /* unchanged */ }
-                
+                function revealText() { if (brainRevealed) return; brainRevealed = true; stopBrainCycle(); if (brainEl) { brainEl.style.opacity = '0'; brainEl.style.maxHeight = '0'; brainEl.style.padding = '0'; setTimeout(() => { if (brainEl) brainEl.style.display = 'none'; }, 350); } if (txtEl) txtEl.style.display = ''; }
                 if (S.settings.streaming && res.body) {
                     const reader = res.body.getReader(); const dec = new TextDecoder();
-                    while (true) { 
-                        const { done, value } = await reader.read(); 
-                        if (done) break; 
-                        const chunk = dec.decode(value, { stream: true }); 
-                        for (const line of chunk.split('\n')) { 
-                            if (!line.startsWith('data: ')) continue; 
-                            const data = line.slice(6).trim(); 
-                            if (data === '[DONE]') continue; 
-                            try { 
-                                const d = JSON.parse(data); 
-                                const delta = d.choices?.[0]?.delta?.content || ''; 
-                                if (delta) { 
-                                    full += delta; 
-                                    if (txtEl) { 
-                                        revealText(); 
-                                        txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full)) + '<span class="stream-cur"></span>'; 
-                                        if (S.settings.autoscroll) scrollBot(); 
-                                    } 
-                                }
-                                // Capture finish_reason from any chunk
-                                if (d.choices?.[0]?.finish_reason) {
-                                    finishReason = d.choices[0].finish_reason;
-                                }
-                            } catch {} 
-                        } 
-                    }
-                } else { 
-                    const d = await res.json(); 
-                    full = d.choices?.[0]?.message?.content || ''; 
-                    finishReason = d.choices?.[0]?.finish_reason;
-                }
-            } catch (err) { 
-                if (err.name !== 'AbortError') { errored = true; showErrRow(); } 
-                else if (!full) { full = '_(Stopped)_'; } 
-            }
-            
-            stopBrainCycle(); 
-            document.getElementById(aiId)?.remove(); 
-            document.getElementById('stop-row')?.remove();
-            
+                    while (true) { const { done, value } = await reader.read(); if (done) break; const chunk = dec.decode(value, { stream: true }); for (const line of chunk.split('\n')) { if (!line.startsWith('data: ')) continue; const data = line.slice(6).trim(); if (data === '[DONE]') continue; try { const d = JSON.parse(data); const delta = d.choices?.[0]?.delta?.content || ''; if (delta) { full += delta; if (txtEl) { revealText(); txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full)) + '<span class="stream-cur"></span>'; if (S.settings.autoscroll) scrollBot(); } } if (d.choices?.[0]?.finish_reason) { finishReason = d.choices[0].finish_reason; } } catch {} } }
+                } else { const d = await res.json(); full = d.choices?.[0]?.message?.content || ''; finishReason = d.choices?.[0]?.finish_reason; }
+            } catch (err) { if (err.name !== 'AbortError') { errored = true; showErrRow(); } else if (!full) { full = '_(Stopped)_'; } }
+            stopBrainCycle(); document.getElementById(aiId)?.remove(); document.getElementById('stop-row')?.remove();
             if (!errored) {
                 const { thinking, answer } = extractThinking(full);
                 const truncated = (finishReason === 'length');
-                convo.msgs.push({ 
-                    role: 'assistant', 
-                    content: answer || full || '(empty response)', 
-                    ts: Date.now(), 
-                    searched: !!(searchData), 
-                    sources: searchData?.results || [], 
-                    codeMode: S.codeMode, 
-                    thinking: thinking,
-                    truncated: truncated   // NEW
-                });
-                
-                // Existing auto-search retry logic...
+                convo.msgs.push({ role: 'assistant', content: answer || full || '(empty response)', ts: Date.now(), searched: !!(searchData), sources: searchData?.results || [], codeMode: S.codeMode, thinking: thinking, truncated: truncated });
                 if (!searchData && !isRetry && aiDoesNotKnow(answer || full)) {
-                    // ... unchanged ...
+                    const lastUserMsg = [...convo.msgs].reverse().find(m => m.role === 'user');
+                    if (lastUserMsg) { convo.msgs.pop(); renderMsgs(); if (!S.codeMode) showSearchIndicator(); const newSearchData = await doSearch(lastUserMsg.content); if (!S.codeMode) hideSearchIndicator(); if (newSearchData) { toast('Looking that up...'); const retryId = 'ai' + Date.now(); appendThinking(retryId); await generate(convo, retryId, newSearchData, true); return; } else { convo.msgs.push({ role: 'assistant', content: full, ts: Date.now(), searched: false, sources: [], codeMode: S.codeMode, thinking: thinking, truncated: truncated }); } }
                 }
-                
                 renderMsgs(); saveStore();
             }
-            
-            S.busy = false; S.abort = null; 
-            const inp = document.getElementById('user-input'); 
-            const sbtn = document.getElementById('send-btn'); 
-            if (sbtn) sbtn.disabled = !inp || !inp.value.trim(); 
-            scrollBot();
+            S.busy = false; S.abort = null; const inp = document.getElementById('user-input'); const sbtn = document.getElementById('send-btn'); if (sbtn) sbtn.disabled = !inp || !inp.value.trim(); scrollBot();
         }
 
-        // NEW: Continue truncated message
         async function continueMessage(msgIndex) {
-            const c = curConvo();
-            if (!c || S.busy) return;
-            const msg = c.msgs[msgIndex];
-            if (!msg || msg.role !== 'assistant') return;
-            
-            // Remove the truncated flag from the message we're continuing
+            const c = curConvo(); if (!c || S.busy) return;
+            const msg = c.msgs[msgIndex]; if (!msg || msg.role !== 'assistant') return;
             msg.truncated = false;
-            
-            // Add a new thinking placeholder
-            const aiId = 'ai' + Date.now();
-            appendThinking(aiId);
-            
-            // Generate continuation
+            const aiId = 'ai' + Date.now(); appendThinking(aiId);
             await generate(c, aiId, null, false, true);
         }
 
-        // NEW: Image generation using Pollinations.ai
         async function generateImage(convo, prompt) {
-            S.busy = true;
-            const aiId = 'img' + Date.now();
-            
-            // Add placeholder thinking message
+            S.busy = true; const aiId = 'img' + Date.now();
             const ca = document.getElementById('chat-area');
-            const row = document.createElement('div');
-            row.className = 'msg-row ai';
-            row.id = aiId;
+            const row = document.createElement('div'); row.className = 'msg-row ai'; row.id = aiId;
             row.innerHTML = `<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body"><div class="ai-txt"><div class="image-loading">Generating image...</div></div></div></div></div>`;
-            ca.appendChild(row);
-            scrollBot();
-            
+            ca.appendChild(row); scrollBot();
             try {
                 const encodedPrompt = encodeURIComponent(prompt);
-                // Use Pollinations.ai image endpoint (free, no API key)
                 const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux`;
-                
-                // Preload image to ensure it loads
-                const img = new Image();
-                img.src = imageUrl;
-                await new Promise((resolve, reject) => {
-                    img.onload = resolve;
-                    img.onerror = reject;
-                    setTimeout(() => reject(new Error('Timeout')), 30000);
-                });
-                
-                // Add assistant message with image
-                convo.msgs.push({
-                    role: 'assistant',
-                    content: `Generated image for: "${prompt}"`,
-                    imageUrl: imageUrl,
-                    ts: Date.now(),
-                    truncated: false
-                });
+                const img = new Image(); img.src = imageUrl;
+                await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; setTimeout(() => reject(new Error('Timeout')), 30000); });
+                convo.msgs.push({ role: 'assistant', content: `Generated image for: "${prompt}"`, imageUrl: imageUrl, ts: Date.now(), truncated: false });
             } catch (err) {
-                convo.msgs.push({
-                    role: 'assistant',
-                    content: `Failed to generate image. ${err.message}`,
-                    ts: Date.now(),
-                    truncated: false
-                });
+                convo.msgs.push({ role: 'assistant', content: `Failed to generate image. ${err.message}`, ts: Date.now(), truncated: false });
                 toast('Image generation failed');
             }
-            
-            document.getElementById(aiId)?.remove();
-            renderMsgs();
-            saveStore();
-            S.busy = false;
+            document.getElementById(aiId)?.remove(); renderMsgs(); saveStore(); S.busy = false;
         }
 
-        function stopGen() { /* unchanged */ }
-        function showErrRow() { /* unchanged */ }
-        function retryLast() { /* unchanged */ }
+        function stopGen() { if (S.abort) S.abort.abort(); stopBrainCycle(); toast('Stopped'); }
+        function showErrRow() { const ca = document.getElementById('chat-area'); if (!ca) return; const r = document.createElement('div'); r.className = 'err-row'; r.id = 'err-row'; r.innerHTML = `<div class="err-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="err-msg">Failed to get response</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`; ca.appendChild(r); }
+        function retryLast() { const c = curConvo(); if (!c || S.busy) return; document.getElementById('err-row')?.remove(); const aiId = 'ai' + Date.now(); appendThinking(aiId); generate(c, aiId, null); }
 
-        function autoGrow(el) { /* unchanged */ }
-        function onKey(e) { /* unchanged */ }
-        function isMobile() { /* unchanged */ }
-        function scrollBot(smooth = false) { /* unchanged */ }
+        function autoGrow(el) { if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
+        function onKey(e) { if (e.key === 'Enter' && !e.shiftKey && !isMobile()) { e.preventDefault(); sendMsg(); } }
+        function isMobile() { return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 'ontouchstart' in window; }
+        function scrollBot(smooth = false) { const ca = document.getElementById('chat-area'); if (!ca) return; ca.scrollTo({ top: ca.scrollHeight, behavior: smooth ? 'smooth' : 'auto' }); }
 
-        // Dialog, Settings, Toast, etc. (unchanged)
-        function showDialog(opts) { /* ... unchanged ... */ }
-        function closeDialog() { /* ... unchanged ... */ }
-        function dlgConfirm(title, msg, onYes, danger) { /* ... unchanged ... */ }
-        function openSettings() { /* ... unchanged ... */ }
-        function closeSettings() { /* ... unchanged ... */ }
-        function renderSettings() { /* ... unchanged ... */ }
-        function togSet(k, el) { /* ... unchanged ... */ }
-        function updSL(k, v, el) { /* ... unchanged ... */ }
-        function nukeAll() { /* ... unchanged ... */ }
-        function copyText(text, onDone) { /* ... unchanged ... */ }
-        function fallbackCopy(text, onDone) { /* ... unchanged ... */ }
-        function toast(msg, dur = 2200) { /* ... unchanged ... */ }
+        function showDialog(opts) { const ov = document.getElementById('dialog-ov'); const tit = document.getElementById('dialog-title'); const msg = document.getElementById('dialog-msg'); const inpW = document.getElementById('dialog-input-wrap'); const inp = document.getElementById('dialog-input'); const bts = document.getElementById('dialog-btns'); tit.textContent = opts.title || ''; msg.textContent = opts.msg || ''; if (opts.input) { inpW.style.display = 'block'; inp.value = opts.inputVal || ''; inp.placeholder = opts.input; } else { inpW.style.display = 'none'; } bts.innerHTML = ''; if (opts.cancel !== false) { const cb = document.createElement('button'); cb.className = 'dlg-btn cancel'; cb.textContent = opts.cancelText || 'Cancel'; cb.onclick = () => closeDialog(); bts.appendChild(cb); } const ok = document.createElement('button'); ok.className = 'dlg-btn ' + (opts.danger ? 'danger' : 'confirm'); ok.textContent = opts.confirmText || 'OK'; ok.onclick = () => { const val = inp.value; closeDialog(); if (opts.onConfirm) opts.onConfirm(val); }; bts.appendChild(ok); ov.classList.add('show'); if (opts.input) { setTimeout(() => inp.focus(), 100); inp.onkeydown = e => { if (e.key === 'Enter') ok.click(); }; } }
+        function closeDialog() { document.getElementById('dialog-ov').classList.remove('show'); }
+        function dlgConfirm(title, msg, onYes, danger) { showDialog({ title, msg, onConfirm: onYes, danger, confirmText: danger ? 'Delete' : 'Confirm' }); }
+
+        function openSettings() { closeSidebar(); renderSettings(); document.getElementById('sheet-title').textContent = 'Settings'; document.getElementById('settings-ov').classList.add('show'); }
+        function closeSettings() { document.getElementById('settings-ov').classList.remove('show'); }
+        function renderSettings() { const body = document.getElementById('sheet-body'); if (!body) return; body.innerHTML = `<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-detect search</div><div class="s-desc">Auto-search when topic is unfamiliar</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Generation</div><div class="s-row"><div class="s-row-info"><div class="s-name">Streaming</div><div class="s-desc">Show words as they arrive</div></div><div class="tog ${S.settings.streaming?'on':''}" onclick="togSet('streaming',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Temperature</div><div class="s-desc">Creativity (${S.settings.temperature.toFixed(1)})</div></div><div class="sl-wrap"><input type="range" min="0" max="2" step="0.1" value="${S.settings.temperature}" oninput="updSL('temperature',this.value,this)"/><span class="sl-v" id="sv-temp">${S.settings.temperature.toFixed(1)}</span></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`; }
+        function togSet(k, el) { S.settings[k] = !S.settings[k]; if (el) el.classList.toggle('on', S.settings[k]); saveStore(); }
+        function updSL(k, v, el) { const val = parseFloat(v); S.settings[k] = val; const label = el.nextElementSibling; if (label) label.textContent = val.toFixed(1); saveStore(); }
+        function nukeAll() { dlgConfirm('Reset everything?', 'All data will be wiped.', () => { try { localStorage.clear(); } catch (e) {} location.reload(); }, true); }
+
+        function copyText(text, onDone) { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(onDone).catch(() => fallbackCopy(text, onDone)); } else { fallbackCopy(text, onDone); } }
+        function fallbackCopy(text, onDone) { try { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); if (onDone) onDone(); } catch (e) { toast('Copy failed'); } }
+
+        function toast(msg, dur = 2200) { const ct = document.getElementById('toast-ct'); if (!ct) return; ct.innerHTML = ''; if (toastTimeout) { clearTimeout(toastTimeout); toastTimeout = null; } const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; ct.appendChild(el); toastTimeout = setTimeout(() => { el.classList.add('bye'); setTimeout(() => el.remove(), 220); toastTimeout = null; }, dur); }
+
         function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     </script>
 </body>
