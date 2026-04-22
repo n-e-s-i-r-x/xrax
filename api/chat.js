@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -18,13 +19,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid messages' });
   }
 
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error('OPENROUTER_API_KEY not configured');
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://vertigozi.vercel.app',
+        'HTTP-Referer': process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vertigozi.vercel.app',
         'X-Title': 'Vertigo AI'
       },
       body: JSON.stringify({
@@ -41,30 +48,40 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const err = await response.text();
+      console.error('OpenRouter error:', response.status, err);
       return res.status(response.status).json({ error: err });
     }
 
+    // Set up SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split('\n')) {
-        if (line.startsWith('data: ')) {
-          res.write(line + '\n\n');
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            res.write(line + '\n\n');
+          }
         }
       }
+    } catch (streamErr) {
+      console.error('Stream error:', streamErr);
     }
 
+    res.write('data: [DONE]\n\n');
     res.end();
   } catch (err) {
-    console.error(err);
+    console.error('Handler error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
