@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<mfunction cpyMsg(eta charset="UTF-8"/>
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>0v Ai</title>
 <link rel="icon" href="icon.webp" type="image/png"/>
@@ -37,7 +37,7 @@ body {
 }
 button, input, textarea {
   font-family: 'M';
-  font-size: 'M';
+  font-size: 16px;
   color: inherit;
 }
 button { cursor: pointer; border: none; background: none; }
@@ -1593,7 +1593,7 @@ async function generate(convo, aiId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: msgs,
-        systemPrompt: CFG.systemPrompt,
+        systemPrompt: CF.systemPrompt,
         temperature: S.settings.temperature,
         maxTokens: 4096,
       }),
