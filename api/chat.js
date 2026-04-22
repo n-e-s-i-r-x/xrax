@@ -29,7 +29,7 @@ export default async function handler(req) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'nvidia/nemotron-nano-9b-v2:free', // 🔥 key change
+          model: 'openai/gpt-5.1-codex-mini', // 🔥 key change
           messages: [
             { role: 'system', content: systemPrompt || 'Be short and fast.' },
             ...trimmedMessages
