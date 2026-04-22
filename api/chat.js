@@ -1,83 +1,77 @@
-export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(200).end();
-  }
+export const config = {
+  runtime: 'edge',
+};
 
+export default async function handler(req) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return new Response('Method not allowed', { status: 405 });
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
-  const { messages, systemPrompt, temperature, maxTokens } = req.body;
-  if (!messages || !Array.isArray(messages)) {
-    return res.status(400).json({ error: 'Invalid messages' });
-  }
-
+  const { messages, systemPrompt } = await req.json();
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
 
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,                     // ✅ Fixed
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`                   // ✅ Fixed
-          : 'https://0vai.vercel.app',
-        'X-Title': '0v AI'
-      },
-      body: JSON.stringify({
-        model: 'nvidia/nemotron-nano-9b-v2:free',
-        //z-ai/glm-5.1:exacto
-        messages: [
-          { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
-          ...messages
-        ],
-        temperature: temperature ?? 0.7,
-        max_tokens: maxTokens ?? 4096,
-        stream: true
-      })
-    });
+  const trimmedMessages = messages.slice(-4); // 🔥 VERY aggressive
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('OpenRouter error:', response.status, err);
-      return res.status(response.status).json({ error: err });
-    }
+  const encoder = new TextEncoder();
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
+  const stream = new ReadableStream({
+    async start(controller) {
+      // ⚡ 1. INSTANT RESPONSE (0ms perceived latency)
+      controller.enqueue(
+        encoder.encode(`data: {"choices":[{"delta":{"content":"..."}}]}\n\n`)
+      );
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+      // ⚡ 2. CALL MODEL (fastest available)
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini', // 🔥 key change
+          messages: [
+            { role: 'system', content: systemPrompt || 'Be short and fast.' },
+            ...trimmedMessages
+          ],
+          temperature: 0.3, // 🔥 lower = faster + more deterministic
+          max_tokens: 300,  // 🔥 shorter = faster
+          stream: true
+        }),
+      });
 
-    try {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
           if (line.startsWith('data: ')) {
-            res.write(line + '\n\n');
+            controller.enqueue(encoder.encode(line + '\n\n'));
           }
         }
       }
-    } catch (streamErr) {
-      console.error('Stream error:', streamErr);
-    }
 
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (err) {
-    console.error('Handler error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+      // ⚡ 3. DONE SIGNAL
+      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    },
+  });
 }
