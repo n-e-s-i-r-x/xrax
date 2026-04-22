@@ -69,87 +69,6 @@
         .ai-think-header:active { background: #111; }
         .ai-think-chevron { transition: transform 0.25s ease; color: #555; flex-shrink: 0; }
         .ai-think.open .ai-think-chevron { transform: rotate(90deg); }
-        .ai-think-label { font-size: 12px; font-weight: 600; color: #666; }
-        .ai-think-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
-        .ai-think.open .ai-think-body { max-height: 500px; overflow-y: auto; }
-        .ai-think-content { padding: 10px 12px; font-size: 13px; line-height: 1.5; color: #777; border-top: 1px solid #141 is the complete, full HTML file with only the 3 fixes applied. Nothing else changed:
-
-1. **"Run" button → "Preview"** with an eye icon
-2. **Preview button same style as Save/Copy** (fixed not pressing, fixed big text)
-3. **Sidebar fixed** (was missing the `sb-name` div which broke the layout)
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>0v Ai</title>
-    <link rel="icon" href="icon.webp" type="image/png">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-    <style>
-        @font-face { font-family: 'M'; src: url('M.ttf') format('truetype'); font-weight: normal; font-style: normal; }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; overflow: hidden; }
-        body { font-family: 'M', BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #000; color: #fff; -webkit-font-smoothing: antialiased; font-size: 16px; overscroll-behavior: none; }
-        button, input, textarea { font-family: 'M'; font-size: 16px; color: inherit; }
-        button { cursor: pointer; border: none; background: none; }
-        input, textarea { outline: none; border: none; background: none; }
-        ::-webkit-scrollbar { width: 0; height: 0; }
-
-        #intro { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 1.0s ease; }
-        #intro.hide { opacity: 0; pointer-events: none; }
-        #intro-logo { width: 72px; height: 72px; object-fit: contain; animation: introPop 3.0s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; background: none !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
-        @keyframes introPop { 0% { opacity: 0; transform: scale(0.6); } 100% { opacity: 1; transform: scale(1); } }
-        #intro-pulse { position: absolute; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.05); animation: pulse 1.5s ease-out infinite; }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.5); opacity: 0; } }
-
-        #app { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; opacity: 0; transition: opacity 0.4s ease; }
-        #app.ready { opacity: 1; }
-
-        #topbar { flex-shrink: 0; display: flex; align-items: center; padding: 0 12px; gap: 10px; background: #000; border-bottom: 1px solid #141414; padding-top: env(safe-area-inset-top); height: calc(56px + env(safe-area-inset-top)); }
-        .tb-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #888; flex-shrink: 0; transition: background 0.15s, color 0.15s, transform 0.1s; }
-        .tb-btn:active { background: #141414; color: #fff; transform: scale(0.92); }
-        .tb-center { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
-        .tb-title { font-size: 15px; font-weight: 600; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-        .tb-sub { display: none; }
-
-        #chat-wrap { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        #chat-area { flex: 1; overflow-y: auto; padding: 16px 0 8px; -webkit-overflow-scrolling: touch; }
-
-        #empty-state { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 14px; animation: fadeUp 0.5s ease; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        #empty-logo { width: 60px; height: 60px; object-fit: contain; opacity: 0.5; background: none !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; }
-        #empty-h { font-size: 22px; font-weight: 700; color: #ddd; text-align: center; }
-        #empty-s { font-size: 14px; color: #555; text-align: center; max-width: 300px; line-height: 1.5; }
-
-        .msg-row { padding: 4px 0; animation: msgIn 0.3s ease; }
-        @keyframes msgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .msg-in { padding: 0 14px; }
-        .msg-row.user .msg-in { display: flex; flex-direction: column; align-items: flex-end; }
-        .u-bubble { background: #1a1a1a; border-radius: 18px 18px 4px 18px; padding: 10px 14px; max-width: 85%; font-size: 15px; line-height: 1.5; color: #fff; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
-
-        .msg-row.ai .msg-content { display: flex; gap: 10px; align-items: flex-start; }
-        .ai-av { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; background: none !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
-        .ai-body { flex: 1; min-width: 0; }
-        .ai-name { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 4px; }
-        .ai-txt { font-size: 15px; line-height: 1.6; color: #ddd; word-wrap: break-word; overflow-wrap: break-word; }
-        .ai-txt h1, .ai-txt h2, .ai-txt h3 { color: #fff; margin: 12px 0 6px; font-weight: 600; }
-        .ai-txt h1 { font-size: 20px; } .ai-txt h2 { font-size: 17px; } .ai-txt h3 { font-size: 15px; }
-        .ai-txt p { margin: 0 0 8px; } .ai-txt p:last-child { margin: 0; }
-        .ai-txt ul, .ai-txt ol { margin: 6px 0 8px 20px; } .ai-txt li { margin: 3px 0; }
-        .ai-txt strong { color: #fff; font-weight: 600; }
-        .ai-txt a { color: #4a9eff; text-decoration: underline; }
-        .ai-txt blockquote { border-left: 3px solid #2a2a2a; padding: 4px 12px; color: #888; margin: 8px 0; }
-        .ai-txt code:not(pre code) { background: #1a1a1a; border-radius: 4px; padding: 2px 6px; font-family: 'M', Menlo, monospace; font-size: 13px; color: #ddd; }
-
-        .ai-think { margin-bottom: 10px; border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; }
-        .ai-think-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0a0a0a; cursor: pointer; user-select: none; }
-        .ai-think-header:active { background: #111; }
-        .ai-think-chevron { transition: transform 0.25s ease; color: #555; flex-shrink: 0; }
-        .ai-think.open .ai-think-chevron { transform: rotate(90deg); }
         .ai-think-label { font-size: 12px; font-weight: 600; color: #666; letter-spacing: 0.3px; }
         .ai-think-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
         .ai-think.open .ai-think-body { max-height: 500px; overflow-y: auto; }
@@ -258,7 +177,7 @@
         .sb-search input::placeholder { color: #444; }
         .sb-lbl { padding: 10px 16px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #444; }
         .chat-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
-        .chat-item { padding: 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px; margin-bottom: 2px; transition: background 0.15s; }
+        .chat-item { padding: 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px; margin-bottom: 2px; transition: background 0.15s; cursor: pointer; }
         .chat-item:active { background: #141414; } .chat-item.active { background: #1a1a1a; }
         .chat-item svg { color: #555; flex-shrink: 0; }
         .chat-item-txt { flex: 1; font-size: 14px; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -267,7 +186,7 @@
         .chat-del:active { background: #2a1010; color: #cc6666; }
         .empty-list { padding: 40px 16px; text-align: center; color: #444; font-size: 13px; }
         .sb-foot { padding: 8px; border-top: 1px solid #141414; display: flex; flex-direction: column; gap: 2px; }
-        .sb-fbtn { padding: 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px; color: #aaa; font-size: 14px; text-align: left; transition: background 0.15s; }
+        .sb-fbtn { padding: 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px; color: #aaa; font-size: 14px; text-align: left; transition: background 0.15s; cursor: pointer; }
         .sb-fbtn:active { background: #141414; }
         .sb-fbtn.danger { color: #cc6666; } .sb-fbtn.danger:active { background: #1a0808; }
 
@@ -304,7 +223,7 @@
         .s-row-info { flex: 1; min-width: 0; }
         .s-name { font-size: 14px; color: #ddd; }
         .s-desc { font-size: 12px; color: #555; margin-top: 2px; }
-        .tog { width: 48px; height: 28px; background: #2a2a2a; border-radius: 99px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+        .tog { width: 48px; height: 28px; background: #2a2a2a; border-radius: 99px; position: relative; transition: background 0.2s; flex-shrink: 0; cursor: pointer; }
         .tog.on { background: #4ade80; }
         .tog::after { content: ''; position: absolute; width: 22px; height: 22px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .tog.on::after { transform: translateX(20px); }
@@ -312,7 +231,7 @@
         input[type=range] { -webkit-appearance: none; width: 110px; height: 4px; background: #2a2a2a; border-radius: 99px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #fff; border-radius: 50%; cursor: pointer; }
         .sl-v { font-size: 13px; color: #aaa; min-width: 38px; text-align: right; }
-        .s-btn { padding: 8px 14px; background: #2a1010; border: 1px solid #3a1515; border-radius: 8px; color: #e06060; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.1s; }
+        .s-btn { padding: 8px 14px; background: #2a1010; border: 1px solid #3a1515; border-radius: 8px; color: #e06060; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.1s; cursor: pointer; }
         .s-btn:active { background: #3a1515; transform: scale(0.96); }
 
         #toast-ct { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 20px; }
@@ -332,7 +251,7 @@
         #preview-ov.show { display: flex; }
         .preview-topbar { flex-shrink: 0; display: flex; align-items: center; padding: 0 12px; gap: 10px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; padding-top: env(safe-area-inset-top); height: calc(50px + env(safe-area-inset-top)); }
         .preview-title { flex: 1; font-size: 14px; font-weight: 600; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .preview-close { width: 36px; height: 36px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #aaa; transition: background 0.15s; }
+        .preview-close { width: 36px; height: 36px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #aaa; transition: background 0.15s; cursor: pointer; }
         .preview-close:active { background: #252525; }
         .preview-frame-wrap { flex: 1; overflow: hidden; background: #fff; }
         .preview-frame-wrap iframe { width: 100%; height: 100%; border: none; background: #fff; }
@@ -367,7 +286,7 @@
         <div class="sb-lbl">Conversations</div><div class="chat-list" id="chat-list"></div>
         <div class="sb-foot">
             <button class="sb-fbtn" onclick="openSettings()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>Settings</button>
-            <button class="sb-fbtn danger" onclick="clearAll()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></line><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>Clear all</button>
+            <button class="sb-fbtn danger" onclick="clearAll()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>Clear all</button>
         </div>
     </div>
     <div id="dialog-ov"><div id="dialog-box"><div id="dialog-title"></div><div id="dialog-msg"></div><div id="dialog-input-wrap" style="display:none"><input id="dialog-input" type="text"></div><div id="dialog-btns"></div></div></div>
