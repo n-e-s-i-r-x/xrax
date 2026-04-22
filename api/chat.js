@@ -1,4 +1,6 @@
-export const config = { runtime: 'edge' };
+export const config = {
+  runtime: 'edge',
+};
 
 export default async function handler(req) {
   if (req.method !== 'POST') {
@@ -8,70 +10,68 @@ export default async function handler(req) {
   const { messages, systemPrompt } = await req.json();
   const apiKey = process.env.OPENROUTER_API_KEY;
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      // ⚡ USE A CONFIRMED MODEL FIRST
-      model: 'openai/gpt-4o-mini',
+  const trimmedMessages = messages.slice(-4); // 🔥 VERY aggressive
 
-      messages: [
-        { role: 'system', content: systemPrompt || 'Be short.' },
-        ...messages.slice(-6),
-      ],
+  const encoder = new TextEncoder();
 
-      temperature: 0.2,
-      max_tokens: 400,
-      stream: true,
-    }),
-  });
+  const stream = new ReadableStream({
+    async start(controller) {
+      // ⚡ 1. INSTANT RESPONSE (0ms perceived latency)
+      controller.enqueue(
+        encoder.encode(`data: {"choices":[{"delta":{"content":"..."}}]}\n\n`)
+      );
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
+      // ⚡ 2. CALL MODEL (fastest available)
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini', // 🔥 key change
+          messages: [
+            { role: 'system', content: systemPrompt || 'Be short and fast.' },
+            ...trimmedMessages
+          ],
+          temperature: 0.3, // 🔥 lower = faster + more deterministic
+          max_tokens: 99999999,  // 🔥 shorter = faster
+          stream: true
+        }),
+      });
 
-  let buffer = '';
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-  return new Response(
-    new ReadableStream({
-      async start(controller) {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+      let buffer = '';
 
-          buffer += decoder.decode(value, { stream: true });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          const lines = buffer.split('\n');
-          buffer = lines.pop();
+        buffer += decoder.decode(value, { stream: true });
 
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
 
-            const data = line.replace('data: ', '');
-
-            if (data === '[DONE]') continue;
-
-            try {
-              const json = JSON.parse(data);
-              const token = json?.choices?.[0]?.delta?.content;
-
-              if (token) controller.enqueue(new TextEncoder().encode(token));
-            } catch {
-              // ignore broken chunks safely
-            }
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            controller.enqueue(encoder.encode(line + '\n\n'));
           }
         }
+      }
 
-        controller.close();
-      },
-    }),
-    {
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'no-cache',
-      },
-    }
-  );
+      // ⚡ 3. DONE SIGNAL
+      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    },
+  });
 }
