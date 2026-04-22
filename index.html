@@ -322,8 +322,7 @@
         if (typeof marked === 'undefined') { window.marked = { parse: s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') }; }
         if (typeof DOMPurify === 'undefined') { window.DOMPurify = { sanitize: s => s }; }
 
-        const MODEL_TEXT = 'deepseek/deepseek-v3.2';
-        const MODEL_CODE = 'z-ai/glm-5.1:exacto';
+        const MODEL = 'z-ai/glm-5.1:exacto';
 
         const CF = {
             systemPrompt: `You are 0v, and you're model is 0.
@@ -655,7 +654,6 @@
             const txtEl = document.getElementById(aiId + 'txt');
             const brainEl = document.getElementById(aiId + 'brain');
             let full = '', errored = false, brainRevealed = false;
-            const chosenModel = S.codeMode ? MODEL_CODE : MODEL_TEXT;
 
             function revealText() {
                 if (brainRevealed) return; brainRevealed = true;
@@ -668,7 +666,7 @@
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: msgs, systemPrompt: sysPrompt, temperature: S.settings.temperature, maxTokens: 4096, model: chosenModel }),
+                    body: JSON.stringify({ messages: msgs, systemPrompt: sysPrompt, temperature: S.settings.temperature, maxTokens: 4096 }),
                     signal: S.abort.signal
                 });
                 if (!res.ok) throw new Error('Request failed');
