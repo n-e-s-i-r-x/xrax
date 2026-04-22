@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         'X-Title': '0v AI'
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-v3.2:exacto',
+        model: 'sao10k/l3.3-euryale-70b',
         messages: [
           { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
           ...messages
