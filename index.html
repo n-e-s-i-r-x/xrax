@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <style>
+      /* ... (all existing CSS remains exactly the same) ... */
       @font-face {
         font-family: "M";
         src: url("M.ttf") format("truetype");
@@ -701,11 +702,13 @@
   </head>
 
   <body>
+    <!-- INTRO -->
     <div id="intro">
       <div id="intro-pulse"></div>
       <img id="intro-logo" src="icon.webp" alt="" />
     </div>
 
+    <!-- APP -->
     <div id="app">
       <div id="topbar">
         <button class="tb-btn" onclick="openSidebar()" aria-label="Menu">
@@ -910,7 +913,6 @@
 
       // ── MODE MANAGEMENT ───────────────────────────────────────────────────────
       function setMode(m) {
-        // Toggle off if already active
         S.mode = S.mode === m ? "none" : m;
         updateModeUI();
         document.body.classList.toggle("code-mode", S.mode === "code");
@@ -924,7 +926,6 @@
           const btn = document.getElementById(m + "-btn");
           if (!btn) return;
           btn.classList.toggle("active", S.mode === m);
-          // Color accents per mode
           btn.classList.remove("green", "amber");
           if (S.mode === m) {
             if (m === "code") btn.classList.add("green");
@@ -1258,18 +1259,18 @@
 
         let actionsHtml = "";
         if (msg.truncated) {
-          actionsHtml = `<button class="ma-btn continue-btn" onclick="continueMessage(${idx})">
+          actionsHtml = `<button class="ma-btn continue-btn" data-msg-index="${idx}" onclick="continueMessage(${idx})">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue
           </button>`;
         }
 
-        return `<div class="msg-row ai" ${codeModeAttr}><div class="msg-in"><div class="msg-content">
+        return `<div class="msg-row ai" data-msg-index="${idx}" ${codeModeAttr}><div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             ${badge}${thinkHtml}
-            <div class="ai-txt">${imageHtml}${html}</div>
+            <div class="ai-txt" id="msg-${idx}-text">${imageHtml}${html}</div>
             ${sourcesHtml}${ts}
-            <div class="msg-acts">${actionsHtml}</div>
+            <div class="msg-acts" id="msg-${idx}-actions">${actionsHtml}</div>
           </div>
         </div></div></div>`;
       }
@@ -1471,12 +1472,11 @@
         scrollBot();
       }
 
-      // ── GENERATE ──────────────────────────────────────────────────────────────
+      // ── GENERATE (NEW MESSAGE) ─────────────────────────────────────────────────
       async function generate(convo, aiId, searchData, isRetry = false, continueMode = false) {
         S.busy = true;
         S.abort = new AbortController();
 
-        // Build system prompt
         let sysPrompt = CF.systemPrompt;
         if (S.mode === "code") sysPrompt += CF.codeModeAddendum;
         if (searchData && (searchData.results?.length || searchData.answer)) {
@@ -1546,7 +1546,6 @@
           }
         }
 
-        // Clean up thinking row and stop button
         document.getElementById(aiId)?.remove();
         document.getElementById("stop-row")?.remove();
 
@@ -1561,7 +1560,6 @@
         const finalContent = answer || full || "(empty response)";
         const truncated = finishReason === "length";
 
-        // Auto-retry with search if AI doesn't know — only when not in code/image mode and not already retried
         if (!searchData && !isRetry && S.mode !== "code" && S.mode !== "image" && aiDoesNotKnow(finalContent)) {
           const lastUser = [...convo.msgs].reverse().find((m) => m.role === "user");
           if (lastUser) {
@@ -1600,16 +1598,176 @@
         scrollBot();
       }
 
+      // ── CONTINUE EXISTING MESSAGE ─────────────────────────────────────────────
       async function continueMessage(msgIndex) {
         const c = curConvo();
         if (!c || S.busy) return;
         const msg = c.msgs[msgIndex];
         if (!msg || msg.role !== "assistant") return;
+
+        // Remove truncated flag temporarily, will be re-added if needed
         msg.truncated = false;
-        renderMsgs();
-        const aiId = "ai" + Date.now();
-        appendThinking(aiId);
-        await generate(c, aiId, null, false, true);
+        // Update UI to remove continue button and show stop button
+        const msgRow = document.querySelector(`.msg-row.ai[data-msg-index="${msgIndex}"]`);
+        if (msgRow) {
+          const actionsDiv = msgRow.querySelector(".msg-acts");
+          if (actionsDiv) {
+            actionsDiv.innerHTML = `<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop
+            </button>`;
+          }
+        }
+
+        const txtEl = document.getElementById(`msg-${msgIndex}-text`);
+        if (!txtEl) return;
+
+        S.busy = true;
+        S.abort = new AbortController();
+
+        let sysPrompt = CF.systemPrompt;
+        if (msg.codeMode) sysPrompt += CF.codeModeAddendum;
+        sysPrompt += "\n\n[SYSTEM NOTE: Previous response was cut off. Continue exactly where it left off. Do not repeat anything.]";
+
+        const msgs = c.msgs.slice(0, msgIndex + 1).map((m) => ({ role: m.role, content: m.content }));
+
+        let full = msg.content;
+        let errored = false, finishReason = null;
+
+        try {
+          const res = await fetch("/api/chat.js", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: msgs,
+              systemPrompt: sysPrompt,
+              temperature: S.settings.temperature,
+              maxTokens: 4096,
+            }),
+            signal: S.abort.signal,
+          });
+
+          if (!res.ok) throw new Error("HTTP " + res.status);
+
+          if (S.settings.streaming && res.body) {
+            const reader = res.body.getReader();
+            const dec = new TextDecoder();
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = dec.decode(value, { stream: true });
+              for (const line of chunk.split("\n")) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6).trim();
+                if (data === "[DONE]") continue;
+                try {
+                  const d = JSON.parse(data);
+                  const delta = d.choices?.[0]?.delta?.content || "";
+                  if (delta) {
+                    full += delta;
+                    txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full)) + '<span class="stream-cur"></span>';
+                    if (S.settings.autoscroll) scrollBot();
+                  }
+                  if (d.choices?.[0]?.finish_reason) finishReason = d.choices[0].finish_reason;
+                } catch {}
+              }
+            }
+          } else {
+            const d = await res.json();
+            full = d.choices?.[0]?.message?.content || "";
+            finishReason = d.choices?.[0]?.finish_reason;
+          }
+        } catch (err) {
+          if (err.name !== "AbortError") {
+            errored = true;
+          }
+        }
+
+        // Clean up stream cursor
+        txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full));
+
+        if (errored) {
+          // Restore continue button
+          msg.truncated = true;
+          if (msgRow) {
+            const actionsDiv = msgRow.querySelector(".msg-acts");
+            if (actionsDiv) {
+              actionsDiv.innerHTML = `<button class="ma-btn continue-btn" onclick="continueMessage(${msgIndex})">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue
+              </button>`;
+            }
+          }
+          showErrRow();
+          S.busy = false;
+          S.abort = null;
+          return;
+        }
+
+        const { thinking, answer } = extractThinking(full);
+        msg.content = answer || full;
+        msg.thinking = thinking;
+        msg.truncated = finishReason === "length";
+        msg.ts = Date.now();
+
+        // Re-render the message to update any structural changes (e.g., thinking block)
+        // But we can just update the content and actions manually to avoid full re-render
+        if (msgRow) {
+          // Update thinking block if any
+          const thinkDiv = msgRow.querySelector(".ai-think");
+          if (msg.thinking) {
+            if (thinkDiv) {
+              const thinkContent = thinkDiv.querySelector(".ai-think-content");
+              if (thinkContent) thinkContent.innerHTML = DOMPurify.sanitize(marked.parse(msg.thinking));
+            } else {
+              // Insert thinking block
+              const badge = msgRow.querySelector(".web-badge");
+              const aiBody = msgRow.querySelector(".ai-body");
+              const newThinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')">
+                <div class="ai-think-header">
+                  <svg class="ai-think-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="ai-think-label">Thinking...</span>
+                </div>
+                <div class="ai-think-body"><div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div></div>
+              </div>`;
+              if (badge) badge.insertAdjacentHTML("afterend", newThinkHtml);
+              else aiBody.insertAdjacentHTML("afterbegin", newThinkHtml);
+            }
+          }
+
+          // Update actions
+          const actionsDiv = msgRow.querySelector(".msg-acts");
+          if (actionsDiv) {
+            let actionsHtml = "";
+            if (msg.truncated) {
+              actionsHtml = `<button class="ma-btn continue-btn" onclick="continueMessage(${msgIndex})">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue
+              </button>`;
+            }
+            actionsDiv.innerHTML = actionsHtml;
+          }
+
+          // Update timestamp if enabled
+          if (S.settings.timestamps) {
+            let tsDiv = msgRow.querySelector(".msg-ts");
+            if (!tsDiv) {
+              tsDiv = document.createElement("div");
+              tsDiv.className = "msg-ts";
+              msgRow.querySelector(".msg-in").appendChild(tsDiv);
+            }
+            tsDiv.textContent = new Date(msg.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          }
+
+          // Attach code buttons for any new code blocks
+          attachCodeBtns();
+        }
+
+        saveStore();
+        S.busy = false;
+        S.abort = null;
+        const inp = document.getElementById("user-input");
+        const sbtn = document.getElementById("send-btn");
+        if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
+        scrollBot();
       }
 
       // ── IMAGE GENERATION ──────────────────────────────────────────────────────
