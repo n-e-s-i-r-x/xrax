@@ -41,22 +41,63 @@ module.exports = async function handler(req, res) {
     ? `https://${process.env.VERCEL_URL}`
     : 'https://0vai.vercel.app';
 
+  const headers = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+    'HTTP-Referer': referer,
+    'X-Title': '0v AI'
+  };
+
   try {
     // ── IMAGE MODE ─────────────────────────────────────────────
     if (isImageMode) {
       const lastUserMsg = messages[messages.length - 1]?.content || '';
 
+      // Attempt 1: Use dedicated image generation endpoint (DALL-E 3)
+      try {
+        const imgResponse = await fetch('https://openrouter.ai/api/v1/image/generations', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: 'openai/dall-e-3',
+            prompt: lastUserMsg,
+            n: 1,
+            size: '1024x1024'
+          })
+        });
+
+        if (imgResponse.ok) {
+          const imgData = await imgResponse.json();
+          const imageUrl = imgData.data?.[0]?.url;
+          if (imageUrl) {
+            return res.status(200).json({
+              raw: {
+                choices: [{
+                  message: {
+                    content: [{ type: 'image_url', image_url: { url: imageUrl } }]
+                  }
+                }]
+              }
+            });
+          }
+        }
+      } catch (imgErr) {
+        console.error('Image gen endpoint failed, falling back to chat:', imgErr.message);
+      }
+
+      // Attempt 2: Fallback to chat-based image model
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': referer,
-          'X-Title': '0v AI'
-        },
+        headers,
         body: JSON.stringify({
           model,
-          messages: [{ role: 'user', content: lastUserMsg }],
+          messages: [
+            {
+              role: 'system',
+              content: 'Generate an image based on the user description. If you cannot generate an image, describe what you would create in vivid detail.'
+            },
+            { role: 'user', content: lastUserMsg }
+          ],
           max_tokens: maxTokens ?? 2048,
           stream: false
         })
@@ -64,23 +105,30 @@ module.exports = async function handler(req, res) {
 
       if (!response.ok) {
         const err = await response.text();
-        console.error('Image error:', response.status, err);
+        console.error('Image fallback error:', response.status, err);
         return res.status(response.status).json({ error: err });
       }
 
       const data = await response.json();
-      return res.status(200).json({ raw: data });
+      const content = data.choices?.[0]?.message?.content;
+
+      return res.status(200).json({
+        raw: {
+          choices: [{
+            message: {
+              content: typeof content === 'string'
+                ? [{ type: 'text', text: content }]
+                : content
+            }
+          }]
+        }
+      });
     }
 
     // ── TEXT / CODE MODE ───────────────────────────────────────
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': referer,
-        'X-Title': '0v AI'
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages: [
