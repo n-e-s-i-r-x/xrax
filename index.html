@@ -109,9 +109,19 @@
         .source-name { font-size: 12px; color: #4a9eff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-decoration: underline; }
         .source-url { font-size: 10px; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 
-        .input-tools { display: flex; align-items: center; gap: 6px; padding: 0 6px 6px 8px; }
+        /* Image mode styles */
+        .img-result { max-width: 100%; border-radius: 12px; margin: 8px 0; display: block; border: 1px solid #1a1a1a; }
+        .img-gen-wrap { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+        .img-gen-dot { width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; animation: bounce 1.3s infinite ease-in-out; }
+        .img-gen-dot:nth-child(2) { animation-delay: 0.15s; } .img-gen-dot:nth-child(3) { animation-delay: 0.3s; }
+        .img-download-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 6px 12px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; color: #aaa; font-size: 12px; cursor: pointer; transition: background 0.15s; text-decoration: none; }
+        .img-download-btn:active { background: #252525; }
+
+        .input-tools { display: flex; align-items: center; gap: 6px; padding: 0 6px 6px 8px; flex-wrap: wrap; }
         .web-toggle-btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 12px; color: #555; border: 1px solid #1e1e1e; background: transparent; transition: all 0.2s; }
         .web-toggle-btn.active { color: #4a9eff; border-color: #1a3050; background: #0a1628; }
+        .web-toggle-btn.code-active { color: #4ade80; border-color: #1a3a1a; background: #0a1f0a; }
+        .web-toggle-btn.img-active { color: #a78bfa; border-color: #2d1f5e; background: #130d2e; }
         .web-toggle-btn svg { flex-shrink: 0; }
 
         .brain-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0 12px; animation: brainIn 0.4s ease; overflow: hidden; max-height: 300px; transition: opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease; }
@@ -154,12 +164,15 @@
         #input-area { flex-shrink: 0; padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); background: #000; border-top: 1px solid #141414; }
         .input-box { background: #0a0a0a; border: 1px solid #1e1e1e; border-radius: 22px; display: flex; flex-direction: column; padding: 6px 0 0 0; transition: border-color 0.2s; }
         .input-box:focus-within { border-color: #333; }
+        .input-box.image-mode { border-color: #2d1f5e; }
         .input-row { display: flex; align-items: flex-end; padding: 0 6px 6px 14px; gap: 8px; }
         #user-input { flex: 1; color: #fff; font-size: 15px; line-height: 1.4; resize: none; max-height: 140px; min-height: 32px; padding: 7px 0; overflow-y: auto; background: transparent; }
         #user-input::placeholder { color: #444; }
+        #user-input.image-placeholder::placeholder { color: #6d5aa0; }
         .send-btn { width: 36px; height: 36px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, transform 0.1s, opacity 0.2s; color: #000; }
         .send-btn:active { transform: scale(0.9); }
         .send-btn:disabled { background: #2a2a2a; color: #555; opacity: 0.6; }
+        .send-btn.image-send { background: #7c3aed; color: #fff; }
 
         #sidebar-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         #sidebar-ov.show { opacity: 1; pointer-events: auto; }
@@ -258,6 +271,11 @@
         .view-console { flex-shrink: 0; max-height: 120px; overflow-y: auto; background: #0a0a0a; border-top: 1px solid #1a1a1a; padding: 8px 12px; font-family: 'M', Menlo, monospace; font-size: 12px; color: #aaa; display: none; }
         .view-console.has-errors { display: block; }
         .view-err { color: #e06060; margin-bottom: 4px; }
+
+        /* Model badge in topbar */
+        .model-badge { font-size: 10px; color: #444; padding: 2px 7px; border: 1px solid #1e1e1e; border-radius: 99px; white-space: nowrap; }
+        .model-badge.code { color: #4ade80; border-color: #1a3a1a; }
+        .model-badge.image { color: #a78bfa; border-color: #2d1f5e; }
     </style>
 </head>
 
@@ -266,16 +284,31 @@
     <div id="app">
         <div id="topbar">
             <button class="tb-btn" onclick="openSidebar()" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
-            <div class="tb-center"><div class="tb-title" id="tb-title"></div><div class="tb-sub" id="tb-sub"></div></div>
+            <div class="tb-center">
+                <div class="tb-title" id="tb-title"></div>
+                <div id="model-badge" class="model-badge" style="display:none"></div>
+            </div>
             <button class="tb-btn" onclick="newChat()" aria-label="New chat"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>
         </div>
         <div id="chat-wrap"><div id="chat-area"></div><button id="scroll-btn" onclick="scrollBot(true)" aria-label="Scroll down"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button></div>
         <div id="input-area"><div class="input-box" id="input-box">
             <div class="input-tools">
-                <button class="web-toggle-btn" id="web-toggle-btn" onclick="toggleWebSearch()" aria-label="Toggle web search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Search</button>
-                <button class="web-toggle-btn" id="code-toggle-btn" onclick="toggleCodeMode()" aria-label="Toggle code mode"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Code</button>
+                <button class="web-toggle-btn" id="web-toggle-btn" onclick="toggleWebSearch()" aria-label="Toggle web search">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Search
+                </button>
+                <button class="web-toggle-btn" id="code-toggle-btn" onclick="toggleCodeMode()" aria-label="Toggle code mode">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Code
+                </button>
+                <button class="web-toggle-btn" id="image-toggle-btn" onclick="toggleImageMode()" aria-label="Toggle image mode">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Image
+                </button>
             </div>
-            <div class="input-row"><textarea id="user-input" placeholder="Message 0..." rows="1" oninput="autoGrow(this)" onkeydown="onKey(event)"></textarea><button class="send-btn" id="send-btn" onclick="sendMsg()" disabled aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg></button></div>
+            <div class="input-row">
+                <textarea id="user-input" placeholder="Message 0..." rows="1" oninput="autoGrow(this)" onkeydown="onKey(event)"></textarea>
+                <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled aria-label="Send">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                </button>
+            </div>
         </div></div>
     </div>
     <div id="sidebar-ov" onclick="closeSidebar()"></div>
@@ -307,6 +340,11 @@
         if (typeof marked === 'undefined') { window.marked = { parse: s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') }; }
         if (typeof DOMPurify === 'undefined') { window.DOMPurify = { sanitize: s => s }; }
 
+        // ── Model routing ──────────────────────────────────────────────
+        const MODEL_TEXT  = 'deepseek/deepseek-v3-2';      // normal + search
+        const MODEL_CODE  = 'z-ai/glm-5.1:exacto';          // code mode
+        const MODEL_IMAGE = 'google/gemini-3.1-flash-image-preview'; // image mode
+
         const CF = {
             systemPrompt: `You are 0v, and you're model is 0.
 - **Core Identity**:
@@ -334,22 +372,79 @@
             { text: 'Optimizing...', pct: 90 }, { text: 'Almost ready...', pct: 97 },
         ];
 
-        const S = { convos: {}, activeId: null, busy: false, abort: null, webSearch: false, codeMode: false, settings: { timestamps: false, autoscroll: true, streaming: true, save: true, temperature: 0.7, webSearchAuto: true } };
+        const S = {
+            convos: {}, activeId: null, busy: false, abort: null,
+            webSearch: false, codeMode: false, imageMode: false,
+            settings: { timestamps: false, autoscroll: true, streaming: true, save: true, temperature: 0.7, webSearchAuto: true }
+        };
         let brainTimer = null, brainStepIdx = 0, toastTimeout = null;
 
         function startBrainCycle(id) { brainStepIdx = 0; updateBrainStep(id, 0); brainTimer = setInterval(() => { brainStepIdx++; if (brainStepIdx >= BRAIN_STEPS.length) brainStepIdx = BRAIN_STEPS.length - 1; updateBrainStep(id, brainStepIdx); }, 1600); }
         function stopBrainCycle() { if (brainTimer) { clearInterval(brainTimer); brainTimer = null; } }
         function updateBrainStep(id, idx) { const stepEl = document.getElementById(id + 'step'); const pbarEl = document.getElementById(id + 'pbar'); if (stepEl) { stepEl.classList.add('fading'); setTimeout(() => { if (stepEl) stepEl.textContent = BRAIN_STEPS[idx].text; if (stepEl) stepEl.classList.remove('fading'); }, 150); } if (pbarEl) pbarEl.style.width = BRAIN_STEPS[idx].pct + '%'; }
 
-        function toggleCodeMode() { S.codeMode = !S.codeMode; if (S.codeMode) { S.webSearch = false; updateWebToggleUI(); } updateCodeToggleUI(); document.body.classList.toggle('code-mode', S.codeMode); toast(S.codeMode ? 'Code mode on' : 'Code mode off'); }
-        function updateCodeToggleUI() { const btn = document.getElementById('code-toggle-btn'); if (!btn) return; btn.classList.toggle('active', S.codeMode); }
+        // ── Mode toggles ───────────────────────────────────────────────
+        function toggleWebSearch() {
+            S.webSearch = !S.webSearch;
+            if (S.webSearch) { S.imageMode = false; updateImageToggleUI(); updateInputImageUI(); }
+            updateWebToggleUI();
+            toast(S.webSearch ? 'Web search on' : 'Web search off');
+            updateModelBadge();
+        }
+        function updateWebToggleUI() { const btn = document.getElementById('web-toggle-btn'); if (!btn) return; btn.classList.toggle('active', S.webSearch); }
 
+        function toggleCodeMode() {
+            S.codeMode = !S.codeMode;
+            if (S.codeMode) { S.webSearch = false; S.imageMode = false; updateWebToggleUI(); updateImageToggleUI(); updateInputImageUI(); }
+            updateCodeToggleUI();
+            document.body.classList.toggle('code-mode', S.codeMode);
+            toast(S.codeMode ? 'Code mode on' : 'Code mode off');
+            updateModelBadge();
+        }
+        function updateCodeToggleUI() { const btn = document.getElementById('code-toggle-btn'); if (!btn) return; btn.classList.toggle('code-active', S.codeMode); }
+
+        function toggleImageMode() {
+            S.imageMode = !S.imageMode;
+            if (S.imageMode) { S.codeMode = false; S.webSearch = false; updateWebToggleUI(); updateCodeToggleUI(); document.body.classList.remove('code-mode'); }
+            updateImageToggleUI();
+            updateInputImageUI();
+            toast(S.imageMode ? 'Image mode on - describe what to create' : 'Image mode off');
+            updateModelBadge();
+        }
+        function updateImageToggleUI() { const btn = document.getElementById('image-toggle-btn'); if (!btn) return; btn.classList.toggle('img-active', S.imageMode); }
+
+        function updateInputImageUI() {
+            const box = document.getElementById('input-box');
+            const inp = document.getElementById('user-input');
+            const sbtn = document.getElementById('send-btn');
+            if (!box || !inp || !sbtn) return;
+            if (S.imageMode) {
+                box.classList.add('image-mode');
+                inp.placeholder = 'Describe the image to generate...';
+                sbtn.classList.add('image-send');
+            } else {
+                box.classList.remove('image-mode');
+                inp.placeholder = 'Message 0...';
+                sbtn.classList.remove('image-send');
+            }
+        }
+
+        function updateModelBadge() {
+            const badge = document.getElementById('model-badge');
+            if (!badge) return;
+            if (S.imageMode) { badge.textContent = 'gemini-image'; badge.className = 'model-badge image'; badge.style.display = ''; }
+            else if (S.codeMode) { badge.textContent = 'glm-5.1'; badge.className = 'model-badge code'; badge.style.display = ''; }
+            else { badge.style.display = 'none'; }
+        }
+
+        // ── Search detection ───────────────────────────────────────────
         const UNKNOWN_PATTERNS = [ /\b(202[4-9]|20[3-9]\d)\b/, /\b(latest|recent|current|newest|today|now|this\s+week|this\s+month|this\s+year|right\s+now|as\s+of)\b/i, /\b(price|stock|weather|score|exchange\s+rate|currency|crypto|bitcoin|ethereum)\b/i, /\b(breaking|just\s+in|happening|live|trending|viral)\b/i, /\b(release|launch|announce|update|patch|version\s+\d)\b/i, /\b(npm\s+package|pypi\s+package|new\s+library|new\s+framework)\b/i, /\b(bug|fix|issue|error|workaround|deprecated|migrated)\b/i, /\b(who\s+is|what\s+is|when\s+did|where\s+is|how\s+much|how\s+many)\b/i, /\b(died|killed|fired|resigned|elected|appointed|acquired|merged)\b/i, ];
         const CODE_NEEDS_SEARCH = [ /\b(free\s+api|open\s+api|public\s+api|no\s+key|api\s+key|endpoint)\b/i, /\b(integrate|sdk|oauth|firebase|supabase|mongo|postgres|mysql|redis|aws|azure|vercel|netlify|heroku)\b/i, /\b(stripe|paypal|payment|checkout|subscription|webhook)\b/i, /\b(send\s+grid|twilio|email|sms|push\s+notification)\b/i, /\b(map|google\s+maps|mapbox|leaflet)\b/i, /\b(weather\s+api|news\s+api|stock\s+api|currency\s+api)\b/i, /\b(deploy|hosting|domain|ssl|dns|cloudflare)\b/i, /\b(chatgpt|openai|claude|gemini|llm|ai\s+api)\b/i, /\b(scraper|crawl|puppeteer|selenium|playwright)\b/i, ];
 
         function needsSearch(text) {
             const txt = text.toLowerCase().trim();
             if (S.webSearch) return true;
+            if (S.imageMode) return false;
             if (!S.settings.webSearchAuto) return false;
             if (txt.length < 10) return false;
             if (/^(hi|hello|hey|sup|yo|good\s?(morning|afternoon|evening)|thanks?|ok|bye|yes|no|sure|cool|nice|lol)[\s!.?]*$/i.test(txt)) return false;
@@ -368,16 +463,13 @@
         document.addEventListener('DOMContentLoaded', init);
         if (document.readyState !== 'loading') init();
         let inited = false;
-        function init() { if (inited) return; inited = true; try { loadStore(); renderSB(); showEmpty(); setupScrollWatcher(); setupInputListener(); updateCodeToggleUI(); document.body.classList.toggle('code-mode', S.codeMode); updateWebToggleUI(); } catch (e) { console.error('Init error:', e); } setTimeout(dismissIntro, 4000); }
+        function init() { if (inited) return; inited = true; try { loadStore(); renderSB(); showEmpty(); setupScrollWatcher(); setupInputListener(); updateCodeToggleUI(); document.body.classList.toggle('code-mode', S.codeMode); updateWebToggleUI(); updateImageToggleUI(); updateInputImageUI(); updateModelBadge(); } catch (e) { console.error('Init error:', e); } setTimeout(dismissIntro, 4000); }
 
         function setupScrollWatcher() { const ca = document.getElementById('chat-area'); if (!ca) return; ca.addEventListener('scroll', () => { const far = ca.scrollHeight - ca.scrollTop - ca.clientHeight > 120; const btn = document.getElementById('scroll-btn'); if (btn) btn.classList.toggle('show', far); }); }
         function setupInputListener() { const inp = document.getElementById('user-input'); if (!inp) return; inp.addEventListener('input', () => { const btn = document.getElementById('send-btn'); if (btn) btn.disabled = !inp.value.trim() || S.busy; }); }
 
-        function saveStore() { if (!S.settings.save) return; try { localStorage.setItem('vg_codemode', JSON.stringify(S.codeMode)); localStorage.setItem('vg_convos', JSON.stringify(S.convos)); localStorage.setItem('vg_settings', JSON.stringify(S.settings)); } catch (e) {} }
-        function loadStore() { try { const cm = localStorage.getItem('vg_codemode'); if (cm) S.codeMode = JSON.parse(cm); const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; } catch (e) { S.convos = {}; } }
-
-        function toggleWebSearch() { S.webSearch = !S.webSearch; updateWebToggleUI(); toast(S.webSearch ? 'Web search on' : 'Web search off'); }
-        function updateWebToggleUI() { const btn = document.getElementById('web-toggle-btn'); if (!btn) return; btn.classList.toggle('active', S.webSearch); }
+        function saveStore() { if (!S.settings.save) return; try { localStorage.setItem('vg_codemode', JSON.stringify(S.codeMode)); localStorage.setItem('vg_imagemode', JSON.stringify(S.imageMode)); localStorage.setItem('vg_convos', JSON.stringify(S.convos)); localStorage.setItem('vg_settings', JSON.stringify(S.settings)); } catch (e) {} }
+        function loadStore() { try { const cm = localStorage.getItem('vg_codemode'); if (cm) S.codeMode = JSON.parse(cm); const im = localStorage.getItem('vg_imagemode'); if (im) S.imageMode = JSON.parse(im); const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; } catch (e) { S.convos = {}; } }
 
         async function doSearch(query) { try { const res = await fetch('/api/search.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); if (!res.ok) return null; const data = await res.json(); return (data.results?.length || data.answer) ? data : null; } catch (e) { return null; } }
         function buildSearchContext(searchData) { if (!searchData) return ''; let ctx = '\n\n--- LIVE WEB SEARCH RESULTS ---\n'; ctx += `(Today's date: ${new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })})\n\n`; if (searchData.answer) ctx += `DIRECT ANSWER FROM WEB: ${searchData.answer}\n\n`; const results = searchData.results || []; if (results.length) { ctx += 'SOURCES:\n'; results.forEach((r, i) => { ctx += `[${i+1}] ${r.title}\nURL: ${r.url}\n${r.snippet}\n\n`; }); } ctx += '--- USE THE ABOVE TO ANSWER ACCURATELY. ---\n'; return ctx; }
@@ -405,15 +497,19 @@
         function buildMsg(msg, idx) {
             const ts = S.settings.timestamps && msg.ts ? `<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>` : '';
             if (msg.role === 'user') { return `<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`; }
+            // Image message
+            if (msg.isImage) {
+                const imgContent = msg.imgHtml || '<span style="color:#888;font-size:13px">Image unavailable</span>';
+                return `<div class="msg-row ai"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body">${imgContent}${ts}</div></div></div></div>`;
+            }
             const codeModeAttr = msg.codeMode ? 'data-codemode="true"' : '';
             const badge = msg.searched ? `<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>` : '';
-            const directAnswer = msg.searched && msg.sources?.length ? `<div class="web-answer-box"><strong>📌 Web Answer:</strong> Based on current search results.</div>` : '';
             let thinkHtml = '';
             if (msg.thinking) { thinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')"><div class="ai-think-header"><svg class="ai-think-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg><span class="ai-think-label">Thinking...</span></div><div class="ai-think-body"><div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div></div></div>`; }
             let sourcesHtml = '';
             if (msg.sources && msg.sources.length) { const items = msg.sources.map(s => { let hostname = ''; try { hostname = new URL(s.url).hostname.replace('www.', ''); } catch (e) { hostname = s.url; } const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=32`; return `<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><img class="source-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'"/><div class="source-text"><span class="source-name">${esc(s.title || hostname)}</span><span class="source-url">${esc(hostname)}</span></div></a>`; }).join(''); sourcesHtml = `<div class="sources-wrap"><div class="sources-title">Sources</div>${items}</div>`; }
             const html = DOMPurify.sanitize(marked.parse(msg.content || ''));
-            return `<div class="msg-row ai" ${codeModeAttr}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body">${badge}${directAnswer}${thinkHtml}<div class="ai-txt">${html}</div>${sourcesHtml}${ts}<div class="msg-acts"></div></div></div></div></div>`;
+            return `<div class="msg-row ai" ${codeModeAttr}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt">${html}</div>${sourcesHtml}${ts}<div class="msg-acts"></div></div></div></div></div>`;
         }
 
         function attachCodeBtns() {
@@ -455,13 +551,14 @@
             else if (l === 'json') { try { const f = JSON.stringify(JSON.parse(code), null, 2); htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(f)}</body></html>`; } catch(e) { htmlContent = `<!DOCTYPE html><html><body style="background:#111;color:#ff6b6b;padding:20px;font-family:monospace">Invalid JSON: ${esc(e.message)}</body></html>`; } }
             else if (l === 'svg') { htmlContent = `<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`; }
             else { htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`; }
-            titleEl.textContent = 'View' + (l || 'code');
+            titleEl.textContent = 'View ' + (l || 'code');
             frame.srcdoc = htmlContent;
             document.getElementById('view-ov').classList.add('show');
         }
 
         function closeView() { document.getElementById('view-frame').srcdoc = ''; document.getElementById('view-ov').classList.remove('show'); }
 
+        // ── Send message ───────────────────────────────────────────────
         async function sendMsg() {
             const inp = document.getElementById('user-input'); if (!inp) return;
             const raw = inp.value.trim(); if (!raw || S.busy) return;
@@ -469,6 +566,15 @@
             if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); } c.ts = Date.now();
             inp.value = ''; autoGrow(inp); const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
             renderMsgs(); renderSB();
+
+            // IMAGE MODE
+            if (S.imageMode) {
+                const aiId = 'ai' + Date.now();
+                appendImageThinking(aiId);
+                await generateImage(c, aiId, raw);
+                return;
+            }
+
             let searchData = null;
             if (needsSearch(raw)) { if (!S.codeMode) showSearchIndicator(); searchData = await doSearch(raw); if (!S.codeMode) hideSearchIndicator(); }
             const aiId = 'ai' + Date.now(); appendThinking(aiId); await generate(c, aiId, searchData);
@@ -491,6 +597,56 @@
             if (S.codeMode) startBrainCycle(id);
         }
 
+        // ── Image generation ───────────────────────────────────────────
+        function appendImageThinking(id) {
+            const ca = document.getElementById('chat-area'); if (!ca) return;
+            const row = document.createElement('div'); row.className = 'msg-row ai'; row.id = id;
+            row.innerHTML = `<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt="V"/><div class="ai-body"><div class="ai-txt" id="${id}txt"><div class="img-gen-wrap"><div class="img-gen-dot"></div><div class="img-gen-dot"></div><div class="img-gen-dot"></div><span style="font-size:13px;color:#a78bfa;margin-left:4px">Generating image...</span></div></div></div></div></div>`;
+            ca.appendChild(row); scrollBot();
+        }
+
+        async function generateImage(convo, aiId, prompt) {
+            S.busy = true;
+            try {
+                const res = await fetch('/api/chat.js', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], mode: 'image', maxTokens: 2048 })
+                });
+                document.getElementById(aiId)?.remove();
+                if (!res.ok) throw new Error('Image request failed');
+                const data = await res.json();
+                let imgHtml = '';
+                const rawContent = data.raw?.choices?.[0]?.message?.content;
+                // Handle array content (multimodal)
+                if (Array.isArray(rawContent)) {
+                    for (const part of rawContent) {
+                        if (part.type === 'image_url' && part.image_url?.url) {
+                            imgHtml += `<img class="img-result" src="${esc(part.image_url.url)}" alt="Generated image"/><a class="img-download-btn" href="${esc(part.image_url.url)}" download="image.png" target="_blank"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save image</a>`;
+                        } else if (part.type === 'text' && part.text) {
+                            imgHtml += `<div class="ai-txt" style="margin-top:8px">${DOMPurify.sanitize(marked.parse(part.text))}</div>`;
+                        }
+                    }
+                } else if (typeof rawContent === 'string') {
+                    if (rawContent.startsWith('data:image') || rawContent.startsWith('http')) {
+                        imgHtml = `<img class="img-result" src="${esc(rawContent)}" alt="Generated image"/><a class="img-download-btn" href="${esc(rawContent)}" download="image.png" target="_blank"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save image</a>`;
+                    } else {
+                        imgHtml = `<div class="ai-txt">${DOMPurify.sanitize(marked.parse(rawContent))}</div>`;
+                    }
+                }
+                if (!imgHtml) imgHtml = '<div class="ai-txt" style="color:#888;font-size:13px">No image returned. Try a different prompt.</div>';
+                convo.msgs.push({ role: 'assistant', content: `[Image: ${prompt}]`, ts: Date.now(), imgHtml, isImage: true });
+                renderMsgs(); saveStore();
+            } catch (err) {
+                document.getElementById(aiId)?.remove(); showErrRow();
+            }
+            S.busy = false;
+            const inp = document.getElementById('user-input'); const sbtn = document.getElementById('send-btn');
+            if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
+            scrollBot();
+        }
+
+        // ── Text/Code generation ───────────────────────────────────────
         async function generate(convo, aiId, searchData, isRetry = false) {
             S.busy = true; S.abort = new AbortController();
             let sysPrompt = CF.systemPrompt;
@@ -499,8 +655,17 @@
             const msgs = convo.msgs.map(m => ({ role: m.role, content: m.content }));
             const txtEl = document.getElementById(aiId + 'txt'); const brainEl = document.getElementById(aiId + 'brain');
             let full = '', errored = false, brainRevealed = false;
+
+            // Model selection: code → GLM, text/search → DeepSeek
+            const chosenModel = S.codeMode ? MODEL_CODE : MODEL_TEXT;
+
             try {
-                const res = await fetch('/api/chat.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: msgs, systemPrompt: sysPrompt, temperature: S.settings.temperature, maxTokens: 4096 }), signal: S.abort.signal });
+                const res = await fetch('/api/chat.js', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: msgs, systemPrompt: sysPrompt, temperature: S.settings.temperature, maxTokens: 4096, model: chosenModel }),
+                    signal: S.abort.signal
+                });
                 if (!res.ok) throw new Error('Request failed');
                 function revealText() { if (brainRevealed) return; brainRevealed = true; stopBrainCycle(); if (brainEl) { brainEl.style.opacity = '0'; brainEl.style.maxHeight = '0'; brainEl.style.padding = '0'; setTimeout(() => { if (brainEl) brainEl.style.display = 'none'; }, 350); } if (txtEl) txtEl.style.display = ''; }
                 if (S.settings.streaming && res.body) {
