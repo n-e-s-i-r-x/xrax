@@ -15,110 +15,168 @@ export default async function handler(req, res) {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'No query' });
 
-  // Try each source in order
-  let results = null;
+  const apiKey = process.env.TAVILY_API_KEY;
 
-  results = await tryWikipedia(query);
-  if (results && results.length) return res.status(200).json({ results, source: 'wikipedia' });
+  // If no Tavily key, fall through to free scraping
+  if (apiKey) {
+    const result = await tryTavily(query, apiKey);
+    if (result) return res.status(200).json(result);
+  }
 
-  results = await tryDDGInstant(query);
-  if (results && results.length) return res.status(200).json({ results, source: 'ddg' });
+  // Free fallbacks (no key needed)
+  const wiki = await tryWikipediaDeep(query);
+  if (wiki) return res.status(200).json(wiki);
 
-  results = await tryGoogleScrape(query);
-  if (results && results.length) return res.status(200).json({ results, source: 'google' });
+  const ddg = await tryDDG(query);
+  if (ddg) return res.status(200).json(ddg);
 
-  // Last resort — at least give a useful link
   return res.status(200).json({
-    results: [{
-      title: `Results for: ${query}`,
-      url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-      snippet: 'Could not fetch live results. Click to search manually.',
-    }],
-    source: 'fallback'
+    results: [],
+    answer: null,
+    source: 'none'
   });
 }
 
-// ── METHOD 1: Wikipedia Search + Extract ─────────────────────
-// Great for factual/versioned info like Minecraft updates
-async function tryWikipedia(query) {
+// ── TAVILY (best results, 1000/month free) ────────────────────
+async function tryTavily(query, apiKey) {
   try {
-    // Search Wikipedia for relevant articles
-    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=3&origin=*`;
-
-    const searchRes = await fetch(searchUrl, {
-      headers: { 'User-Agent': '0v-AI/1.0 (https://0vai.vercel.app)' }
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        query,
+        search_depth: 'advanced',   // deep crawl
+        include_answer: true,        // AI-extracted answer from results
+        include_raw_content: false,
+        max_results: 6,
+      }),
     });
-    const searchData = await searchRes.json();
-    const hits = searchData?.query?.search || [];
 
+    if (!res.ok) {
+      console.error('Tavily error:', await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+
+    const results = (data.results || []).map(r => ({
+      title:   r.title   || '',
+      url:     r.url     || '',
+      snippet: r.content || '',
+      score:   r.score   || 0,
+    }));
+
+    return {
+      results,
+      // Tavily extracts a direct answer from all pages combined
+      answer: data.answer || null,
+      source: 'tavily',
+    };
+  } catch (e) {
+    console.error('Tavily fetch error:', e);
+    return null;
+  }
+}
+
+// ── WIKIPEDIA DEEP (searches then fetches full intro) ─────────
+async function tryWikipediaDeep(query) {
+  try {
+    // Use Wikipedia's opensearch to find best matching article
+    const searchUrl = `https://en.wikipedia.org/w/api.php?` + new URLSearchParams({
+      action:   'query',
+      list:     'search',
+      srsearch: query,
+      format:   'json',
+      srlimit:  '5',
+      srprop:   'snippet|titlesnippet',
+      origin:   '*',
+    });
+
+    const sRes  = await fetch(searchUrl, { headers: { 'User-Agent': '0v-AI/1.0' } });
+    const sData = await sRes.json();
+    const hits  = sData?.query?.search || [];
     if (!hits.length) return null;
 
     const results = [];
 
-    for (const hit of hits.slice(0, 3)) {
-      // Get extract for each result
-      const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(hit.title)}&format=json&exsentences=4&origin=*`;
-
-      const extractRes  = await fetch(extractUrl, {
-        headers: { 'User-Agent': '0v-AI/1.0' }
-      });
-      const extractData = await extractRes.json();
-      const pages       = extractData?.query?.pages || {};
-      const page        = Object.values(pages)[0];
-
-      if (page && page.extract) {
-        // Clean up the extract
-        const clean = page.extract
-          .replace(/\n+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 400);
-
-        results.push({
-          title:   page.title,
-          url:     `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`,
-          snippet: clean,
+    // For each hit, get a proper extract
+    for (const hit of hits.slice(0, 4)) {
+      try {
+        const extractUrl = `https://en.wikipedia.org/w/api.php?` + new URLSearchParams({
+          action:       'query',
+          prop:         'extracts|info',
+          exintro:      'true',
+          explaintext:  'true',
+          exsectionformat: 'plain',
+          titles:       hit.title,
+          format:       'json',
+          inprop:       'url',
+          origin:       '*',
         });
-      }
+
+        const eRes  = await fetch(extractUrl, { headers: { 'User-Agent': '0v-AI/1.0' } });
+        const eData = await eRes.json();
+        const pages = eData?.query?.pages || {};
+        const page  = Object.values(pages)[0];
+
+        if (page?.extract && page.extract.length > 50) {
+          // Take first 600 chars of extract — meaty content
+          const snippet = page.extract
+            .replace(/\n{2,}/g, '\n')
+            .trim()
+            .slice(0, 600);
+
+          results.push({
+            title:   page.title,
+            url:     page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g,'_'))}`,
+            snippet,
+          });
+        }
+      } catch(e) { /* skip this hit */ }
     }
 
-    return results.length ? results : null;
+    return results.length ? { results, answer: null, source: 'wikipedia' } : null;
   } catch (e) {
     console.error('Wikipedia error:', e);
     return null;
   }
 }
 
-// ── METHOD 2: DuckDuckGo Instant Answer API ───────────────────
-async function tryDDGInstant(query) {
+// ── DDG INSTANT ANSWER ────────────────────────────────────────
+async function tryDDG(query) {
   try {
-    const url  = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
-    const r    = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 0v-AI/1.0' }
+    const url  = `https://api.duckduckgo.com/?` + new URLSearchParams({
+      q:               query,
+      format:          'json',
+      no_redirect:     '1',
+      no_html:         '1',
+      skip_disambig:   '1',
     });
+
+    const r    = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 0v-AI/1.0' } });
     const data = await r.json();
 
     const results = [];
+    let answer    = null;
 
-    if (data.AbstractText && data.AbstractText.length > 30) {
+    if (data.Answer) {
+      answer = data.Answer;
+    }
+
+    if (data.AbstractText?.length > 30) {
       results.push({
         title:   data.Heading || query,
         url:     data.AbstractURL || `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
-        snippet: data.AbstractText.slice(0, 400),
-      });
-    }
-
-    if (data.Answer && data.Answer.length > 5) {
-      results.push({
-        title:   'Quick Answer',
-        url:     `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
-        snippet: data.Answer,
+        snippet: data.AbstractText.slice(0, 500),
       });
     }
 
     for (const t of (data.RelatedTopics || [])) {
       if (results.length >= 4) break;
-      if (t.Text && t.FirstURL && t.Text.length > 20) {
+      if (t.Text?.length > 20 && t.FirstURL) {
         results.push({
           title:   t.Text.split(' - ')[0].slice(0, 80),
           url:     t.FirstURL,
@@ -127,67 +185,12 @@ async function tryDDGInstant(query) {
       }
     }
 
-    return results.length ? results : null;
+    return results.length || answer
+      ? { results, answer, source: 'ddg' }
+      : null;
+
   } catch (e) {
-    console.error('DDG instant error:', e);
+    console.error('DDG error:', e);
     return null;
   }
-}
-
-// ── METHOD 3: Google scrape via search-json endpoint ─────────
-// Uses Google's public search page with special params
-async function tryGoogleScrape(query) {
-  try {
-    // Use Google's "featured snippet" endpoint — returns structured data
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=5&hl=en&gl=us`;
-
-    const r = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-      }
-    });
-
-    const html = await r.text();
-
-    const results = [];
-
-    // Extract result blocks — Google's structure: <h3> titles, snippets in specific divs
-    // Match title + URL pairs
-    const titlePattern = /<h3[^>]*class="[^"]*LC20lb[^"]*"[^>]*>([^<]+)<\/h3>/g;
-    const urlPattern   = /<a[^>]+href="\/url\?q=([^&"]+)[^"]*"[^>]*>/g;
-    const snippetPat   = /class="[^"]*VwiC3b[^"]*"[^>]*>(?:<span[^>]*>)?([^<]{40,400})/g;
-
-    const titles   = [...html.matchAll(titlePattern)].map(m => decodeHTML(m[1]));
-    const urls     = [...html.matchAll(urlPattern)].map(m => decodeURIComponent(m[1])).filter(u => u.startsWith('http'));
-    const snippets = [...html.matchAll(snippetPat)].map(m => decodeHTML(m[1]).replace(/<[^>]+>/g, ''));
-
-    const count = Math.min(titles.length, urls.length, 5);
-    for (let i = 0; i < count; i++) {
-      if (titles[i] && urls[i]) {
-        results.push({
-          title:   titles[i],
-          url:     urls[i],
-          snippet: snippets[i] || '',
-        });
-      }
-    }
-
-    return results.length ? results : null;
-  } catch (e) {
-    console.error('Google scrape error:', e);
-    return null;
-  }
-}
-
-function decodeHTML(str) {
-  return str
-    .replace(/&amp;/g,  '&')
-    .replace(/&lt;/g,   '<')
-    .replace(/&gt;/g,   '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g,  "'")
-    .replace(/&nbsp;/g, ' ')
-    .trim();
 }
