@@ -470,7 +470,7 @@
   function saveStore() { if (!S.settings.save) return; try { localStorage.setItem('vg_codemode', JSON.stringify(S.codeMode)); localStorage.setItem('vg_imagemode', JSON.stringify(S.imageMode)); localStorage.setItem('vg_convos', JSON.stringify(S.convos)); localStorage.setItem('vg_settings', JSON.stringify(S.settings)); } catch (e) {} }
   function loadStore() { try { const cm = localStorage.getItem('vg_codemode'); if (cm) S.codeMode = JSON.parse(cm); const im = localStorage.getItem('vg_imagemode'); if (im) S.imageMode = JSON.parse(im); const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; } catch (e) { S.convos = {}; } }
 
-  async function doSearch(query) { try { const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); if (!res.ok) return null; const data = await res.json(); return (data.results?.length || data.answer) ? data : null; } catch (e) { return null; } }
+ async function doSearch(query) { try { const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); if (!res.ok) return null; const data = await res.json(); return (data.results?.length || data.answer) ? data : null; } catch (e) { return null; } }
   function buildSearchContext(searchData) { if (!searchData) return ''; let ctx = '\n\n--- LIVE WEB SEARCH RESULTS ---\n'; ctx += `(Today's date: ${new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })})\n\n`; if (searchData.answer) ctx += `DIRECT ANSWER FROM WEB: ${searchData.answer}\n\n`; const results = searchData.results || []; if (results.length) { ctx += 'SOURCES:\n'; results.forEach((r, i) => { ctx += `[${i+1}] ${r.title}\nURL: ${r.url}\n${r.snippet}\n\n`; }); } ctx += '--- USE THE ABOVE TO ANSWER ACCURATELY. ---\n'; return ctx; }
 
   function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-ov').classList.add('show'); }
@@ -662,33 +662,24 @@
     }
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: msgs,
-          systemPrompt: sysPrompt,
-          temperature: S.settings.temperature,
-          maxTokens: 4096,
-          model: chosenModel
-        }),
-        signal: S.abort.signal
-      });
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: msgs, systemPrompt: sysPrompt, temperature: S.settings.temperature, maxTokens: 4096, model: chosenModel }),
+                    signal: S.abort.signal
+                });
+                if (!res.ok) throw new Error('Request failed');
+                function revealText() { if (brainRevealed) return; brainRevealed = true; stopBrainCycle(); if (brainEl) { brainEl.style.opacity = '0'; brainEl.style.maxHeight = '0'; brainEl.style.padding = '0'; setTimeout(() => { if (brainEl) brainEl.style.display = 'none'; }, 350); } if (txtEl) txtEl.style.display = ''; }
 
-      if (!res.ok) throw new Error('Request failed');
-
-      // ✅ Non-streaming — just parse JSON
-      const data = await res.json();
-      full = data.choices?.[0]?.message?.content || '';
-      revealText();
-      if (txtEl) {
-        txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full));
-      }
-
-    } catch (err) {
-      if (err.name !== 'AbortError') { errored = true; showErrRow(); }
-      else if (!full) { full = '_(Stopped)_'; }
-    }
+                // Non-streaming — parse full JSON response
+                const data = await res.json();
+                full = data.choices?.[0]?.message?.content || '';
+                revealText();
+                if (txtEl) {
+                    txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full));
+                    if (S.settings.autoscroll) scrollBot();
+                }
+            } catch (err) { if (err.name !== 'AbortError') { errored = true; showErrRow(); } else if (!full) { full = '_(Stopped)_'; } }
 
     stopBrainCycle();
     document.getElementById(aiId)?.remove();
