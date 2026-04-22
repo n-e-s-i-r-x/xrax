@@ -18,7 +18,7 @@ export default async function handler(req) {
     async start(controller) {
       // ⚡ 1. INSTANT RESPONSE (0ms perceived latency)
       controller.enqueue(
-        encoder.encode(`data: {"choices":[{"delta":{"content":"..."}}]}\n\n`)
+        encoder.encode(`data: {"choices":[{"delta":{"content":""}}]}\n\n`)
       );
 
       // ⚡ 2. CALL MODEL (fastest available)
@@ -29,7 +29,7 @@ export default async function handler(req) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'openai/gpt-4o-mini', // 🔥 key change
+          model: 'nvidia/nemotron-nano-9b-v2:free', // 🔥 key change
           messages: [
             { role: 'system', content: systemPrompt || 'Be short and fast.' },
             ...trimmedMessages
