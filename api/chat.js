@@ -18,7 +18,7 @@ export default async function handler(req) {
     async start(controller) {
       // ⚡ 1. INSTANT RESPONSE (0ms perceived latency)
       controller.enqueue(
-        encoder.encode(`data: {"choices":[{"delta":{"content":"..."}}]}\n\n`)
+        encoder.encode(`data: {"choices":[{"delta":{"content":""}}]}\n\n`)
       );
 
       // ⚡ 2. CALL MODEL (fastest available)
@@ -29,12 +29,12 @@ export default async function handler(req) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'openai/gpt-4o-mini', // 🔥 key change
+          model: 'openai/gpt-5.1-codex-mini', // 🔥 key change
           messages: [
             { role: 'system', content: systemPrompt || 'Be short and fast.' },
             ...trimmedMessages
           ],
-          temperature: 0.3, // 🔥 lower = faster + more deterministic
+          temperature: 0.2, // 🔥 lower = faster + more deterministic
           max_tokens: 10000,  // 🔥 shorter = faster
           stream: true
         }),
