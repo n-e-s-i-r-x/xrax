@@ -35,7 +35,7 @@ export default async function handler(req) {
             ...trimmedMessages
           ],
           temperature: 0.2, // 🔥 lower = faster + more deterministic
-          max_tokens: 100,  // 🔥 shorter = faster
+          max_tokens: 1200,  // 🔥 shorter = faster
           stream: true
         }),
       });
