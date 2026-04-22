@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -21,7 +20,6 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error('OPENROUTER_API_KEY not configured');
     return res.status(500).json({ error: 'API key not configured' });
   }
 
@@ -31,18 +29,20 @@ export default async function handler(req, res) {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://0vai.vercel.app',
+        'HTTP-Referer': process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'https://0vai.vercel.app',
         'X-Title': '0v AI'
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-v3.2:exacto',
+        model:       'deepseek/deepseek-v3.2:exacto',
         messages: [
           { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
           ...messages
         ],
         temperature: temperature ?? 0.7,
-        max_tokens: maxTokens ?? 4096,
-        stream: true
+        max_tokens:  maxTokens ?? 4096,
+        stream:      true,
       })
     });
 
@@ -52,23 +52,19 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: err });
     }
 
-    // Set up SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
-    const reader = response.body.getReader();
+    const reader  = response.body.getReader();
     const decoder = new TextDecoder();
 
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
+        for (const line of chunk.split('\n')) {
           if (line.startsWith('data: ')) {
             res.write(line + '\n\n');
           }
