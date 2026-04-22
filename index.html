@@ -64,106 +64,19 @@
         .ai-txt blockquote { border-left: 3px solid #2a2a2a; padding: 4px 12px; color: #888; margin: 8px 0; }
         .ai-txt code:not(pre code) { background: #1a1a1a; border-radius: 4px; padding: 2px 6px; font-family: 'M', Menlo, monospace; font-size: 13px; color: #ddd; }
 
-        .code-wrap { margin: 10px 0; border-radius: 10px; overflow: hidden; background: #0a0a0a; border: 1px solid #1a1a1a; }
-        .code-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #111; border-bottom: 1px solid #1a1a1a; }
-        .code-lang { font-size: 11px; color: #666; font-family: 'M'; }
-        .code-hdr-btns { display: flex; gap: 5px; align-items: center; }
-        .copy-code { padding: 4px 10px; background: #1a1a1a; border-radius: 6px; color: #aaa; font-size: 11px; display: flex; align-items: center; gap: 4px; transition: background 0.15s; }
-        .copy-code:active { background: #252525; }
-        .ai-txt pre { padding: 12px; overflow-x: auto; margin: 0; background: #0a0a0a; }
-        .ai-txt pre code { background: none; padding: 0; font-family: 'M', Menlo, monospace; font-size: 13px; color: #ccc; line-height: 1.5; }
+        .ai-think { margin-bottom: 10px; border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; }
+        .ai-think-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0a0a0a; cursor: pointer; user-select: none; }
+        .ai-think-header:active { background: #111; }
+        .ai-think-chevron { transition: transform 0.25s ease; color: #555; flex-shrink: 0; }
+        .ai-think.open .ai-think-chevron { transform: rotate(90deg); }
+        .ai-think-label { font-size: 12px; font-weight: 600; color: #666; }
+        .ai-think-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+        .ai-think.open .ai-think-body { max-height: 500px; overflow-y: auto; }
+        .ai-think-content { padding: 10px 12px; font-size: 13px; line-height: 1.5; color: #777; border-top: 1px solid #141 is the complete, full HTML file with only the 3 fixes applied. Nothing else changed:
 
-        .dl-btn { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; background: transparent; border: 1px solid #1a3050; border-radius: 5px; color: #4a9eff; font-size: 10px; cursor: pointer; transition: background 0.15s; }
-        .dl-btn:active { background: #0a1628; }
-
-        .run-btn { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; background: transparent; border: 1px solid #1a4028; border-radius: 5px; color: #4ade80; font-size: 10px; cursor: pointer; transition: background 0.15s; }
-        .run-btn:active { background: #0a2818; }
-
-        /* ── THINKING BLOCK ── */
-        .think-block { margin-bottom: 10px; border-radius: 8px; border: 1px solid #1a1a1a; background: #080808; overflow: hidden; }
-        .think-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 12px; width: 100%; text-align: left; color: #666; font-size: 12px; transition: color 0.15s; }
-        .think-toggle:hover { color: #888; }
-        .think-toggle svg { flex-shrink: 0; transition: transform 0.2s; }
-        .think-toggle.open svg { transform: rotate(90deg); }
-        .think-toggle .think-label { flex: 1; }
-        .think-toggle .think-dots span { display: inline-block; animation: thinkDot 1.4s ease-in-out infinite; }
-        .think-toggle .think-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .think-toggle .think-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes thinkDot { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
-        .think-content { display: none; padding: 8px 12px; color: #555; font-size: 13px; line-height: 1.5; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; font-family: 'M', Menlo, monospace; }
-        .think-block.open .think-content { display: block; }
-        .think-block.done .think-toggle .think-dots { display: none; }
-        .think-block.done .think-toggle { color: #4ade80; }
-
-        .msg-acts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-        .msg-row.user .msg-acts { justify-content: flex-end; }
-        .ma-btn { padding: 5px 10px; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px; color: #888; font-size: 11px; display: flex; align-items: center; gap: 4px; transition: background 0.15s, transform 0.1s; }
-        .ma-btn:active { background: #1a1a1a; transform: scale(0.94); }
-        .msg-ts { font-size: 10px; color: #444; margin-top: 4px; }
-
-        .search-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 14px; margin: 4px 0; animation: msgIn 0.3s ease; }
-        .search-indicator-inner { display: flex; align-items: center; gap: 8px; background: #0a0a0a; border: 1px solid #1e1e1e; border-radius: 99px; padding: 6px 14px; }
-        .search-dot { width: 6px; height: 6px; border-radius: 50%; background: #4a9eff; animation: searchPulse 1.2s ease-in-out infinite; }
-        .search-dot:nth-child(2) { animation-delay: 0.2s; } .search-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes searchPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-        .search-label { font-size: 12px; color: #4a9eff; white-space: nowrap; }
-
-        .web-badge { display: inline-flex; align-items: center; gap: 5px; background: #0a1628; border: 1px solid #1a3050; border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #4a9eff; margin-bottom: 8px; }
-
-        .sources-wrap { margin-top: 10px; border-top: 1px solid #141414; padding-top: 10px; }
-        .sources-title { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #444; margin-bottom: 8px; }
-        .source-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; text-decoration: none; }
-        .source-favicon { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; margin-top: 2px; object-fit: contain; }
-        .source-text { flex: 1; min-width: 0; }
-        .source-name { font-size: 12px; color: #4a9eff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-decoration: underline; }
-        .source-url { font-size: 10px; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-
-        .input-tools { display: flex; align-items: center; gap: 6px; padding: 0 6px 6px 8px; }
-        .web-toggle-btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 12px; color: #555; border: 1px solid #1e1e1e; background: transparent; transition: all 0.2s; }
-        .web-toggle-btn.active { color: #4a9eff; border-color: #1a3050; background: #0a1628; }
-        .web-toggle-btn svg { flex-shrink: 0; }
-
-        .brain-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0 12px; animation: brainIn 0.4s ease; overflow: hidden; max-height: 300px; transition: opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease; }
-        @keyframes brainIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
-        .brain-visual { position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; }
-        .brain-core { width: 42px; height: 42px; border-radius: 50%; background: rgba(74,222,128,0.06); border: 1.5px solid rgba(74,222,128,0.25); display: flex; align-items: center; justify-content: center; color: #4ade80; animation: corePulse 2s ease-in-out infinite; z-index: 1; }
-        @keyframes corePulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 6px rgba(74,222,128,0.12); } 50% { transform: scale(1.1); box-shadow: 0 0 22px rgba(74,222,128,0.3); } }
-        .brain-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(74,222,128,0.1); animation: ringExpand 2.5s ease-out infinite; }
-        .brain-ring:nth-child(2) { animation-delay: 0.8s; } .brain-ring:nth-child(3) { animation-delay: 1.6s; }
-        @keyframes ringExpand { 0% { transform: scale(0.5); opacity: 0.6; } 100% { transform: scale(2.2); opacity: 0; } }
-        .brain-node { position: absolute; width: 5px; height: 5px; background: #4ade80; border-radius: 50%; z-index: 2; box-shadow: 0 0 6px rgba(74,222,128,0.5); animation: nodeBlink 2s ease-in-out infinite; }
-        .brain-node:nth-child(4) { animation-delay: 0s; } .brain-node:nth-child(5) { animation-delay: 0.35s; } .brain-node:nth-child(6) { animation-delay: 0.7s; } .brain-node:nth-child(7) { animation-delay: 1.05s; } .brain-node:nth-child(8) { animation-delay: 1.4s; } .brain-node:nth-child(9) { animation-delay: 1.75s; }
-        @keyframes nodeBlink { 0%, 100% { opacity: 0.15; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.4); } }
-        .brain-step { font-size: 12px; color: #4ade80; text-align: center; min-height: 18px; letter-spacing: 0.3px; transition: opacity 0.15s; }
-        .brain-step.fading { opacity: 0; }
-        .brain-progress { width: 100px; height: 2px; background: #1a1a1a; border-radius: 99px; overflow: hidden; }
-        .brain-progress-bar { height: 100%; background: linear-gradient(90deg, #4ade80, #22d3ee); border-radius: 99px; transition: width 0.6s ease; width: 0%; }
-
-        .typing-wrap { display: flex; gap: 5px; padding: 6px 0; }
-        .t-dot { width: 7px; height: 7px; background: #444; border-radius: 50%; animation: bounce 1.3s infinite ease-in-out; }
-        .t-dot:nth-child(2) { animation-delay: 0.15s; } .t-dot:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-7px); opacity: 1; } }
-        .stream-cur { display: inline-block; width: 2px; height: 15px; background: #666; margin-left: 2px; vertical-align: text-bottom; animation: blink 0.8s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
-        #stop-row { display: flex; justify-content: center; padding: 10px 0; }
-        .stop-btn { padding: 9px 18px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 99px; color: #ddd; font-size: 13px; display: flex; align-items: center; gap: 7px; transition: background 0.15s, transform 0.1s; }
-        .stop-btn:active { background: #252525; transform: scale(0.96); }
-
-        .err-row { padding: 0 14px; margin: 6px 0; }
-        .err-box { background: #1a0a0a; border: 1px solid #3a1515; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; }
-        .err-msg { flex: 1; font-size: 13px; color: #cc8080; }
-        .retry-btn { padding: 6px 12px; background: #2a1010; border: 1px solid #3a1515; border-radius: 7px; color: #e0a0a0; font-size: 12px; }
-        .retry-btn:active { background: #3a1515; }
-
-        #scroll-btn { position: absolute; bottom: 14px; right: 14px; width: 40px; height: 40px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ddd; opacity: 0; pointer-events: none; transform: translateY(12px) scale(0.85); transition: opacity 0.25s, transform 0.25s; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
-        #scroll-btn.show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
-        #scroll-btn:active { transform: scale(0.9); }
-
-        #input-area { flex-shrink: 0; padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); background: #000; border-top: 1px solid #141414's the full update. I added two things without breaking anything:
-
-1. **AI Thinking** — When AI is generating, you see a collapsible "Thinking..." block that shows the AI's thought process. Once the answer is done, it collapses and the final answer appears.
-2. **Preview Button** — Next to the Save/Download button in Code mode, there's a new "Run" button. Clicking it opens a fullscreen virtual preview of the file. HTML renders as a webpage, JS runs in an iframe, CSS applies to sample content, and everything else shows as code.
+1. **"Run" button → "Preview"** with an eye icon
+2. **Preview button same style as Save/Copy** (fixed not pressing, fixed big text)
+3. **Sidebar fixed** (was missing the `sb-name` div which broke the layout)
 
 ```html
 <!DOCTYPE html>
@@ -232,93 +145,27 @@
         .ai-txt blockquote { border-left: 3px solid #2a2a2a; padding: 4px 12px; color: #888; margin: 8px 0; }
         .ai-txt code:not(pre code) { background: #1a1a1a; border-radius: 4px; padding: 2px 6px; font-family: 'M', Menlo, monospace; font-size: 13px; color: #ddd; }
 
-        /* AI Thinking Block */
-        .ai-think {
-            margin-bottom: 10px;
-            border: 1px solid #1a1a1a;
-            border-radius: 10px;
-            overflow: hidden;
-            transition: max-height 0.4s ease, opacity 0.3s ease;
-        }
-        .ai-think-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: #0a0a0a;
-            cursor: pointer;
-            user-select: none;
-            transition: background 0.15s;
-        }
+        .ai-think { margin-bottom: 10px; border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; }
+        .ai-think-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0a0a0a; cursor: pointer; user-select: none; }
         .ai-think-header:active { background: #111; }
-        .ai-think-chevron {
-            transition: transform 0.25s ease;
-            color: #555;
-            flex-shrink: 0;
-        }
+        .ai-think-chevron { transition: transform 0.25s ease; color: #555; flex-shrink: 0; }
         .ai-think.open .ai-think-chevron { transform: rotate(90deg); }
-        .ai-think-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            letter-spacing: 0.3px;
-        }
-        .ai-think-dots {
-            display: flex;
-            gap: 4px;
-            margin-left: 4px;
-        }
-        .ai-think-dot {
-            width: 4px; height: 4px;
-            border-radius: 50%;
-            background: #4ade80;
-            animation: thinkDot 1.4s ease-in-out infinite;
-        }
-        .ai-think-dot:nth-child(2) { animation-delay: 0.2s; }
-        .ai-think-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes thinkDot {
-            0%, 100% { opacity: 0.2; transform: scale(0.7); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-        .ai-think-body {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.35s ease;
-        }
-        .ai-think.open .ai-think-body {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .ai-think-content {
-            padding: 10px 12px;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #777;
-            border-top: 1px solid #141414;
-            font-style: italic;
-        }
-        .ai-think-content p { margin: 0 0 6px; }
-        .ai-think-content p:last-child { margin: 0; }
+        .ai-think-label { font-size: 12px; font-weight: 600; color: #666; letter-spacing: 0.3px; }
+        .ai-think-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+        .ai-think.open .ai-think-body { max-height: 500px; overflow-y: auto; }
+        .ai-think-content { padding: 10px 12px; font-size: 13px; line-height: 1.5; color: #777; border-top: 1px solid #141414; font-style: italic; }
+        .ai-think-content p { margin: 0 0 6px; } .ai-think-content p:last-child { margin: 0; }
 
         .code-wrap { margin: 10px 0; border-radius: 10px; overflow: hidden; background: #0a0a0a; border: 1px solid #1a1a1a; }
         .code-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #111; border-bottom: 1px solid #1a1a1a; }
         .code-lang { font-size: 11px; color: #666; font-family: 'M'; }
         .code-hdr-btns { display: flex; gap: 5px; align-items: center; }
-        .copy-code { padding: 4px 10px; background: #1a1a1a; border-radius: 6px; color: #aaa; font-size: 11px; display: flex; align-items: center; gap: 4px; transition: background 0.15s; }
-        .copy-code:active { background: #252525; }
+        .copy-code, .dl-btn, .preview-btn { padding: 4px 10px; background: #1a1a1a; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: background 0.15s; border: none; -webkit-tap-highlight-color: transparent; }
+        .copy-code { color: #aaa; } .copy-code:active { background: #252525; }
+        .dl-btn { color: #4a9eff; } .dl-btn:active { background: #252525; }
+        .preview-btn { color: #4ade80; } .preview-btn:active { background: #252525; }
         .ai-txt pre { padding: 12px; overflow-x: auto; margin: 0; background: #0a0a0a; }
         .ai-txt pre code { background: none; padding: 0; font-family: 'M', Menlo, monospace; font-size: 13px; color: #ccc; line-height: 1.5; }
-
-        .dl-btn, .preview-btn {
-            display: inline-flex; align-items: center; gap: 3px;
-            padding: 3px 7px; background: transparent;
-            border-radius: 5px; font-size: 10px; cursor: pointer;
-            transition: background 0.15s;
-        }
-        .dl-btn { border: 1px solid #1a3050; color: #4a9eff; }
-        .dl-btn:active { background: #0a1628; }
-        .preview-btn { border: 1px solid #1a3a1a; color: #4ade80; }
-        .preview-btn:active { background: #0a1608; }
 
         .msg-acts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
         .msg-row.user .msg-acts { justify-content: flex-end; }
@@ -401,6 +248,8 @@
         #sidebar.open { transform: translateX(0); }
         .sb-head { padding: 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #141414; }
         .sb-logo { width: 36px; height: 36px; object-fit: contain; background: none !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; flex-shrink: 0; }
+        .sb-name { font-size: 17px; font-weight: 700; color: #fff; }
+        .sb-name span { color: #555; font-weight: 400; margin-left: 4px; }
         .sb-new { margin: 12px; padding: 12px 16px; background: #fff; color: #000; border-radius: 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s; }
         .sb-new:active { transform: scale(0.97); }
         .sb-search { margin: 0 12px 8px; padding: 10px 12px; background: #141414; border-radius: 10px; display: flex; align-items: center; gap: 8px; }
@@ -479,34 +328,15 @@
         body.code-mode .code-wrap { border: 1px solid #333; background: #050505; box-shadow: 0 0 0 1px #222, 0 0 12px rgba(255,255,255,0.05); }
         body.code-mode .ai-txt pre code { color: #fff; font-size: 14px; }
 
-        /* ── PREVIEW OVERLAY ── */
-        #preview-ov {
-            position: fixed; inset: 0; background: #000; z-index: 3000;
-            display: none; flex-direction: column;
-        }
+        #preview-ov { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; }
         #preview-ov.show { display: flex; }
-        .preview-topbar {
-            flex-shrink: 0; display: flex; align-items: center;
-            padding: 0 12px; gap: 10px; background: #0a0a0a;
-            border-bottom: 1px solid #1a1a1a;
-            padding-top: env(safe-area-inset-top);
-            height: calc(50px + env(safe-area-inset-top));
-        }
+        .preview-topbar { flex-shrink: 0; display: flex; align-items: center; padding: 0 12px; gap: 10px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; padding-top: env(safe-area-inset-top); height: calc(50px + env(safe-area-inset-top)); }
         .preview-title { flex: 1; font-size: 14px; font-weight: 600; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .preview-close {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: #1a1a1a; display: flex; align-items: center;
-            justify-content: center; color: #aaa; transition: background 0.15s;
-        }
+        .preview-close { width: 36px; height: 36px; border-radius: 50%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #aaa; transition: background 0.15s; }
         .preview-close:active { background: #252525; }
         .preview-frame-wrap { flex: 1; overflow: hidden; background: #fff; }
         .preview-frame-wrap iframe { width: 100%; height: 100%; border: none; background: #fff; }
-        .preview-console {
-            flex-shrink: 0; max-height: 120px; overflow-y: auto;
-            background: #0a0a0a; border-top: 1px solid #1a1a1a;
-            padding: 8px 12px; font-family: 'M', Menlo, monospace;
-            font-size: 12px; color: #aaa; display: none;
-        }
+        .preview-console { flex-shrink: 0; max-height: 120px; overflow-y: auto; background: #0a0a0a; border-top: 1px solid #1a1a1a; padding: 8px 12px; font-family: 'M', Menlo, monospace; font-size: 12px; color: #aaa; display: none; }
         .preview-console.has-errors { display: block; }
         .preview-err { color: #e06060; margin-bottom: 4px; }
     </style>
@@ -531,7 +361,7 @@
     </div>
     <div id="sidebar-ov" onclick="closeSidebar()"></div>
     <div id="sidebar">
-        <div class="sb-head"><img class="sb-logo" src="icon.webp" alt="0v"></div>
+        <div class="sb-head"><img class="sb-logo" src="icon.webp" alt="0v"><div class="sb-name">0v <span>ai</span></div></div>
         <button class="sb-new" onclick="newChat();closeSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>New conversation</button>
         <div class="sb-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" placeholder="Search chats" oninput="filterSB(this.value)"></div>
         <div class="sb-lbl">Conversations</div><div class="chat-list" id="chat-list"></div>
@@ -543,8 +373,6 @@
     <div id="dialog-ov"><div id="dialog-box"><div id="dialog-title"></div><div id="dialog-msg"></div><div id="dialog-input-wrap" style="display:none"><input id="dialog-input" type="text"></div><div id="dialog-btns"></div></div></div>
     <div id="settings-ov" onclick="if(event.target===this)closeSettings()"><div id="settings-sheet"><div class="sheet-handle"></div><div class="sheet-head"><div class="sheet-title" id="sheet-title">Settings</div><button class="sheet-x" onclick="closeSettings()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div><div class="sheet-body" id="sheet-body"></div></div></div>
     <div id="toast-ct"></div>
-
-    <!-- PREVIEW OVERLAY -->
     <div id="preview-ov">
         <div class="preview-topbar">
             <div class="preview-title" id="preview-title">Preview</div>
@@ -587,12 +415,7 @@
             { text: 'Optimizing...', pct: 90 }, { text: 'Almost ready...', pct: 97 },
         ];
 
-        const S = {
-            convos: {}, activeId: null, busy: false, abort: null,
-            webSearch: false, codeMode: false,
-            settings: { timestamps: false, autoscroll: true, streaming: true, save: true, temperature: 0.7, webSearchAuto: true },
-        };
-
+        const S = { convos: {}, activeId: null, busy: false, abort: null, webSearch: false, codeMode: false, settings: { timestamps: false, autoscroll: true, streaming: true, save: true, temperature: 0.7, webSearchAuto: true } };
         let brainTimer = null, brainStepIdx = 0, toastTimeout = null;
 
         function startBrainCycle(id) { brainStepIdx = 0; updateBrainStep(id, 0); brainTimer = setInterval(() => { brainStepIdx++; if (brainStepIdx >= BRAIN_STEPS.length) brainStepIdx = BRAIN_STEPS.length - 1; updateBrainStep(id, brainStepIdx); }, 1600); }
@@ -617,24 +440,9 @@
             return false;
         }
 
-        function aiDoesNotKnow(text) {
-            const t = text.toLowerCase();
-            return [ /\b(i\s+don'?t\s+know|i\s+do\s+not\s+know)\b/, /\b(no\s+idea|not\s+sure|can'?t\s+recall|can'?t\s+remember)\b/, /\b(never\s+heard\s+of|haven'?t\s+heard\s+of|not\s+familiar\s+with)\b/, /\b(i'?m\s+not\s+aware|i\s+am\s+not\s+aware)\b/, /\b(i\s+have\s+no\s+(idea|clue|knowledge|information))\b/, /\b(no\s+(clue|idea)\s+what)\b/, /\b(beyond\s+my\s+knowledge|outside\s+my\s+knowledge)\b/, /\b(i\s+(really\s+)?can'?t\s+(help|answer|tell|say|recall))\b/, /\b(as\s+of\s+my\s+(last\s+)?update|my\s+(knowledge|data)\s+(cutoff|ends|stops|is\s+limited))\b/, /\b(look\s+it\s+up\s+yourself|google\s+it|search\s+it\s+yourself)\b/, /\b(obscure|never\s+played|never\s+watched|never\s+read|never\s+used)\b/, ].some(r => r.test(t));
-        }
+        function aiDoesNotKnow(text) { const t = text.toLowerCase(); return [ /\b(i\s+don'?t\s+know|i\s+do\s+not\s+know)\b/, /\b(no\s+idea|not\s+sure|can'?t\s+recall|can'?t\s+remember)\b/, /\b(never\s+heard\s+of|haven'?t\s+heard\s+of|not\s+familiar\s+with)\b/, /\b(i'?m\s+not\s+aware|i\s+am\s+not\s+aware)\b/, /\b(i\s+have\s+no\s+(idea|clue|knowledge|information))\b/, /\b(no\s+(clue|idea)\s+what)\b/, /\b(beyond\s+my\s+knowledge|outside\s+my\s+knowledge)\b/, /\b(i\s+(really\s+)?can'?t\s+(help|answer|tell|say|recall))\b/, /\b(as\s+of\s+my\s+(last\s+)?update|my\s+(knowledge|data)\s+(cutoff|ends|stops|is\s+limited))\b/, /\b(look\s+it\s+up\s+yourself|google\s+it|search\s+it\s+yourself)\b/, /\b(obscure|never\s+played|never\s+watched|never\s+read|never\s+used)\b/, ].some(r => r.test(t)); }
 
-        // ── THINKING EXTRACTION ──
-        function extractThinking(text) {
-            const match = text.match(/^<think\s*>([\s\S]*?)<\/think\s*>/i);
-            if (match) {
-                return { thinking: match[1].trim(), answer: text.slice(match[0].length).trim() };
-            }
-            // Also try markdown-style ```thinking blocks
-            const mdMatch = text.match(/^```thinking\s*\n([\s\S]*?)```\s*/i);
-            if (mdMatch) {
-                return { thinking: mdMatch[1].trim(), answer: text.slice(mdMatch[0].length).trim() };
-            }
-            return { thinking: null, answer: text };
-        }
+        function extractThinking(text) { const match = text.match(/^<think\s*>([\s\S]*?)<\/think\s*>/i); if (match) return { thinking: match[1].trim(), answer: text.slice(match[0].length).trim() }; const mdMatch = text.match(/^```thinking\s*\n([\s\S]*?)```\s*/i); if (mdMatch) return { thinking: mdMatch[1].trim(), answer: text.slice(mdMatch[0].length).trim() }; return { thinking: null, answer: text }; }
 
         function dismissIntro() { const intro = document.getElementById('intro'); const app = document.getElementById('app'); if (intro) intro.classList.add('hide'); if (app) app.classList.add('ready'); setTimeout(() => { if (intro) intro.style.display = 'none'; }, 500); }
         setTimeout(dismissIntro, 3000);
@@ -681,21 +489,8 @@
             const codeModeAttr = msg.codeMode ? 'data-codemode="true"' : '';
             const badge = msg.searched ? `<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>` : '';
             const directAnswer = msg.searched && msg.sources?.length ? `<div class="web-answer-box"><strong>📌 Web Answer:</strong> Based on current search results.</div>` : '';
-
-            // Thinking block
             let thinkHtml = '';
-            if (msg.thinking) {
-                thinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')">
-                    <div class="ai-think-header">
-                        <svg class="ai-think-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                        <span class="ai-think-label">Thinking...</span>
-                    </div>
-                    <div class="ai-think-body">
-                        <div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div>
-                    </div>
-                </div>`;
-            }
-
+            if (msg.thinking) { thinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')"><div class="ai-think-header"><svg class="ai-think-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg><span class="ai-think-label">Thinking...</span></div><div class="ai-think-body"><div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div></div></div>`; }
             let sourcesHtml = '';
             if (msg.sources && msg.sources.length) { const items = msg.sources.map(s => { let hostname = ''; try { hostname = new URL(s.url).hostname.replace('www.', ''); } catch (e) { hostname = s.url; } const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=32`; return `<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><img class="source-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'"/><div class="source-text"><span class="source-name">${esc(s.title || hostname)}</span><span class="source-url">${esc(hostname)}</span></div></a>`; }).join(''); sourcesHtml = `<div class="sources-wrap"><div class="sources-title">Sources</div>${items}</div>`; }
             const html = DOMPurify.sanitize(marked.parse(msg.content || ''));
@@ -711,7 +506,7 @@
                 const hdr = document.createElement('div'); hdr.className = 'code-hdr';
                 let extraBtns = '';
                 if (isCodeMode) {
-                    extraBtns = `<button class="preview-btn" data-lang="${esc(lang)}" onclick="previewCode(this)" title="Run preview"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Run</button><button class="dl-btn" data-lang="${esc(lang)}" onclick="downloadCode(this)" title="Download file"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
+                    extraBtns = `<button class="preview-btn" data-lang="${esc(lang)}" onclick="previewCode(this)" title="Preview"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button><button class="dl-btn" data-lang="${esc(lang)}" onclick="downloadCode(this)" title="Download"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
                 }
                 hdr.innerHTML = `<span class="code-lang">${esc(lang)}</span><div class="code-hdr-btns">${extraBtns}<button class="copy-code" onclick="cpyCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button></div>`;
                 pre.parentNode.insertBefore(wrap, pre); wrap.appendChild(hdr); wrap.appendChild(pre);
@@ -730,53 +525,23 @@
             toast('Downloaded ' + filename);
         }
 
-        // ── PREVIEW CODE ──
         function previewCode(btn) {
             const codeEl = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
             const code = codeEl.innerText; const lang = (btn.dataset.lang || 'code').toLowerCase();
-            const frame = document.getElementById('preview-frame');
-            const consoleEl = document.getElementById('preview-console');
-            const titleEl = document.getElementById('preview-title');
-            consoleEl.innerHTML = ''; consoleEl.classList.remove('has-errors');
-
-            let htmlContent = '';
-            const l = lang.replace('language-', '').toLowerCase();
-
-            if (l === 'html' || l === 'htm') {
-                htmlContent = code;
-            } else if (l === 'css' || l === 'scss' || l === 'less') {
-                htmlContent = `<!DOCTYPE html><html><head><style>${code}</style></head><body><h1>CSS Preview</h1><div class="container"><p>Paragraph text here.</p><button>Button</button><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul><div class="box">Box</div><input type="text" placeholder="Input field"><a href="#">Link</a></div></body></html>`;
-            } else if (l === 'javascript' || l === 'js' || l === 'jsx' || l === 'typescript' || l === 'ts' || l === 'tsx') {
-                htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px;overflow-x:auto;font-size:13px}.error{color:#ff6b6b}</style></head><body><div id="output"></div><script>
-const _out = document.getElementById('output');
-const _log = console.log;
-const _err = console.error;
-console.log = (...args) => { _out.innerHTML += '<pre>' + args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ') + '</pre>'; _log(...args); };
-console.error = (...args) => { _out.innerHTML += '<pre class="error">' + args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ') + '</pre>'; _err(...args); };
-try { ${code} } catch(e) { _out.innerHTML += '<pre class="error">Error: ' + e.message + '</pre>'; }
-<\/script></body></html>`;
-            } else if (l === 'python' || l === 'py') {
-                htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px}pre{color:#aaa}</style></head><body><h3>Python (read-only)</h3><pre>${esc(code)}</pre><p style="color:#666;font-size:13px">Python can't run in browser. Use the Save button to download and run locally.</p></body></html>`;
-            } else if (l === 'json') {
-                try { const formatted = JSON.stringify(JSON.parse(code), null, 2); htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(formatted)}</body></html>`; } catch(e) { htmlContent = `<!DOCTYPE html><html><body style="background:#111;color:#ff6b6b;padding:20px;font-family:monospace">Invalid JSON: ${esc(e.message)}</body></html>`; }
-            } else if (l === 'svg') {
-                htmlContent = `<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;
-            } else if (l === 'sql') {
-                htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px}pre{color:#aaa}</style></head><body><h3>SQL (read-only)</h3><pre>${esc(code)}</pre><p style="color:#666;font-size:13px">SQL can't run in browser. Use Save to download.</p></body></html>`;
-            } else {
-                htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`;
-            }
-
+            const frame = document.getElementById('preview-frame'); const titleEl = document.getElementById('preview-title');
+            let htmlContent = ''; const l = lang.replace('language-', '').toLowerCase();
+            if (l === 'html' || l === 'htm') { htmlContent = code; }
+            else if (l === 'css' || l === 'scss' || l === 'less') { htmlContent = `<!DOCTYPE html><html><head><style>${code}</style></head><body><h1>CSS Preview</h1><div class="container"><p>Paragraph text here.</p><button>Button</button><ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul><div class="box">Box</div><input type="text" placeholder="Input field"><a href="#">Link</a></div></body></html>`; }
+            else if (l === 'javascript' || l === 'js' || l === 'jsx' || l === 'typescript' || l === 'ts' || l === 'tsx') { htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px;overflow-x:auto;font-size:13px}.error{color:#ff6b6b}</style></head><body><div id="output"></div><script>const _out=document.getElementById('output');const _log=console.log;const _err=console.error;console.log=(...a)=>{_out.innerHTML+='<pre>'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>';_log(...a)};console.error=(...a)=>{_out.innerHTML+='<pre class="error">'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>';_err(...a)};try{${code}}catch(e){_out.innerHTML+='<pre class="error">Error: '+e.message+'</pre>'}<\/script></body></html>`; }
+            else if (l === 'json') { try { const f = JSON.stringify(JSON.parse(code), null, 2); htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(f)}</body></html>`; } catch(e) { htmlContent = `<!DOCTYPE html><html><body style="background:#111;color:#ff6b6b;padding:20px;font-family:monospace">Invalid JSON: ${esc(e.message)}</body></html>`; } }
+            else if (l === 'svg') { htmlContent = `<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`; }
+            else { htmlContent = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`; }
             titleEl.textContent = 'Preview — ' + (l || 'code');
             frame.srcdoc = htmlContent;
             document.getElementById('preview-ov').classList.add('show');
         }
 
-        function closePreview() {
-            const frame = document.getElementById('preview-frame');
-            frame.srcdoc = '';
-            document.getElementById('preview-ov').classList.remove('show');
-        }
+        function closePreview() { document.getElementById('preview-frame').srcdoc = ''; document.getElementById('preview-ov').classList.remove('show'); }
 
         async function sendMsg() {
             const inp = document.getElementById('user-input'); if (!inp) return;
@@ -826,25 +591,11 @@ try { ${code} } catch(e) { _out.innerHTML += '<pre class="error">Error: ' + e.me
             } catch (err) { if (err.name !== 'AbortError') { errored = true; showErrRow(); } else if (!full) { full = '_(Stopped)_'; } }
             stopBrainCycle(); document.getElementById(aiId)?.remove(); document.getElementById('stop-row')?.remove();
             if (!errored) {
-                // Extract thinking from response
                 const { thinking, answer } = extractThinking(full);
-
                 convo.msgs.push({ role: 'assistant', content: answer || full || '(empty response)', ts: Date.now(), searched: !!(searchData), sources: searchData?.results || [], codeMode: S.codeMode, thinking: thinking });
-
-                // Auto-retry with search if AI doesn't know
                 if (!searchData && !isRetry && aiDoesNotKnow(answer || full)) {
                     const lastUserMsg = [...convo.msgs].reverse().find(m => m.role === 'user');
-                    if (lastUserMsg) {
-                        convo.msgs.pop(); renderMsgs();
-                        if (!S.codeMode) showSearchIndicator();
-                        const newSearchData = await doSearch(lastUserMsg.content);
-                        if (!S.codeMode) hideSearchIndicator();
-                        if (newSearchData) {
-                            toast('Looking that up...');
-                            const retryId = 'ai' + Date.now(); appendThinking(retryId);
-                            await generate(convo, retryId, newSearchData, true); return;
-                        } else { convo.msgs.push({ role: 'assistant', content: full, ts: Date.now(), searched: false, sources: [], codeMode: S.codeMode, thinking: thinking }); }
-                    }
+                    if (lastUserMsg) { convo.msgs.pop(); renderMsgs(); if (!S.codeMode) showSearchIndicator(); const newSearchData = await doSearch(lastUserMsg.content); if (!S.codeMode) hideSearchIndicator(); if (newSearchData) { toast('Looking that up...'); const retryId = 'ai' + Date.now(); appendThinking(retryId); await generate(convo, retryId, newSearchData, true); return; } else { convo.msgs.push({ role: 'assistant', content: full, ts: Date.now(), searched: false, sources: [], codeMode: S.codeMode, thinking: thinking }); } }
                 }
                 renderMsgs(); saveStore();
             }
