@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vertigozi.vercel.app',
-        'X-Title': 'Vertigo AI'
+        'X-Title': '0v AI'
       },
       body: JSON.stringify({
         model: 'deepseek/deepseek-v3.2:exacto',
