@@ -43,7 +43,7 @@
 
         ::-webkit-scrollbar { width: 0; height: 0; }
 
-        /* ── INTRO ── */
+        /* INTRO */
         #intro {
             position: fixed;
             inset: 0;
@@ -75,7 +75,7 @@
             100% { transform: scale(2.5); opacity: 0; }
         }
 
-        /* ── APP ── */
+        /* APP */
         #app {
             position: fixed; inset: 0; display: flex;
             flex-direction: column; background: #000;
@@ -83,7 +83,7 @@
         }
         #app.ready { opacity: 1; }
 
-        /* ── TOPBAR ── */
+        /* TOPBAR */
         #topbar {
             flex-shrink: 0; display: flex; align-items: center;
             padding: 0 12px; gap: 10px; background: #000;
@@ -109,7 +109,7 @@
         }
         .tb-sub { display: none; }
 
-        /* ── CHAT AREA ── */
+        /* CHAT AREA */
         #chat-wrap {
             flex: 1; position: relative; overflow: hidden;
             display: flex; flex-direction: column;
@@ -119,7 +119,7 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* ── EMPTY STATE ── */
+        /* EMPTY STATE */
         #empty-state {
             min-height: 100%; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
@@ -138,7 +138,7 @@
         #empty-h { font-size: 22px; font-weight: 700; color: #ddd; text-align: center; }
         #empty-s { font-size: 14px; color: #555; text-align: center; max-width: 300px; line-height: 1.5; }
 
-        /* ── MESSAGES ── */
+        /* MESSAGES */
         .msg-row { padding: 4px 0; animation: msgIn 0.3s ease; }
         @keyframes msgIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -146,7 +146,6 @@
         }
         .msg-in { padding: 0 14px; }
 
-        /* User bubble */
         .msg-row.user .msg-in { display: flex; flex-direction: column; align-items: flex-end; }
         .u-bubble {
             background: #1a1a1a; border-radius: 18px 18px 4px 18px;
@@ -155,7 +154,6 @@
             word-wrap: break-word; overflow-wrap: break-word;
         }
 
-        /* AI message */
         .msg-row.ai .msg-content { display: flex; gap: 10px; align-items: flex-start; }
         .ai-av {
             width: 28px; height: 28px; object-fit: contain; flex-shrink: 0;
@@ -180,7 +178,6 @@
             font-family: 'M', Menlo, monospace; font-size: 13px; color: #ddd;
         }
 
-        /* Code blocks */
         .code-wrap { margin: 10px 0; border-radius: 10px; overflow: hidden; background: #0a0a0a; border: 1px solid #1a1a1a; }
         .code-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #111; border-bottom: 1px solid #1a1a1a; }
         .code-lang { font-size: 11px; color: #666; font-family: 'M'; }
@@ -189,7 +186,6 @@
         .ai-txt pre { padding: 12px; overflow-x: auto; margin: 0; background: #0a0a0a; }
         .ai-txt pre code { background: none; padding: 0; font-family: 'M', Menlo, monospace; font-size: 13px; color: #ccc; line-height: 1.5; }
 
-        /* Message actions */
         .msg-acts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
         .msg-row.user .msg-acts { justify-content: flex-end; }
         .ma-btn {
@@ -200,10 +196,154 @@
         }
         .ma-btn:active { background: #1a1a1a; transform: scale(0.94); }
 
-        /* Timestamp */
         .msg-ts { font-size: 10px; color: #444; margin-top: 4px; }
 
-        /* ── WEB SEARCH INDICATOR ── */
+        /* BUILD CARD */
+        .build-card {
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 8px 0;
+        }
+        .build-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .build-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4a9eff;
+        }
+        .build-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ddd;
+        }
+        .build-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .build-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #555;
+            transition: color 0.2s;
+        }
+        .build-step.active { color: #4a9eff; }
+        .build-step.completed { color: #4ade80; }
+        .build-step.error { color: #ef4444; }
+        .step-indicator {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .step-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #1e1e1e;
+            border-top-color: #4a9eff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .step-check { color: #4ade80; }
+        .step-x { color: #ef4444; }
+        .step-pending { color: #444; }
+        .build-progress-bar {
+            height: 3px;
+            background: #1e1e1e;
+            border-radius: 99px;
+            margin: 6px 0 14px;
+            overflow: hidden;
+        }
+        .build-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a9eff, #6b7cff);
+            border-radius: 99px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .build-result {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 12px;
+            border-top: 1px solid #1e1e1e;
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-icon {
+            width: 36px;
+            height: 36px;
+            background: #141414;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+        }
+        .file-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .file-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ddd;
+        }
+        .file-size {
+            font-size: 11px;
+            color: #555;
+        }
+        .build-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .preview-btn {
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            color: #aaa;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.15s;
+        }
+        .preview-btn:hover { background: #252525; }
+        .download-btn {
+            padding: 8px 14px;
+            background: #4a9eff;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .download-btn:hover { background: #3a8eef; }
+        .download-btn:active { transform: scale(0.96); }
+
+        /* SEARCH INDICATOR */
         .search-indicator {
             display: flex;
             align-items: center;
@@ -239,7 +379,6 @@
             white-space: nowrap;
         }
 
-        /* ── WEB SEARCH BADGE (on message) ── */
         .web-badge {
             display: inline-flex;
             align-items: center;
@@ -253,7 +392,6 @@
             margin-bottom: 8px;
         }
 
-        /* ── SOURCES ── */
         .sources-wrap {
             margin-top: 10px;
             border-top: 1px solid #141414;
@@ -300,7 +438,6 @@
             display: block;
         }
 
-        /* ── WEB SEARCH TOGGLE IN INPUT ── */
         .input-tools {
             display: flex;
             align-items: center;
@@ -326,7 +463,6 @@
         }
         .web-toggle-btn svg { flex-shrink: 0; }
 
-        /* Typing indicator */
         .typing-wrap { display: flex; gap: 5px; padding: 6px 0; }
         .t-dot { width: 7px; height: 7px; background: #444; border-radius: 50%; animation: bounce 1.3s infinite ease-in-out; }
         .t-dot:nth-child(2) { animation-delay: 0.15s; } .t-dot:nth-child(3) { animation-delay: 0.3s; }
@@ -337,7 +473,6 @@
         .stream-cur { display: inline-block; width: 2px; height: 15px; background: #666; margin-left: 2px; vertical-align: text-bottom; animation: blink 0.8s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-        /* Stop row */
         #stop-row { display: flex; justify-content: center; padding: 10px 0; }
         .stop-btn {
             padding: 9px 18px; background: #1a1a1a; border: 1px solid #2a2a2a;
@@ -347,14 +482,12 @@
         }
         .stop-btn:active { background: #252525; transform: scale(0.96); }
 
-        /* Error row */
         .err-row { padding: 0 14px; margin: 6px 0; }
         .err-box { background: #1a0a0a; border: 1px solid #3a1515; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; }
         .err-msg { flex: 1; font-size: 13px; color: #cc8080; }
         .retry-btn { padding: 6px 12px; background: #2a1010; border: 1px solid #3a1515; border-radius: 7px; color: #e0a0a0; font-size: 12px; }
         .retry-btn:active { background: #3a1515; }
 
-        /* Scroll to bottom */
         #scroll-btn {
             position: absolute; bottom: 14px; right: 14px; width: 40px; height: 40px;
             background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 50%;
@@ -367,7 +500,6 @@
         #scroll-btn.show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
         #scroll-btn:active { transform: scale(0.9); }
 
-        /* ── INPUT AREA ── */
         #input-area {
             flex-shrink: 0;
             padding: 10px 12px;
@@ -403,7 +535,6 @@
         .send-btn:active { transform: scale(0.9); }
         .send-btn:disabled { background: #2a2a2a; color: #555; opacity: 0.6; }
 
-        /* ── SIDEBAR ── */
         #sidebar-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         #sidebar-ov.show { opacity: 1; pointer-events: auto; }
         #sidebar {
@@ -439,7 +570,6 @@
         .sb-fbtn:active { background: #141414; }
         .sb-fbtn.danger { color: #cc6666; } .sb-fbtn.danger:active { background: #1a0808; }
 
-        /* ── DIALOG ── */
         #dialog-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
         #dialog-ov.show { display: flex; }
         #dialog-box { background: #141414; border: 1px solid #252525; border-radius: 18px; padding: 22px 20px 16px; width: 100%; max-width: 340px; animation: dialogIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -456,7 +586,6 @@
         .dlg-btn.confirm { background: #fff; color: #000; } .dlg-btn.confirm:active { background: #ddd; }
         .dlg-btn.danger { background: #2a1010; color: #e06060; } .dlg-btn.danger:active { background: #3a1515; }
 
-        /* ── SETTINGS SHEET ── */
         #settings-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; display: none; align-items: flex-end; justify-content: center; }
         #settings-ov.show { display: flex; }
         #settings-sheet { background: #0a0a0a; border-radius: 20px 20px 0 0; width: 100%; max-height: 85vh; display: flex; flex-direction: column; animation: sheetUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding-bottom: env(safe-area-inset-bottom); }
@@ -485,14 +614,12 @@
         .s-btn { padding: 8px 14px; background: #2a1010; border: 1px solid #3a1515; border-radius: 8px; color: #e06060; font-size: 13px; font-weight: 600; transition: background 0.15s, transform 0.1s; }
         .s-btn:active { background: #3a1515; transform: scale(0.96); }
 
-        /* ── TOAST ── */
         #toast-ct { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 20px; }
         .toast { padding: 10px 18px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 99px; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 100%; white-space: nowrap; }
         @keyframes toastIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         .toast.bye { animation: toastOut 0.2s ease forwards; }
         @keyframes toastOut { to { opacity: 0; transform: translateY(10px); } }
 
-        /* ── WEB SEARCH ANSWER BOX ── */
         .web-answer-box {
             background: #0a1628;
             border: 1px solid #1a3050;
@@ -508,7 +635,6 @@
             font-weight: 600;
         }
 
-        /* ── CODE MODE UI ── */
         body.code-mode .ai-txt code:not(pre code) { color: #fff; background: #111; }
         body.code-mode .code-wrap { border: 1px solid #333; background: #050505; box-shadow: 0 0 0 1px #222, 0 0 12px rgba(255,255,255,0.05); }
         body.code-mode .ai-txt pre code { color: #fff; font-size: 14px; }
@@ -561,7 +687,6 @@
         <div id="input-area">
             <div class="input-box" id="input-box">
                 <div class="input-tools">
-                    <!-- Search toggle -->
                     <button class="web-toggle-btn" id="web-toggle-btn" onclick="toggleWebSearch()" aria-label="Toggle web search">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -570,7 +695,6 @@
                         </svg>
                         Search
                     </button>
-                    <!-- Code toggle -->
                     <button class="web-toggle-btn" id="code-toggle-btn" onclick="toggleCodeMode()" aria-label="Toggle code mode">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="16 18 22 12 16 6"></polyline>
@@ -669,7 +793,6 @@
     <script>
         'use strict';
 
-        // ── SAFE FALLBACKS ──
         if (typeof marked === 'undefined') {
             window.marked = { parse: s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') };
         }
@@ -677,7 +800,6 @@
             window.DOMPurify = { sanitize: s => s };
         }
 
-        // ── CONFIG ──
         const CF = {
             systemPrompt: `You are 0v, a human.
 - **Core Identity**:
@@ -712,7 +834,6 @@
   - If someone pushes you, push back harder.`
         };
 
-        // ── STATE ── (single declaration, includes codeMode)
         const S = {
             convos: {},
             activeId: null,
@@ -730,7 +851,15 @@
             },
         };
 
-        // ── CODE MODE ──
+        const BUILD_STEPS = [
+            { name: 'Analyzing request', icon: 'Analyzing' },
+            { name: 'Creating file structure', icon: 'Structure' },
+            { name: 'Writing code', icon: 'Writing' },
+            { name: 'Checking for errors', icon: 'Checking' },
+            { name: 'Optimizing', icon: 'Optimizing' },
+            { name: 'Finalizing', icon: 'Finalizing' }
+        ];
+
         function toggleCodeMode() {
             S.codeMode = !S.codeMode;
             if (S.codeMode) {
@@ -749,7 +878,6 @@
             btn.classList.toggle('active', S.codeMode);
         }
 
-        // ── SEARCH TRIGGERS ──
         const SEARCH_TRIGGERS = [
             /\b(latest|recent|current|newest|update|version|patch|news|today|now|202[4-9]|price|stock|weather|score|live|trending|release|announce|launch)\b/i,
             /\b(who|what|when|where|why|how)\b.*\b(is|are|was|were|did|does|will|can)\b/i,
@@ -779,7 +907,276 @@
             return needs;
         }
 
-        // ── INIT ──
+        function isCodeRequest(prompt) {
+            if (!S.codeMode) return false;
+            const patterns = [
+                /\b(create|build|make|write|generate|code).*\b(html|css|js|javascript|website|webpage|app|calculator|form|game|file)\b/i,
+                /\b(html|css|javascript|js).*\b(file|code|page|app)\b/i,
+                /\bcalculator\b.*\bhtml\b/i,
+                /\b(todo|to-do|weather|clock|timer|pomodoro).*\bapp\b/i,
+                /\bwrite\s+(a|an|some)\s+(html|css|js|javascript|code)\b/i
+            ];
+            return patterns.some(p => p.test(prompt));
+        }
+
+        function detectFileType(prompt) {
+            if (/html|website|webpage|page/i.test(prompt)) return 'html';
+            if (/css|style|stylesheet/i.test(prompt)) return 'css';
+            if (/javascript|js|script/i.test(prompt)) return 'js';
+            return 'html';
+        }
+
+        function generateFileName(prompt, fileType) {
+            const words = prompt.toLowerCase()
+                .replace(/[^a-z0-9\s]/g, '')
+                .split(/\s+/)
+                .filter(w => w.length > 2)
+                .slice(0, 3);
+            const base = words.join('-') || 'file';
+            return `${base}.${fileType}`;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function updateStep(buildId, stepIndex, status) {
+            const stepEl = document.querySelector(`#${buildId} .build-step[data-step="${stepIndex}"]`);
+            if (!stepEl) return;
+            stepEl.className = 'build-step ' + status;
+            const indicator = stepEl.querySelector('.step-indicator');
+            if (status === 'active') {
+                indicator.innerHTML = '<span class="step-spinner"></span>';
+            } else if (status === 'completed') {
+                indicator.innerHTML = '<span class="step-check">✓</span>';
+            } else if (status === 'error') {
+                indicator.innerHTML = '<span class="step-x">✗</span>';
+            }
+            return sleep(50);
+        }
+
+        async function generateCodeInBackground(prompt, fileType) {
+            const systemPrompt = `You are a code generator. Output ONLY the raw code, no explanations, no markdown formatting.
+Generate complete, working ${fileType.toUpperCase()} code for: ${prompt}
+Requirements:
+- Use modern best practices
+- Include proper styling (if HTML/CSS)
+- Make it responsive and visually appealing
+- Add comments for clarity
+- Output ONLY the code, nothing else.`;
+
+            try {
+                const res = await fetch('/api/chat.js', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: prompt }],
+                        systemPrompt: systemPrompt,
+                        temperature: 0.3,
+                        maxTokens: 4096,
+                        stream: false
+                    }),
+                    signal: S.abort?.signal
+                });
+                if (!res.ok) throw new Error('Generation failed');
+                const data = await res.json();
+                let code = data.choices?.[0]?.message?.content || '';
+                code = code.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
+                return code;
+            } catch (error) {
+                console.error('Code generation error:', error);
+                throw error;
+            }
+        }
+
+        async function buildFile(convo, aiId, prompt, fileType) {
+            const txtEl = document.getElementById(aiId + 'txt');
+            const buildId = 'build-' + Date.now();
+            
+            txtEl.innerHTML = `
+                <div class="build-card" id="${buildId}">
+                    <div class="build-header">
+                        <div class="build-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                        </div>
+                        <div class="build-title">Building ${fileType.toUpperCase()} file</div>
+                    </div>
+                    <div class="build-steps" id="${buildId}-steps"></div>
+                    <div class="build-progress-bar">
+                        <div class="build-progress-fill" id="${buildId}-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="build-result" id="${buildId}-result" style="display: none"></div>
+                </div>
+            `;
+            
+            const stepsEl = document.getElementById(buildId + '-steps');
+            const progressEl = document.getElementById(buildId + '-progress');
+            const resultEl = document.getElementById(buildId + '-result');
+            
+            BUILD_STEPS.forEach((step, i) => {
+                stepsEl.innerHTML += `
+                    <div class="build-step" data-step="${i}">
+                        <span class="step-indicator"><span class="step-pending">○</span></span>
+                        <span>${step.name}</span>
+                    </div>
+                `;
+            });
+            
+            const codePromise = generateCodeInBackground(prompt, fileType);
+            
+            for (let i = 0; i < BUILD_STEPS.length; i++) {
+                await updateStep(buildId, i, 'active');
+                progressEl.style.width = `${((i + 1) / BUILD_STEPS.length) * 100}%`;
+                await sleep(400 + Math.random() * 400);
+            }
+            
+            try {
+                const generatedCode = await codePromise;
+                
+                for (let i = 0; i < BUILD_STEPS.length; i++) {
+                    await updateStep(buildId, i, 'completed');
+                }
+                progressEl.style.width = '100%';
+                
+                const fileName = generateFileName(prompt, fileType);
+                const blob = new Blob([generatedCode], { 
+                    type: fileType === 'html' ? 'text/html' : 
+                          fileType === 'css' ? 'text/css' : 
+                          'text/javascript' 
+                });
+                
+                resultEl.style.display = 'flex';
+                resultEl.innerHTML = `
+                    <div class="file-info">
+                        <div class="file-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                        </div>
+                        <div class="file-details">
+                            <span class="file-name">${esc(fileName)}</span>
+                            <span class="file-size">${formatBytes(blob.size)}</span>
+                        </div>
+                    </div>
+                    <div class="build-actions">
+                        <button class="preview-btn" onclick="previewCode('${esc(fileName)}', \`${escJs(generatedCode)}\`)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="2"/>
+                                <path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/>
+                            </svg>
+                            Preview
+                        </button>
+                        <button class="download-btn" onclick="downloadFile('${esc(fileName)}', \`${escJs(generatedCode)}\`)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Download
+                        </button>
+                    </div>
+                `;
+                
+                return {
+                    success: true,
+                    code: generatedCode,
+                    fileName: fileName,
+                    fileType: fileType
+                };
+                
+            } catch (error) {
+                const activeStep = BUILD_STEPS.findIndex(s => s.name === 'Writing code');
+                if (activeStep >= 0) await updateStep(buildId, activeStep, 'error');
+                
+                resultEl.style.display = 'flex';
+                resultEl.innerHTML = `
+                    <div style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        Build failed
+                    </div>
+                    <button class="retry-btn" onclick="retryBuild()">Retry</button>
+                `;
+                throw error;
+            }
+        }
+
+        function downloadFile(fileName, code) {
+            const blob = new Blob([code], { 
+                type: fileName.endsWith('.html') ? 'text/html' :
+                      fileName.endsWith('.css') ? 'text/css' :
+                      'text/javascript'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast('Downloaded ' + fileName);
+        }
+
+        function previewCode(fileName, code) {
+            const win = window.open('', '_blank');
+            if (fileName.endsWith('.html')) {
+                win.document.write(code);
+                win.document.close();
+            } else {
+                win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Preview: ${esc(fileName)}</title>
+                        <style>
+                            body { background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 20px; margin: 0; }
+                            pre { background: #0d0d0d; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>${esc(fileName)}</h2>
+                        <pre>${escHtml(code)}</pre>
+                    </body>
+                    </html>
+                `);
+            }
+        }
+
+        function escHtml(text) {
+            return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function escJs(str) {
+            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+        }
+
+        function retryBuild() {
+            const c = curConvo();
+            if (!c || S.busy) return;
+            const lastUser = c.msgs.filter(m => m.role === 'user').pop();
+            if (lastUser) {
+                c.msgs = c.msgs.filter(m => !m.buildResult);
+                renderMsgs();
+                const aiId = 'ai' + Date.now();
+                appendThinking(aiId);
+                generate(c, aiId, null);
+            }
+        }
+
         function dismissIntro() {
             const intro = document.getElementById('intro');
             const app = document.getElementById('app');
@@ -830,7 +1227,6 @@
             });
         }
 
-        // ── STORAGE ──
         function saveStore() {
             if (!S.settings.save) return;
             try {
@@ -856,7 +1252,6 @@
             }
         }
 
-        // ── WEB SEARCH TOGGLE ──
         function toggleWebSearch() {
             S.webSearch = !S.webSearch;
             updateWebToggleUI();
@@ -870,7 +1265,6 @@
             btn.classList.toggle('active', S.webSearch);
         }
 
-        // ── SEARCH API ──
         async function doSearch(query) {
             try {
                 const res = await fetch('/api/search.js', {
@@ -903,7 +1297,6 @@
             return ctx;
         }
 
-        // ── SIDEBAR ──
         function openSidebar() {
             document.getElementById('sidebar').classList.add('open');
             document.getElementById('sidebar-ov').classList.add('show');
@@ -942,7 +1335,6 @@
 
         function filterSB(v) { renderSB(v); }
 
-        // ── CONVERSATIONS ──
         function uid() { return 'c' + Date.now() + Math.random().toString(36).slice(2, 7); }
 
         function newChat() {
@@ -1013,7 +1405,6 @@
             return t.length > 40 ? t.slice(0, 40) + '...' : t;
         }
 
-        // ── EMPTY STATE ──
         function showEmpty() {
             const ca = document.getElementById('chat-area');
             if (!ca) return;
@@ -1025,7 +1416,6 @@
 </div>`;
         }
 
-        // ── RENDER MESSAGES ──
         function renderMsgs() {
             const c = curConvo();
             const ca = document.getElementById('chat-area');
@@ -1050,6 +1440,61 @@
 </div>`;
             }
 
+            if (msg.buildResult) {
+                const r = msg.buildResult;
+                return `<div class="msg-row ai">
+  <div class="msg-in">
+    <div class="msg-content">
+      <img class="ai-av" src="icon.webp" alt="V"/>
+      <div class="ai-body">
+        <div class="build-card">
+          <div class="build-header">
+            <div class="build-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="build-title">Build complete</div>
+          </div>
+          <div class="build-result" style="display: flex; border-top: none; padding-top: 0;">
+            <div class="file-info">
+              <div class="file-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <div class="file-details">
+                <span class="file-name">${esc(r.fileName)}</span>
+                <span class="file-size">Ready to download</span>
+              </div>
+            </div>
+            <div class="build-actions">
+              <button class="preview-btn" onclick="previewCode('${esc(r.fileName)}', \`${escJs(r.code)}\`)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="2"/>
+                  <path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/>
+                </svg>
+                Preview
+              </button>
+              <button class="download-btn" onclick="downloadFile('${esc(r.fileName)}', \`${escJs(r.code)}\`)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+        ${ts}
+      </div>
+    </div>
+  </div>
+</div>`;
+            }
+
             const badge = msg.searched
                 ? `<div class="web-badge">
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1060,7 +1505,7 @@
 </div>` : '';
 
             const directAnswer = msg.searched && msg.sources?.length
-                ? `<div class="web-answer-box"><strong>📌 Web Answer:</strong> Based on current search results.</div>`
+                ? `<div class="web-answer-box"><strong>Web Answer:</strong> Based on current search results.</div>`
                 : '';
 
             let sourcesHtml = '';
@@ -1127,7 +1572,6 @@
             });
         }
 
-        // ── SEND / GENERATE ──
         async function sendMsg() {
             const inp = document.getElementById('user-input');
             if (!inp) return;
@@ -1147,19 +1591,11 @@
             renderMsgs();
             renderSB();
 
-            let searchData = null;
-            if (needsSearch(raw)) {
-                showSearchIndicator();
-                searchData = await doSearch(raw);
-                hideSearchIndicator();
-            }
-
             const aiId = 'ai' + Date.now();
             appendThinking(aiId);
-            await generate(c, aiId, searchData);
+            await generate(c, aiId, raw);
         }
 
-        // ── SEARCH INDICATOR ──
         function showSearchIndicator() {
             const ca = document.getElementById('chat-area');
             if (!ca) return;
@@ -1180,7 +1616,6 @@
             document.getElementById('search-indicator')?.remove();
         }
 
-        // ── THINKING INDICATOR ──
         function appendThinking(id) {
             const ca = document.getElementById('chat-area');
             if (!ca) return;
@@ -1207,10 +1642,49 @@
             scrollBot();
         }
 
-        // ── GENERATE ──
-        async function generate(convo, aiId, searchData) {
+        async function generate(convo, aiId, userPrompt) {
             S.busy = true;
             S.abort = new AbortController();
+
+            if (isCodeRequest(userPrompt)) {
+                const fileType = detectFileType(userPrompt);
+                try {
+                    const result = await buildFile(convo, aiId, userPrompt, fileType);
+                    document.getElementById(aiId)?.remove();
+                    document.getElementById('stop-row')?.remove();
+                    convo.msgs.push({
+                        role: 'assistant',
+                        content: `Generated ${result.fileName}`,
+                        ts: Date.now(),
+                        buildResult: result
+                    });
+                    renderMsgs();
+                    saveStore();
+                } catch (error) {
+                    document.getElementById(aiId)?.remove();
+                    document.getElementById('stop-row')?.remove();
+                    convo.msgs.push({
+                        role: 'assistant',
+                        content: 'Build failed.',
+                        ts: Date.now(),
+                        error: true
+                    });
+                    renderMsgs();
+                }
+                S.busy = false;
+                S.abort = null;
+                const inp = document.getElementById('user-input');
+                const sbtn = document.getElementById('send-btn');
+                if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
+                return;
+            }
+
+            let searchData = null;
+            if (needsSearch(userPrompt)) {
+                showSearchIndicator();
+                searchData = await doSearch(userPrompt);
+                hideSearchIndicator();
+            }
 
             let sysPrompt = CF.systemPrompt;
 
@@ -1326,12 +1800,14 @@
             const c = curConvo();
             if (!c || S.busy) return;
             document.getElementById('err-row')?.remove();
-            const aiId = 'ai' + Date.now();
-            appendThinking(aiId);
-            generate(c, aiId, null);
+            const lastUser = c.msgs.filter(m => m.role === 'user').pop();
+            if (lastUser) {
+                const aiId = 'ai' + Date.now();
+                appendThinking(aiId);
+                generate(c, aiId, lastUser.content);
+            }
         }
 
-        // ── INPUT ──
         function autoGrow(el) {
             if (!el) return;
             el.style.height = 'auto';
@@ -1349,14 +1825,12 @@
             return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 'ontouchstart' in window;
         }
 
-        // ── SCROLL ──
         function scrollBot(smooth = false) {
             const ca = document.getElementById('chat-area');
             if (!ca) return;
             ca.scrollTo({ top: ca.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
         }
 
-        // ── DIALOG ──
         function showDialog(opts) {
             const ov = document.getElementById('dialog-ov');
             const tit = document.getElementById('dialog-title');
@@ -1408,7 +1882,6 @@
             showDialog({ title, msg, onConfirm: onYes, danger, confirmText: danger ? 'Delete' : 'Confirm' });
         }
 
-        // ── SETTINGS SHEET ──
         function openSettings() {
             closeSidebar();
             renderSettings();
@@ -1496,7 +1969,6 @@
             }, true);
         }
 
-        // ── CLIPBOARD ──
         function copyText(text, onDone) {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(onDone).catch(() => fallbackCopy(text, onDone));
@@ -1521,7 +1993,6 @@
             }
         }
 
-        // ── TOAST ──
         function toast(msg, dur = 2200) {
             const ct = document.getElementById('toast-ct');
             if (!ct) return;
@@ -1535,7 +2006,6 @@
             }, dur);
         }
 
-        // ── HELPERS ──
         function esc(s) {
             return String(s ?? '')
                 .replace(/&/g, '&amp;')
