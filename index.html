@@ -198,7 +198,7 @@
 
         .msg-ts { font-size: 10px; color: #444; margin-top: 4px; }
 
-        /* BUILD CARD */
+        /* BUILD CARD - CODE MODE */
         .build-card {
             background: #0a0a0a;
             border: 1px solid #1e1e1e;
@@ -342,6 +342,23 @@
         }
         .download-btn:hover { background: #3a8eef; }
         .download-btn:active { transform: scale(0.96); }
+
+        /* FILE DOWNLOAD CARD - NORMAL MODE */
+        .file-download-card {
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .file-download-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
         /* SEARCH INDICATOR */
         .search-indicator {
@@ -851,15 +868,6 @@
             },
         };
 
-        const BUILD_STEPS = [
-            { name: 'Analyzing request', icon: 'Analyzing' },
-            { name: 'Creating file structure', icon: 'Structure' },
-            { name: 'Writing code', icon: 'Writing' },
-            { name: 'Checking for errors', icon: 'Checking' },
-            { name: 'Optimizing', icon: 'Optimizing' },
-            { name: 'Finalizing', icon: 'Finalizing' }
-        ];
-
         function toggleCodeMode() {
             S.codeMode = !S.codeMode;
             if (S.codeMode) {
@@ -869,7 +877,7 @@
             updateCodeToggleUI();
             document.body.classList.toggle('code-mode', S.codeMode);
             saveStore();
-            toast(S.codeMode ? 'Code mode on' : 'Code mode off');
+            toast(S.codeMode ? 'Code mode on - step by step build enabled' : 'Code mode off');
         }
 
         function updateCodeToggleUI() {
@@ -898,8 +906,6 @@
             if (!S.settings.webSearchAuto) return false;
             if (txt.length < 10) return false;
             if (/^(hi|hello|hey|sup|yo|good|morning|afternoon|evening|thanks?|thank you|ok|okay|bye|goodbye)/i.test(txt)) return false;
-            if (/^(code|write|create|make|build|explain|help|teach|show).*(code|function|program|script|app)/i.test(txt) &&
-                !txt.includes('latest') && !txt.includes('current') && !txt.includes('new')) return false;
             const needs = SEARCH_TRIGGERS.some(r => r.test(txt));
             if (!needs && txt.includes('?') && txt.length > 15) {
                 if (/\b(when|where|who|what|why|how|which)\b.*\?/.test(txt)) return true;
@@ -908,13 +914,11 @@
         }
 
         function isCodeRequest(prompt) {
-            if (!S.codeMode) return false;
             const patterns = [
-                /\b(create|build|make|write|generate|code).*\b(html|css|js|javascript|website|webpage|app|calculator|form|game|file)\b/i,
+                /\b(create|build|make|write|generate|code).*\b(html|css|js|javascript|website|webpage|app|calculator|form|game|file|page)\b/i,
                 /\b(html|css|javascript|js).*\b(file|code|page|app)\b/i,
-                /\bcalculator\b.*\bhtml\b/i,
-                /\b(todo|to-do|weather|clock|timer|pomodoro).*\bapp\b/i,
-                /\bwrite\s+(a|an|some)\s+(html|css|js|javascript|code)\b/i
+                /\bcalculator\b/i,
+                /\b(todo|to-do|weather|clock|timer|pomodoro)\b/i,
             ];
             return patterns.some(p => p.test(prompt));
         }
@@ -926,12 +930,12 @@
             return 'html';
         }
 
-        function generateFileName(prompt, fileType) {
-            const words = prompt.toLowerCase()
-                .replace(/[^a-z0-9\s]/g, '')
-                .split(/\s+/)
-                .filter(w => w.length > 2)
-                .slice(0, 3);
+        function generateFileName(prompt, fileType, code) {
+            const titleMatch = code.match(/<title>([^<]*)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                return titleMatch[1].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.' + fileType;
+            }
+            const words = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2).slice(0, 3);
             const base = words.join('-') || 'file';
             return `${base}.${fileType}`;
         }
@@ -942,183 +946,24 @@
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
 
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        function updateStep(buildId, stepIndex, status) {
-            const stepEl = document.querySelector(`#${buildId} .build-step[data-step="${stepIndex}"]`);
-            if (!stepEl) return;
-            stepEl.className = 'build-step ' + status;
-            const indicator = stepEl.querySelector('.step-indicator');
-            if (status === 'active') {
-                indicator.innerHTML = '<span class="step-spinner"></span>';
-            } else if (status === 'completed') {
-                indicator.innerHTML = '<span class="step-check">✓</span>';
-            } else if (status === 'error') {
-                indicator.innerHTML = '<span class="step-x">✗</span>';
-            }
-            return sleep(50);
-        }
-
-        async function generateCodeInBackground(prompt, fileType) {
-            const systemPrompt = `You are a code generator. Output ONLY the raw code, no explanations, no markdown formatting.
-Generate complete, working ${fileType.toUpperCase()} code for: ${prompt}
-Requirements:
-- Use modern best practices
-- Include proper styling (if HTML/CSS)
-- Make it responsive and visually appealing
-- Add comments for clarity
-- Output ONLY the code, nothing else.`;
-
-            try {
-                const res = await fetch('/api/chat.js', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: [{ role: 'user', content: prompt }],
-                        systemPrompt: systemPrompt,
-                        temperature: 0.3,
-                        maxTokens: 4096,
-                        stream: false
-                    }),
-                    signal: S.abort?.signal
+        function extractCodeBlocks(content) {
+            const blocks = [];
+            const regex = /```(\w*)\n([\s\S]*?)```/g;
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                blocks.push({
+                    language: match[1] || 'text',
+                    code: match[2].trim()
                 });
-                if (!res.ok) throw new Error('Generation failed');
-                const data = await res.json();
-                let code = data.choices?.[0]?.message?.content || '';
-                code = code.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
-                return code;
-            } catch (error) {
-                console.error('Code generation error:', error);
-                throw error;
             }
-        }
-
-        async function buildFile(convo, aiId, prompt, fileType) {
-            const txtEl = document.getElementById(aiId + 'txt');
-            const buildId = 'build-' + Date.now();
-            
-            txtEl.innerHTML = `
-                <div class="build-card" id="${buildId}">
-                    <div class="build-header">
-                        <div class="build-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                            </svg>
-                        </div>
-                        <div class="build-title">Building ${fileType.toUpperCase()} file</div>
-                    </div>
-                    <div class="build-steps" id="${buildId}-steps"></div>
-                    <div class="build-progress-bar">
-                        <div class="build-progress-fill" id="${buildId}-progress" style="width: 0%"></div>
-                    </div>
-                    <div class="build-result" id="${buildId}-result" style="display: none"></div>
-                </div>
-            `;
-            
-            const stepsEl = document.getElementById(buildId + '-steps');
-            const progressEl = document.getElementById(buildId + '-progress');
-            const resultEl = document.getElementById(buildId + '-result');
-            
-            BUILD_STEPS.forEach((step, i) => {
-                stepsEl.innerHTML += `
-                    <div class="build-step" data-step="${i}">
-                        <span class="step-indicator"><span class="step-pending">○</span></span>
-                        <span>${step.name}</span>
-                    </div>
-                `;
-            });
-            
-            const codePromise = generateCodeInBackground(prompt, fileType);
-            
-            for (let i = 0; i < BUILD_STEPS.length; i++) {
-                await updateStep(buildId, i, 'active');
-                progressEl.style.width = `${((i + 1) / BUILD_STEPS.length) * 100}%`;
-                await sleep(400 + Math.random() * 400);
-            }
-            
-            try {
-                const generatedCode = await codePromise;
-                
-                for (let i = 0; i < BUILD_STEPS.length; i++) {
-                    await updateStep(buildId, i, 'completed');
-                }
-                progressEl.style.width = '100%';
-                
-                const fileName = generateFileName(prompt, fileType);
-                const blob = new Blob([generatedCode], { 
-                    type: fileType === 'html' ? 'text/html' : 
-                          fileType === 'css' ? 'text/css' : 
-                          'text/javascript' 
-                });
-                
-                resultEl.style.display = 'flex';
-                resultEl.innerHTML = `
-                    <div class="file-info">
-                        <div class="file-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                            </svg>
-                        </div>
-                        <div class="file-details">
-                            <span class="file-name">${esc(fileName)}</span>
-                            <span class="file-size">${formatBytes(blob.size)}</span>
-                        </div>
-                    </div>
-                    <div class="build-actions">
-                        <button class="preview-btn" onclick="previewCode('${esc(fileName)}', \`${escJs(generatedCode)}\`)">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="2"/>
-                                <path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/>
-                            </svg>
-                            Preview
-                        </button>
-                        <button class="download-btn" onclick="downloadFile('${esc(fileName)}', \`${escJs(generatedCode)}\`)">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7 10 12 15 17 10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            Download
-                        </button>
-                    </div>
-                `;
-                
-                return {
-                    success: true,
-                    code: generatedCode,
-                    fileName: fileName,
-                    fileType: fileType
-                };
-                
-            } catch (error) {
-                const activeStep = BUILD_STEPS.findIndex(s => s.name === 'Writing code');
-                if (activeStep >= 0) await updateStep(buildId, activeStep, 'error');
-                
-                resultEl.style.display = 'flex';
-                resultEl.innerHTML = `
-                    <div style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                        Build failed
-                    </div>
-                    <button class="retry-btn" onclick="retryBuild()">Retry</button>
-                `;
-                throw error;
-            }
+            return blocks;
         }
 
         function downloadFile(fileName, code) {
             const blob = new Blob([code], { 
                 type: fileName.endsWith('.html') ? 'text/html' :
                       fileName.endsWith('.css') ? 'text/css' :
-                      'text/javascript'
+                      fileName.endsWith('.js') ? 'text/javascript' : 'text/plain'
             });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1140,17 +985,10 @@ Requirements:
                 win.document.write(`
                     <!DOCTYPE html>
                     <html>
-                    <head>
-                        <title>Preview: ${esc(fileName)}</title>
-                        <style>
-                            body { background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 20px; margin: 0; }
-                            pre { background: #0d0d0d; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; }
-                        </style>
+                    <head><title>Preview: ${esc(fileName)}</title>
+                    <style>body{background:#1e1e1e;color:#d4d4d4;font-family:monospace;padding:20px;margin:0}pre{background:#0d0d0d;padding:20px;border-radius:8px;overflow-x:auto;white-space:pre-wrap}</style>
                     </head>
-                    <body>
-                        <h2>${esc(fileName)}</h2>
-                        <pre>${escHtml(code)}</pre>
-                    </body>
+                    <body><h2>${esc(fileName)}</h2><pre>${escHtml(code)}</pre></body>
                     </html>
                 `);
             }
@@ -1162,19 +1000,6 @@ Requirements:
 
         function escJs(str) {
             return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        }
-
-        function retryBuild() {
-            const c = curConvo();
-            if (!c || S.busy) return;
-            const lastUser = c.msgs.filter(m => m.role === 'user').pop();
-            if (lastUser) {
-                c.msgs = c.msgs.filter(m => !m.buildResult);
-                renderMsgs();
-                const aiId = 'ai' + Date.now();
-                appendThinking(aiId);
-                generate(c, aiId, null);
-            }
         }
 
         function dismissIntro() {
@@ -1440,59 +1265,48 @@ Requirements:
 </div>`;
             }
 
-            if (msg.buildResult) {
-                const r = msg.buildResult;
-                return `<div class="msg-row ai">
-  <div class="msg-in">
-    <div class="msg-content">
-      <img class="ai-av" src="icon.webp" alt="V"/>
-      <div class="ai-body">
-        <div class="build-card">
-          <div class="build-header">
-            <div class="build-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <div class="build-title">Build complete</div>
-          </div>
-          <div class="build-result" style="display: flex; border-top: none; padding-top: 0;">
-            <div class="file-info">
-              <div class="file-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                </svg>
-              </div>
-              <div class="file-details">
-                <span class="file-name">${esc(r.fileName)}</span>
-                <span class="file-size">Ready to download</span>
-              </div>
-            </div>
-            <div class="build-actions">
-              <button class="preview-btn" onclick="previewCode('${esc(r.fileName)}', \`${escJs(r.code)}\`)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="2"/>
-                  <path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/>
-                </svg>
-                Preview
-              </button>
-              <button class="download-btn" onclick="downloadFile('${esc(r.fileName)}', \`${escJs(r.code)}\`)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download
-              </button>
-            </div>
-          </div>
-        </div>
-        ${ts}
-      </div>
-    </div>
-  </div>
-</div>`;
+            // Add download buttons for code blocks in normal mode
+            let downloadButtonsHtml = '';
+            if (!S.codeMode && msg.content) {
+                const blocks = extractCodeBlocks(msg.content);
+                if (blocks.length > 0) {
+                    const fileType = detectFileType(msg.content);
+                    const mainBlock = blocks[0];
+                    const fileName = generateFileName(msg.content || 'file', fileType, mainBlock.code);
+                    downloadButtonsHtml = `
+                        <div class="file-download-card">
+                            <div class="file-download-info">
+                                <div class="file-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                </div>
+                                <div class="file-details">
+                                    <span class="file-name">${esc(fileName)}</span>
+                                    <span class="file-size">${formatBytes(new Blob([mainBlock.code]).size)}</span>
+                                </div>
+                            </div>
+                            <div class="build-actions">
+                                <button class="preview-btn" onclick="previewCode('${esc(fileName)}', \`${escJs(mainBlock.code)}\`)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="2"/>
+                                        <path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/>
+                                    </svg>
+                                    Preview
+                                </button>
+                                <button class="download-btn" onclick="downloadFile('${esc(fileName)}', \`${escJs(mainBlock.code)}\`)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
             }
 
             const badge = msg.searched
@@ -1534,6 +1348,7 @@ Requirements:
         ${badge}
         ${directAnswer}
         <div class="ai-txt">${html}</div>
+        ${downloadButtonsHtml}
         ${sourcesHtml}
         ${ts}
         <div class="msg-acts"></div>
@@ -1592,8 +1407,54 @@ Requirements:
             renderSB();
 
             const aiId = 'ai' + Date.now();
-            appendThinking(aiId);
-            await generate(c, aiId, raw);
+            
+            if (S.codeMode && isCodeRequest(raw)) {
+                appendCodeModeBuilder(aiId, raw);
+                await generateCodeMode(c, aiId, raw);
+            } else {
+                appendThinking(aiId);
+                await generateNormal(c, aiId, raw);
+            }
+        }
+
+        function appendCodeModeBuilder(id, prompt) {
+            const ca = document.getElementById('chat-area');
+            if (!ca) return;
+            const row = document.createElement('div');
+            row.className = 'msg-row ai';
+            row.id = id;
+            const fileType = detectFileType(prompt);
+            row.innerHTML = `<div class="msg-in"><div class="msg-content">
+    <img class="ai-av" src="icon.webp" alt="V"/>
+    <div class="ai-body">
+        <div class="build-card" id="${id}-build">
+            <div class="build-header">
+                <div class="build-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                </div>
+                <div class="build-title">Building ${fileType.toUpperCase()} file</div>
+            </div>
+            <div class="build-steps" id="${id}-steps"></div>
+            <div class="build-progress-bar">
+                <div class="build-progress-fill" id="${id}-progress" style="width: 0%"></div>
+            </div>
+            <div class="build-result" id="${id}-result" style="display: none"></div>
+        </div>
+    </div>
+</div></div>`;
+            ca.appendChild(row);
+
+            const sr = document.createElement('div');
+            sr.id = 'stop-row';
+            sr.innerHTML = `<button class="stop-btn" onclick="stopGen()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+    Stop building
+</button>`;
+            ca.appendChild(sr);
+            scrollBot();
         }
 
         function showSearchIndicator() {
@@ -1642,42 +1503,173 @@ Requirements:
             scrollBot();
         }
 
-        async function generate(convo, aiId, userPrompt) {
+        const BUILD_STEPS = [
+            'Analyzing request',
+            'Creating structure',
+            'Writing code',
+            'Checking errors',
+            'Optimizing',
+            'Finalizing'
+        ];
+
+        function updateCodeModeStep(buildId, stepIndex, status) {
+            const stepsEl = document.getElementById(buildId + '-steps');
+            if (!stepsEl) return;
+            
+            if (!stepsEl.children.length) {
+                BUILD_STEPS.forEach((step, i) => {
+                    stepsEl.innerHTML += `
+                        <div class="build-step" data-step="${i}">
+                            <span class="step-indicator"><span class="step-pending">○</span></span>
+                            <span>${step}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            const stepEl = stepsEl.querySelector(`.build-step[data-step="${stepIndex}"]`);
+            if (!stepEl) return;
+            
+            stepEl.className = 'build-step ' + status;
+            const indicator = stepEl.querySelector('.step-indicator');
+            if (status === 'active') {
+                indicator.innerHTML = '<span class="step-spinner"></span>';
+            } else if (status === 'completed') {
+                indicator.innerHTML = '<span class="step-check">✓</span>';
+            } else if (status === 'error') {
+                indicator.innerHTML = '<span class="step-x">✗</span>';
+            }
+        }
+
+        async function generateCodeMode(convo, aiId, userPrompt) {
             S.busy = true;
             S.abort = new AbortController();
+            
+            const fileType = detectFileType(userPrompt);
+            const buildId = aiId + '-build';
+            const progressEl = document.getElementById(aiId + '-progress');
+            const resultEl = document.getElementById(aiId + '-result');
+            
+            let sysPrompt = CF.systemPrompt;
+            sysPrompt += `\n\n- CODE GENERATION MODE:\n  - You are building a ${fileType.toUpperCase()} file.\n  - Output ONLY the complete, working code.\n  - No explanations, no markdown formatting outside code blocks.\n  - Use proper code blocks: \`\`\`${fileType}\n...\n\`\`\`\n  - Make it responsive and visually appealing.`;
+            
+            let fullResponse = '';
+            let currentStep = 0;
+            let stepInterval;
+            
+            // Start step animation
+            stepInterval = setInterval(() => {
+                if (currentStep < BUILD_STEPS.length - 1) {
+                    updateCodeModeStep(buildId, currentStep, 'completed');
+                    currentStep++;
+                    updateCodeModeStep(buildId, currentStep, 'active');
+                    if (progressEl) {
+                        progressEl.style.width = `${((currentStep + 1) / BUILD_STEPS.length) * 100}%`;
+                    }
+                }
+            }, 800);
+            
+            try {
+                const res = await fetch('/api/chat.js', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: userPrompt }],
+                        systemPrompt: sysPrompt,
+                        temperature: S.settings.temperature,
+                        maxTokens: 4096,
+                        stream: S.settings.streaming
+                    }),
+                    signal: S.abort.signal,
+                });
 
-            if (isCodeRequest(userPrompt)) {
-                const fileType = detectFileType(userPrompt);
-                try {
-                    const result = await buildFile(convo, aiId, userPrompt, fileType);
-                    document.getElementById(aiId)?.remove();
-                    document.getElementById('stop-row')?.remove();
-                    convo.msgs.push({
-                        role: 'assistant',
-                        content: `Generated ${result.fileName}`,
-                        ts: Date.now(),
-                        buildResult: result
-                    });
-                    renderMsgs();
-                    saveStore();
-                } catch (error) {
-                    document.getElementById(aiId)?.remove();
-                    document.getElementById('stop-row')?.remove();
-                    convo.msgs.push({
-                        role: 'assistant',
-                        content: 'Build failed.',
-                        ts: Date.now(),
-                        error: true
-                    });
-                    renderMsgs();
+                if (!res.ok) throw new Error('Request failed');
+
+                if (S.settings.streaming && res.body) {
+                    const reader = res.body.getReader();
+                    const dec = new TextDecoder();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        const chunk = dec.decode(value, { stream: true });
+                        for (const line of chunk.split('\n')) {
+                            if (!line.startsWith('data: ')) continue;
+                            const data = line.slice(6).trim();
+                            if (data === '[DONE]') continue;
+                            try {
+                                const d = JSON.parse(data);
+                                const delta = d.choices?.[0]?.delta?.content || '';
+                                if (delta) {
+                                    fullResponse += delta;
+                                }
+                            } catch {}
+                        }
+                    }
+                } else {
+                    const d = await res.json();
+                    fullResponse = d.choices?.[0]?.message?.content || '';
+                }
+            } catch (err) {
+                clearInterval(stepInterval);
+                if (err.name !== 'AbortError') {
+                    updateCodeModeStep(buildId, currentStep, 'error');
+                    if (resultEl) {
+                        resultEl.style.display = 'flex';
+                        resultEl.innerHTML = `
+                            <div style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="8" x2="12" y2="12"/>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                                Build failed
+                            </div>
+                            <button class="retry-btn" onclick="retryLast()">Retry</button>
+                        `;
+                    }
                 }
                 S.busy = false;
                 S.abort = null;
-                const inp = document.getElementById('user-input');
-                const sbtn = document.getElementById('send-btn');
-                if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
                 return;
             }
+            
+            clearInterval(stepInterval);
+            
+            // Complete all steps
+            for (let i = 0; i < BUILD_STEPS.length; i++) {
+                updateCodeModeStep(buildId, i, 'completed');
+            }
+            if (progressEl) progressEl.style.width = '100%';
+            
+            // Extract code
+            const blocks = extractCodeBlocks(fullResponse);
+            let code = blocks.length > 0 ? blocks[0].code : fullResponse;
+            const fileName = generateFileName(userPrompt, fileType, code);
+            const blob = new Blob([code], { type: fileType === 'html' ? 'text/html' : fileType === 'css' ? 'text/css' : 'text/javascript' });
+            
+            document.getElementById(aiId)?.remove();
+            document.getElementById('stop-row')?.remove();
+            
+            convo.msgs.push({
+                role: 'assistant',
+                content: `Generated ${fileName}`,
+                ts: Date.now(),
+                codeModeResult: { fileName, code, size: blob.size }
+            });
+            
+            renderMsgs();
+            saveStore();
+            
+            S.busy = false;
+            S.abort = null;
+            const inp = document.getElementById('user-input');
+            const sbtn = document.getElementById('send-btn');
+            if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
+        }
+
+        async function generateNormal(convo, aiId, userPrompt) {
+            S.busy = true;
+            S.abort = new AbortController();
 
             let searchData = null;
             if (needsSearch(userPrompt)) {
@@ -1687,10 +1679,6 @@ Requirements:
             }
 
             let sysPrompt = CF.systemPrompt;
-
-            if (S.codeMode) {
-                sysPrompt += `\n\n- You are in CODE MODE:\n  - Prioritize code over explanation.\n  - Always output working, clean code first.\n  - Keep explanations short or optional.\n  - Use proper markdown code blocks.\n`;
-            }
             if (searchData && (searchData.results?.length || searchData.answer)) {
                 sysPrompt += buildSearchContext(searchData);
             }
@@ -1803,8 +1791,13 @@ Requirements:
             const lastUser = c.msgs.filter(m => m.role === 'user').pop();
             if (lastUser) {
                 const aiId = 'ai' + Date.now();
-                appendThinking(aiId);
-                generate(c, aiId, lastUser.content);
+                if (S.codeMode && isCodeRequest(lastUser.content)) {
+                    appendCodeModeBuilder(aiId, lastUser.content);
+                    generateCodeMode(c, aiId, lastUser.content);
+                } else {
+                    appendThinking(aiId);
+                    generateNormal(c, aiId, lastUser.content);
+                }
             }
         }
 
@@ -2014,6 +2007,69 @@ Requirements:
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
         }
+
+        // Add build result rendering to buildMsg
+        const originalBuildMsg = buildMsg;
+        buildMsg = function(msg, idx) {
+            if (msg.codeModeResult) {
+                const r = msg.codeModeResult;
+                const ts = S.settings.timestamps && msg.ts
+                    ? `<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>`
+                    : '';
+                return `<div class="msg-row ai">
+  <div class="msg-in">
+    <div class="msg-content">
+      <img class="ai-av" src="icon.webp" alt="V"/>
+      <div class="ai-body">
+        <div class="build-card">
+          <div class="build-header">
+            <div class="build-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="build-title">Build complete</div>
+          </div>
+          <div class="build-result" style="display: flex; border-top: none; padding-top: 0;">
+            <div class="file-info">
+              <div class="file-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <div class="file-details">
+                <span class="file-name">${esc(r.fileName)}</span>
+                <span class="file-size">${formatBytes(r.size)}</span>
+              </div>
+            </div>
+            <div class="build-actions">
+              <button class="preview-btn" onclick="previewCode('${esc(r.fileName)}', \`${escJs(r.code)}\`)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="2"/>
+                  <path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/>
+                </svg>
+                Preview
+              </button>
+              <button class="download-btn" onclick="downloadFile('${esc(r.fileName)}', \`${escJs(r.code)}\`)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+        ${ts}
+      </div>
+    </div>
+  </div>
+</div>`;
+            }
+            return originalBuildMsg.call(this, msg, idx);
+        };
     </script>
 </body>
 
