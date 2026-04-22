@@ -16,8 +16,7 @@ module.exports = async function handler(req, res) {
     messages,
     systemPrompt,
     temperature,
-    maxTokens,
-    model: requestedModel
+    maxTokens
   } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
@@ -28,11 +27,6 @@ module.exports = async function handler(req, res) {
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
-
-  const MODEL_TEXT = 'deepseek/deepseek-v3.2';
-  const MODEL_CODE = 'z-ai/glm-5.1:exacto';
-
-  const model = requestedModel || MODEL_TEXT;
 
   const referer = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -48,7 +42,7 @@ module.exports = async function handler(req, res) {
         'X-Title': '0v AI'
       },
       body: JSON.stringify({
-        model,
+        model: 'z-ai/glm-5.1:exacto',
         messages: [
           {
             role: 'system',
