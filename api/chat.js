@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         'X-Title': '0v AI'
       },
       body: JSON.stringify({
-        model: 'z-ai/glm-5.1:nitro',
+        model: 'nvidia/nemotron-nano-9b-v2:free',
         //z-ai/glm-5.1:exacto
         messages: [
           { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
