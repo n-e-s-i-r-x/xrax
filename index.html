@@ -405,8 +405,19 @@
         function setupScrollWatcher() { const ca = document.getElementById('chat-area'); if (!ca) return; ca.addEventListener('scroll', () => { const far = ca.scrollHeight - ca.scrollTop - ca.clientHeight > 120; const btn = document.getElementById('scroll-btn'); if (btn) btn.classList.toggle('show', far); }); }
         function setupInputListener() { const inp = document.getElementById('user-input'); if (!inp) return; inp.addEventListener('input', () => { const btn = document.getElementById('send-btn'); if (btn) btn.disabled = !inp.value.trim() || S.busy; }); }
 
-        function saveStore() { if (!S.settings.save) return; try { localStorage.setItem('vg_codemode', JSON.stringify(S.codeMode)); localStorage.setItem('vg_imagemode', JSON.stringify(S.imageMode)); localStorage.setItem('vg_convos', JSON.stringify(S.convos)); localStorage.setItem('vg_settings', JSON.stringify(S.settings)); } catch (e) {} }
-        function loadStore() { try { const cm = localStorage.getItem('vg_codemode'); if (cm) S.codeMode = JSON.parse(cm); const im = localStorage.getItem('vg_imagemode'); if (im) S.imageMode = JSON.parse(im); const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; } catch (e) { S.convos = {}; } }
+                function saveStore() { 
+            if (!S.settings.save) return; 
+            try { 
+                localStorage.setItem('vg_convos', JSON.stringify(S.convos)); 
+                localStorage.setItem('vg_settings', JSON.stringify(S.settings)); 
+            } catch (e) {} 
+        }
+                function loadStore() { 
+            try { 
+                const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c) || {}; 
+                const st = localStorage.getItem('vg_settings'); if (st) S.settings = { ...S.settings, ...(JSON.parse(st) || {}) }; 
+            } catch (e) { S.convos = {}; } 
+        }
 
         async function doSearch(query) { try { const res = await fetch('/api/search.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); if (!res.ok) return null; const data = await res.json(); return (data.results?.length || data.answer) ? data : null; } catch (e) { return null; } }
         function buildSearchContext(searchData) { if (!searchData) return ''; let ctx = '\n\n--- LIVE WEB SEARCH RESULTS ---\n'; ctx += `(Today's date: ${new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })})\n\n`; if (searchData.answer) ctx += `DIRECT ANSWER FROM WEB: ${searchData.answer}\n\n`; const results = searchData.results || []; if (results.length) { ctx += 'SOURCES:\n'; results.forEach((r, i) => { ctx += `[${i+1}] ${r.title}\nURL: ${r.url}\n${r.snippet}\n\n`; }); } ctx += '--- USE THE ABOVE TO ANSWER ACCURATELY. ---\n'; return ctx; }
