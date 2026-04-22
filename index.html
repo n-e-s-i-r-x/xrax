@@ -712,17 +712,73 @@ const S = {
 
 // ── KEYWORDS that suggest a live-search is worthwhile ──
 const SEARCH_TRIGGERS = [
-  /\b(latest|recent|current|today|now|news|2024|2025|price|stock|weather|score|live|update|happen|trending|release)\b/i,
-  /\bwho (is|are|was|were)\b/i,
-  /\bwhat (is|are|was|were)\b.*\b(now|today|currently)\b/i,
-  /\bhow much (does|is|costs?)\b/i,
-  /\b(announce|launch|event|deadline|schedule)\b/i,
+  // Always search for these keywords
+  /\b(latest|recent|current|newest|update|version|patch|news|today|now|202[4-9]|price|stock|weather|score|live|trending|release|announce|launch)\b/i,
+  
+  // Question patterns
+  /\b(who|what|when|where|why|how)\b.*\b(is|are|was|were|did|does|will|can)\b/i,
+  
+  // "What's the latest..." pattern
+  /\bwhat'?s? the (latest|current|newest|recent)\b/i,
+  
+  // "How much does..." pattern
+  /\bhow much (does|is|are|do)\b/i,
+  
+  // "When did..." pattern
+  /\bwhen (did|was|will|is)\b/i,
+  
+  // "Tell me about..." pattern
+  /\btell me about\b/i,
+  
+  // "Explain..." pattern
+  /\bexplain\b/i,
+  
+  // "Search for..." pattern
+  /\b(search|find|look up)\b/i,
+  
+  // Current events indicators
+  /\b(breaking|just in|happening now|as of today)\b/i,
+  
+  // Version/update queries
+  /\b(version|update|patch|release).*(latest|current|new|recent)\b/i,
+  /\b(latest|current).*(version|update|patch|release)\b/i,
 ];
 
 function needsSearch(text) {
-  if (S.webSearch) return true;               // user explicitly toggled it on
-  if (!S.settings.webSearchAuto) return false; // auto disabled in settings
-  return SEARCH_TRIGGERS.some(r => r.test(text));
+  const txt = text.toLowerCase().trim();
+  
+  // 1. User manually toggled web search ON
+  if (S.webSearch) return true;
+  
+  // 2. Auto-detect is disabled in settings
+  if (!S.settings.webSearchAuto) return false;
+  
+  // 3. Check if query is too short (probably doesn't need search)
+  if (txt.length < 10) return false;
+  
+  // 4. Check if it's a simple greeting/chat
+  if (/^(hi|hello|hey|sup|yo|good|morning|afternoon|evening|thanks?|thank you|ok|okay|bye|goodbye)/i.test(txt)) {
+    return false;
+  }
+  
+  // 5. Check if it's asking for code/explanation without needing live data
+  if (/^(code|write|create|make|build|explain|help|teach|show).*(code|function|program|script|app)/i.test(txt) &&
+      !txt.includes('latest') && !txt.includes('current') && !txt.includes('new')) {
+    return false;
+  }
+  
+  // 6. Check against search triggers
+  const needs = SEARCH_TRIGGERS.some(r => r.test(txt));
+  
+  // 7. Additional logic: If query contains "?" and is about facts/info, search
+  if (!needs && txt.includes('?') && txt.length > 15) {
+    // Questions about facts, dates, people, events
+    if (/\b(when|where|who|what|why|how|which)\b.*\?/.test(txt)) {
+      return true;
+    }
+  }
+  
+  return needs;
 }
 
 // ── INIT ──
