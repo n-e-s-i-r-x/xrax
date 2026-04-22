@@ -10,35 +10,37 @@ export default async function handler(req) {
   const { messages, systemPrompt } = await req.json();
   const apiKey = process.env.OPENROUTER_API_KEY;
 
-  const trimmedMessages = messages.slice(-4); // 🔥 VERY aggressive
-
   const encoder = new TextEncoder();
+  const trimmedMessages = messages.slice(-5);
 
   const stream = new ReadableStream({
     async start(controller) {
-      // ⚡ 1. INSTANT RESPONSE (0ms perceived latency)
-      controller.enqueue(
-        encoder.encode(`data: {"choices":[{"delta":{"content":""}}]}\n\n`)
-      );
+      // ⚡ instant response (UI unlock)
+      controller.enqueue(encoder.encode(' '));
 
-      // ⚡ 2. CALL MODEL (fastest available)
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-5.1-codex-mini', // 🔥 key change
-          messages: [
-            { role: 'system', content: systemPrompt || 'Be short and fast.' },
-            ...trimmedMessages
-          ],
-          temperature: 0.3, // 🔥 lower = faster + more deterministic
-          max_tokens: 10000,  // 🔥 shorter = faster
-          stream: true
-        }),
-      });
+      const response = await fetch(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            // 🧠 YOUR MODEL (UNCHANGED)
+            model: 'openai/gpt-5.1-codex-mini',
+
+            messages: [
+              { role: 'system', content: systemPrompt || 'Be short and fast.' },
+              ...trimmedMessages,
+            ],
+
+            temperature: 0.2,
+            max_tokens: 400,
+            stream: true,
+          }),
+        }
+      );
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -46,31 +48,40 @@ export default async function handler(req) {
       let buffer = '';
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { value, done } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value);
 
         const lines = buffer.split('\n');
         buffer = lines.pop();
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            controller.enqueue(encoder.encode(line + '\n\n'));
-          }
+          if (!line.startsWith('data: ')) continue;
+
+          const data = line.slice(6);
+
+          if (data === '[DONE]') continue;
+
+          try {
+            const json = JSON.parse(data);
+            const token = json?.choices?.[0]?.delta?.content;
+
+            if (token) {
+              controller.enqueue(encoder.encode(token));
+            }
+          } catch {}
         }
       }
 
-      // ⚡ 3. DONE SIGNAL
-      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
       controller.close();
     },
   });
 
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     },
   });
