@@ -268,8 +268,32 @@
         padding: 3px 8px; font-size: 11px; color: #4a9eff; margin-bottom: 8px;
       }
 
-      .sources-wrap { margin-top: 10px; border-top: 1px solid #141414; padding-top: 10px; }
-      .sources-title { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #444; margin-bottom: 8px; }
+      /* ── SOURCES DROPDOWN ─────────────────────────────────────────── */
+      .sources-wrap { margin-top: 10px; border-top: 1px solid #141414; padding-top: 8px; }
+      .sources-toggle {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 11px; font-weight: 700; letter-spacing: 0.6px;
+        text-transform: uppercase; color: #444;
+        cursor: pointer; user-select: none; padding: 2px 0 6px;
+        background: none; border: none; transition: color 0.15s;
+      }
+      .sources-toggle:hover { color: #666; }
+      .sources-toggle:active { color: #888; }
+      .sources-chevron {
+        transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+        flex-shrink: 0;
+      }
+      .sources-wrap.open .sources-chevron { transform: rotate(90deg); }
+      .sources-list {
+        overflow: hidden;
+        max-height: 0;
+        transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;
+        opacity: 0;
+      }
+      .sources-wrap.open .sources-list {
+        max-height: 600px;
+        opacity: 1;
+      }
       .source-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; text-decoration: none; }
       .source-favicon { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; margin-top: 2px; object-fit: contain; }
       .source-text { flex: 1; min-width: 0; }
@@ -321,9 +345,17 @@
       .mode-btn.active.purple { color: #c084fc; border-color: #3b1f6e; background: #160d2e; }
       .mode-btn svg { flex-shrink: 0; }
 
+      /* ── IMAGE NOTICE — bright yellow ─────────────────────────────── */
       #image-notice {
         display: none; text-align: center; font-size: 10.5px;
-        color: #3a3a3a; padding: 5px 14px 0; line-height: 1.4;
+        color: #ffe066;
+        text-shadow: 0 0 10px rgba(255,224,50,0.45);
+        padding: 6px 14px 0; line-height: 1.5;
+        animation: noticeIn 0.3s ease;
+      }
+      @keyframes noticeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
       #image-notice.show { display: block; }
 
@@ -548,7 +580,7 @@
             </button>
           </div>
         </div>
-        <div id="image-notice">Text-to-Image is currently in its alpha phase and undergoing active testing. As a result, image quality may be limited. This system is primarily optimized for coding and text-based tasks.</div>
+        <div id="image-notice">⚠ Text-to-Image is currently in its alpha phase and undergoing active testing. As a result, image quality may be limited. This system is primarily optimized for coding and text-based tasks.</div>
       </div>
     </div>
 
@@ -556,7 +588,6 @@
     <div id="sidebar">
       <div class="sb-head">
         <img class="sb-logo" src="icon.webp" alt="" />
-        <div class="sb-name">0v Ai</div>
       </div>
       <button class="sb-new" onclick="newChat();closeSidebar();">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -654,20 +685,8 @@
 
       codeModeAddendum: `\n\n[CODE MODE: Prioritize working code. Always use fenced code blocks with correct language tags. Be concise.]`,
 
-      thinkingInstructions: `\n\n[THINKING MODE]
-You MUST respond in this exact two-part format:
-
-<think>
-Write your genuine raw internal monologue here. Think out loud naturally as yourself. React honestly to what was said. Reason through the problem. Ask yourself questions. If you realize you don't know something or need to look it up, write that naturally in your own words (e.g. "I don't actually know what this is, I'd need to search for it"). Keep it conversational, honest, and real — like actual private thoughts, not a structured report.
-</think>
-
-Your actual reply to the user goes here. Be yourself. Direct. No referencing your thinking above.
-
-RULES:
-- The <think> block is private reasoning ONLY — never put the answer inside it.
-- The answer comes AFTER </think>.
-- Write thinking as natural flowing thoughts, NOT as numbered steps or bullet points.
-- Be genuine — if you don't know something, say so honestly in the think block.`,
+      // ── THINK MODE: much shorter instructions so the model has token room to actually answer
+      thinkingInstructions: `\n\n[THINK MODE: Before answering, write your raw internal reasoning inside <think>...</think> tags. Then write your reply outside those tags. Keep thinking concise. Always produce a reply after </think>.]`,
     };
 
     /* ── STATE ──────────────────────────────────────────────────────────────── */
@@ -709,7 +728,7 @@ RULES:
     }
     function modeOn(m) { return S.modes.has(m); }
 
-    /* ── SEARCH — only trigger when truly needed ─────────────────────────────── */
+    /* ── SEARCH ─────────────────────────────────────────────────────────────── */
     const HARD_SEARCH_PAT = [
       /\b(202[4-9]|20[3-9]\d)\b/,
       /\b(today|right\s+now|as\s+of\s+today|this\s+week|this\s+month|this\s+year)\b/i,
@@ -721,8 +740,8 @@ RULES:
     ];
 
     function needsSearch(text) {
-      if (modeOn("web")) return true;       // explicit search mode
-      if (modeOn("image")) return false;     // never search for image gen
+      if (modeOn("web")) return true;
+      if (modeOn("image")) return false;
       if (!S.settings.webSearchAuto) return false;
       const t = text.toLowerCase().trim();
       if (t.length < 8) return false;
@@ -733,27 +752,26 @@ RULES:
     function thinkSignalsSearch(thinkText) {
       const t = thinkText.toLowerCase();
       return (
-        (t.includes("i don't know what") || t.includes("i dont know what") ||
-         t.includes("i don't know anything about") || t.includes("never heard of") ||
-         t.includes("i have no idea what") || t.includes("i'd need to search") ||
-         t.includes("i need to search for") || t.includes("i should look this up") ||
-         t.includes("let me look this up") || t.includes("i should search for") ||
-         t.includes("need to look up what") || t.includes("i'm not sure what this is"))
+        t.includes("i don't know what") || t.includes("i dont know what") ||
+        t.includes("i don't know anything about") || t.includes("never heard of") ||
+        t.includes("i have no idea what") || t.includes("i'd need to search") ||
+        t.includes("i need to search for") || t.includes("i should look this up") ||
+        t.includes("let me look this up") || t.includes("i should search for") ||
+        t.includes("need to look up what") || t.includes("i'm not sure what this is")
       );
     }
 
-    function aiDoesNotKnow(text) {
-      return [
-        /\b(i\s+don'?t\s+know|i\s+do\s+not\s+know)\b.*\b(what|who|where|when|how)\b/i,
-        /\b(never\s+heard\s+of|not\s+familiar\s+with)\b/i,
-        /\b(i\s+have\s+no\s+(idea|information)\s+about)\b/i,
-        /\b(i'?m\s+not\s+sure\s+what\s+(this|that|it)\s+is)\b/i,
-      ].some(r => r.test(text));
-    }
-
+    // ── FIX: robust think/answer extractor that handles models which don't close the tag
     function extractThinking(text) {
+      // Try proper open+close
       const m = text.match(/^<think\s*>([\s\S]*?)<\/think\s*>\s*/i);
       if (m) return { thinking: m[1].trim(), answer: text.slice(m[0].length).trim() };
+
+      // Model opened <think> but never closed it — treat everything as thinking, no answer
+      // (this causes blank response — we return null thinking and the whole text as answer)
+      const openOnly = text.match(/^<think\s*>([\s\S]*)$/i);
+      if (openOnly) return { thinking: openOnly[1].trim(), answer: "" };
+
       return { thinking: null, answer: text };
     }
 
@@ -898,6 +916,14 @@ RULES:
       ca.innerHTML=c.msgs.map((m,i)=>buildMsg(m,i)).join("");
       attachCodeBtns(); scrollBot();
     }
+
+    /* ── SOURCES TOGGLE ─────────────────────────────────────────────────────── */
+    function toggleSources(el) {
+      const wrap = el.closest(".sources-wrap");
+      if (!wrap) return;
+      wrap.classList.toggle("open");
+    }
+
     function buildMsg(msg,idx) {
       const ts=S.settings.timestamps&&msg.ts
         ?`<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>`:"";
@@ -919,8 +945,11 @@ RULES:
           <div class="ai-think-body"><div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div></div>
         </div>`;
       }
+
+      // ── SOURCES as collapsible dropdown
       let sourcesHtml="";
       if(msg.sources&&msg.sources.length){
+        const count = msg.sources.length;
         const items=msg.sources.map(s=>{
           let h=""; try{h=new URL(s.url).hostname.replace("www.","");}catch(e){h=s.url;}
           return `<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">
@@ -928,13 +957,20 @@ RULES:
             <div class="source-text"><span class="source-name">${esc(s.title||h)}</span><span class="source-url">${esc(h)}</span></div>
           </a>`;
         }).join("");
-        sourcesHtml=`<div class="sources-wrap"><div class="sources-title">Sources</div>${items}</div>`;
+        sourcesHtml=`<div class="sources-wrap">
+          <button class="sources-toggle" onclick="toggleSources(this)">
+            <svg class="sources-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            Sources (${count})
+          </button>
+          <div class="sources-list">${items}</div>
+        </div>`;
       }
+
       const html=DOMPurify.sanitize(marked.parse(msg.content||""));
       let imgHtml=""; if(msg.imageUrl)imgHtml=`<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
       let acts="";
       if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`;
-      if(msg.emptyRetry)acts=`<button class="ma-btn retry-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`; // new: show retry for empty
+      if(msg.emptyRetry)acts=`<button class="ma-btn retry-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
       return `<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content">
         <img class="ai-av" src="icon.webp" alt=""/>
         <div class="ai-body">
@@ -1074,7 +1110,7 @@ RULES:
       ca.appendChild(sr); scrollBot();
     }
 
-    /* ── GENERATE (with retry on empty) ──────────────────────────────────────── */
+    /* ── GENERATE ───────────────────────────────────────────────────────────── */
     async function generate(convo, aiId, searchData, userQuery, isRetry, contMode) {
       userQuery  = userQuery || "";
       isRetry    = isRetry || false;
@@ -1083,7 +1119,6 @@ RULES:
       const MAX_ATTEMPTS = 2;
       let attempt = 0;
       let success = false;
-      let finalFull = "";
       let errored = false;
       let finishReason = null;
 
@@ -1101,11 +1136,10 @@ RULES:
       while (attempt < MAX_ATTEMPTS && !success) {
         attempt++;
         if (attempt > 1) {
-          // On retry, reset UI visual elements
-          if (txtEl) txtEl.innerHTML = `<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">Retrying…</div></div></div>`;
+          if (txtEl) txtEl.innerHTML = `<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">Retrying</div></div></div>`;
           if (thCont) thCont.innerHTML = "";
           if (thinkEl) thinkEl.classList.add("streaming");
-          if (thLabel) { thLabel.style.animation = ""; thLabel.textContent = "Retrying…"; }
+          if (thLabel) { thLabel.style.animation = ""; thLabel.textContent = "Retrying"; }
           inThink = false; thinkDone = false; thinkRaw = ""; answerRaw = ""; midSearchTriggered = false;
         }
 
@@ -1120,7 +1154,7 @@ RULES:
         if (searchData && (searchData.results?.length || searchData.answer)) sys += buildSearchCtx(searchData);
         if (contMode) sys += "\n\n[SYSTEM: Previous response cut off. Continue exactly where it stopped. Do not repeat anything.]";
         if (attempt === MAX_ATTEMPTS) {
-          sys += "\n\n[SYSTEM: IMPORTANT – your previous answer was empty. Provide a complete reply, even if it's just 'I can't answer that.' Never return an empty message.]";
+          sys += "\n\n[SYSTEM: IMPORTANT: your previous answer was empty. You MUST provide a complete reply now. Even a single sentence is fine. Never return an empty message.]";
         }
 
         const msgs = convo.msgs.map(m => ({ role: m.role, content: m.content }));
@@ -1129,7 +1163,7 @@ RULES:
           const res = await fetch("/api/chat.js", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: msgs, systemPrompt: sys, temperature: S.settings.temperature, maxTokens: 8192 }),
+            body: JSON.stringify({ messages: msgs, systemPrompt: sys, temperature: S.settings.temperature, maxTokens: 4096 }),
             signal: S.abort.signal,
           });
           if (!res.ok) throw new Error("HTTP " + res.status);
@@ -1161,6 +1195,8 @@ RULES:
                           thinkDone = true; inThink = false;
                           thinkRaw = openIdx !== -1 ? full.slice(openIdx + 7, closeIdx).trim() : full.slice(0, closeIdx).trim();
                           answerRaw = full.slice(closeIdx + 8).trim();
+
+                          // mid-stream search trigger
                           if (!searchData && !isRetry && !midSearchTriggered && thinkSignalsSearch(thinkRaw)) {
                             midSearchTriggered = true;
                             if (thCont) thCont.innerHTML += `<div style="margin-top:8px"><div class="think-search-pill"><div class="think-search-dot"></div><div class="think-search-dot"></div><div class="think-search-dot"></div>Searching the web</div></div>`;
@@ -1176,6 +1212,7 @@ RULES:
                               return;
                             }
                           }
+
                           if (thinkEl) { thinkEl.classList.remove("streaming", "open"); }
                           if (thLabel) { thLabel.style.animation = "none"; thLabel.textContent = thinkStart ? `Thought for ${((Date.now() - thinkStart) / 1000).toFixed(1)}s` : "Thought"; }
                           if (thCont) thCont.innerHTML = DOMPurify.sanitize(marked.parse(thinkRaw));
@@ -1198,6 +1235,7 @@ RULES:
                         }
                       }
                     } else {
+                      // Normal (non-think) streaming
                       const subEl = document.getElementById(aiId + "sub");
                       if (subEl && full.length > 10) {
                         const snip = full.replace(/[#*`_\[\]]/g, "").trim().slice(-60);
@@ -1223,18 +1261,27 @@ RULES:
           if (err.name !== "AbortError") errored = true;
         }
 
-        if (errored) break; // network error, don't retry
+        if (errored) break;
 
-        // Check if response is empty (ignore think-only content)
-        const { thinking: parsedThink, answer: parsedAnswer } = extractThinking(full);
-        const finalText = modeOn("think") ? (answerRaw || parsedAnswer || "") : (parsedAnswer || full || "");
+        // ── THINK MODE: if model never closed </think>, extract what we have
+        if (modeOn("think") && !thinkDone && full.includes("<think>")) {
+          const { thinking, answer } = extractThinking(full);
+          thinkRaw = thinking || "";
+          answerRaw = answer || "";
+          // If the model wrote everything inside <think> and left no answer,
+          // use the thinking text itself as the answer so we don't show blank
+          if (!answerRaw && thinkRaw) {
+            answerRaw = thinkRaw;
+            thinkRaw = "";
+          }
+        }
+
+        const finalText = modeOn("think") ? answerRaw : (full || "");
         if (finalText.trim().length > 0) {
           success = true;
-          finalFull = full;
-          finalThink = modeOn("think") ? (thinkRaw || parsedThink) : null;
+          finalThink = modeOn("think") && thinkRaw ? thinkRaw : null;
           finalAnswer = finalText;
         } else {
-          // Empty response, will loop again if attempt < MAX_ATTEMPTS
           thinkRaw = ""; answerRaw = ""; inThink = false; thinkDone = false;
         }
       }
@@ -1244,74 +1291,48 @@ RULES:
 
       if (errored) {
         showErr();
-        S.busy = false;
-        S.abort = null;
+        S.busy = false; S.abort = null;
         return;
       }
 
       if (!success) {
-        // All attempts exhausted, insert a placeholder message with a manual retry button
         const emptyMsg = {
           role: "assistant",
-          content: "_(Empty response from model — tap Retry to try again)_",
-          ts: Date.now(),
-          searched: !!searchData,
-          sources: searchData?.results || [],
-          codeMode: modeOn("code"),
-          thinking: null,
-          thinkDuration: null,
-          truncated: false,
-          emptyRetry: true  // flag for the UI
+          content: "_(Empty response — tap Retry to try again)_",
+          ts: Date.now(), searched: !!searchData, sources: searchData?.results || [],
+          codeMode: modeOn("code"), thinking: null, thinkDuration: null,
+          truncated: false, emptyRetry: true
         };
         convo.msgs.push(emptyMsg);
-        renderMsgs();
-        saveStore();
-        S.busy = false;
-        S.abort = null;
+        renderMsgs(); saveStore();
+        S.busy = false; S.abort = null;
         const inp = document.getElementById("user-input"); const sbtn = document.getElementById("send-btn");
         if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
-        scrollBot();
-        return;
+        scrollBot(); return;
       }
 
       const thinkDur = (modeOn("think") && thinkStart) ? ((Date.now() - thinkStart) / 1000).toFixed(1) : null;
       convo.msgs.push({
-        role: "assistant",
-        content: finalAnswer,
-        ts: Date.now(),
-        searched: !!searchData,
-        sources: searchData?.results || [],
-        codeMode: modeOn("code"),
-        thinking: finalThink,
-        thinkDuration: thinkDur,
+        role: "assistant", content: finalAnswer, ts: Date.now(),
+        searched: !!searchData, sources: searchData?.results || [],
+        codeMode: modeOn("code"), thinking: finalThink, thinkDuration: thinkDur,
         truncated: finishReason === "length",
       });
 
-      renderMsgs();
-      saveStore();
-      S.busy = false;
-      S.abort = null;
+      renderMsgs(); saveStore();
+      S.busy = false; S.abort = null;
       const inp = document.getElementById("user-input"); const sbtn = document.getElementById("send-btn");
       if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
       scrollBot();
     }
 
-    /* ── RETRY EMPTY MESSAGE (manually triggered by user) ───────────────────── */
+    /* ── RETRY EMPTY ────────────────────────────────────────────────────────── */
     async function retryEmpty(idx) {
-      const c = curConvo();
-      if (!c || S.busy) return;
-      const msg = c.msgs[idx];
-      if (!msg || msg.role !== "assistant" || !msg.emptyRetry) return;
-      // Remove the placeholder message
-      c.msgs.splice(idx, 1);
-      renderMsgs();
-      // Re-send only the user's last message (or the one before the placeholder)
-      const userMsg = c.msgs.filter(m => m.role === "user").slice(-1)[0];
-      if (!userMsg) return;
-      // Re-run generation with original user query
-      const aiId = "ai" + Date.now();
-      appendPending(aiId);
-      // Do not carry over any search data; let the normal flow decide
+      const c = curConvo(); if (!c || S.busy) return;
+      const msg = c.msgs[idx]; if (!msg || msg.role !== "assistant" || !msg.emptyRetry) return;
+      c.msgs.splice(idx, 1); renderMsgs();
+      const userMsg = c.msgs.filter(m => m.role === "user").slice(-1)[0]; if (!userMsg) return;
+      const aiId = "ai" + Date.now(); appendPending(aiId);
       await generate(c, aiId, null, userMsg.content);
     }
 
