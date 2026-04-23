@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':   'tencent/hy3-preview:free',
-  '00':  'google/gemma-4-26b-a4b-it:free',
+  '00':  'inclusionai/ling-2.6-flash:free',
   '000': 'inclusionai/ling-2.6-flash:free',
 };
 
