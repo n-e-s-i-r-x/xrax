@@ -36,7 +36,7 @@ export default async function handler(req) {
             'HTTP-Referer': 'https://your-site.com', // helps OpenRouter routing
           },
           body: JSON.stringify({
-            model: 'openai/gpt-4o-mini',
+            model: 'nvidia/nemotron-nano-9b-v2:free',
             messages: [
               { role: 'system', content: systemPrompt || 'Be helpful.' },
               ...trimmedMessages,
