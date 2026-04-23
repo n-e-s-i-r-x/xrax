@@ -1,8 +1,5 @@
-export const config = {
-  runtime: 'edge',
-};
+export const config = { runtime: 'edge' };
 
-// Model registry — swap model IDs here anytime
 const MODEL_MAP = {
   '0':   'nvidia/nemotron-nano-9b-v2:free',
   '00':  'google/gemma-3-4b-it:free',
@@ -14,30 +11,22 @@ export default async function handler(req) {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const {
-    messages,
-    systemPrompt,
-    temperature,
-    maxTokens = 4096,
-    model: modelKey = '0',
-  } = await req.json();
-
+  const { messages, systemPrompt, temperature = 0.5, maxTokens = 4096, model: modelKey = '0' } = await req.json();
   const apiKey = process.env.OPENROUTER_API_KEY;
+
   if (!apiKey) {
-    return new Response('data: {"error":"Missing API key"}\n\ndata: [DONE]\n\n', {
-      status: 200,
-      headers: { 'Content-Type': 'text/event-stream' },
+    return new Response('data: {"choices":[{"delta":{"content":"Missing API key"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', {
+      status: 200, headers: { 'Content-Type': 'text/event-stream' },
     });
   }
 
   const modelId = MODEL_MAP[modelKey] || MODEL_MAP['0'];
-  const trimmedMessages = messages.slice(-20);
+  const trimmed = messages.slice(-20);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (data) => controller.enqueue(encoder.encode(data));
-
+      const send = (d) => controller.enqueue(encoder.encode(d));
       let upstreamRes;
       try {
         upstreamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -49,10 +38,7 @@ export default async function handler(req) {
           },
           body: JSON.stringify({
             model: modelId,
-            messages: [
-              { role: 'system', content: systemPrompt || 'Be helpful.' },
-              ...trimmedMessages,
-            ],
+            messages: [{ role: 'system', content: systemPrompt || 'Be helpful.' }, ...trimmed],
             temperature,
             max_tokens: maxTokens,
             stream: true,
@@ -76,7 +62,6 @@ export default async function handler(req) {
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -95,10 +80,7 @@ export default async function handler(req) {
             if (line.startsWith('data: ')) send(line + '\n\n');
           }
         }
-      } catch (err) {
-        // stream read error
-      }
-
+      } catch (e) {}
       send('data: [DONE]\n\n');
       controller.close();
     },
