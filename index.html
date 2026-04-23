@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <style>
-      /* ... (all existing CSS remains exactly the same) ... */
       @font-face {
         font-family: "M";
         src: url("M.ttf") format("truetype");
@@ -238,7 +237,7 @@
         color: #ddd;
       }
 
-      /* ── ACTIVITY INDICATOR (replaces typing dots) ── */
+      /* ACTIVITY INDICATOR */
       .activity-wrap {
         display: flex;
         align-items: center;
@@ -269,7 +268,6 @@
         position: relative;
         z-index: 1;
       }
-      /* per-state colours */
       .activity-wrap[data-state="thinking"] .activity-orb-ring { border-top-color: #a855f7; border-right-color: rgba(168,85,247,0.3); }
       .activity-wrap[data-state="thinking"] .activity-orb-dot  { background: #a855f7; box-shadow: 0 0 8px rgba(168,85,247,0.6); }
       .activity-wrap[data-state="writing"]  .activity-orb-ring { border-top-color: #ddd;    border-right-color: rgba(221,221,221,0.3); }
@@ -301,7 +299,6 @@
         max-width: 220px;
         font-style: italic;
       }
-      /* animated ellipsis on label */
       .activity-label::after {
         content: '';
         display: inline-block;
@@ -317,7 +314,7 @@
         100% { content: ''; }
       }
 
-      /* ── THINKING DROPDOWN ── */
+      /* THINKING DROPDOWN */
       .ai-think {
         margin-bottom: 10px;
         border: 1px solid #1e1530;
@@ -351,7 +348,7 @@
         letter-spacing: 0.3px;
         flex: 1;
       }
-      /* pulsing dot while streaming */
+      /* pulsing ellipsis while streaming thinking */
       .ai-think.streaming .ai-think-label::after {
         content: '';
         display: inline-block;
@@ -525,6 +522,17 @@
       .mode-btn.active.amber  { color: #fbbf24; border-color: #352a10; background: #1a1500; }
       .mode-btn.active.purple { color: #c084fc; border-color: #3b1f6e; background: #160d2e; }
       .mode-btn svg { flex-shrink: 0; }
+
+      /* IMAGE NOTICE */
+      #image-notice {
+        display: none;
+        text-align: center;
+        font-size: 11px;
+        color: #444;
+        padding: 4px 16px 2px;
+        line-height: 1.4;
+      }
+      #image-notice.show { display: block; }
 
       /* TYPING */
       .typing-wrap { display: flex; gap: 5px; padding: 6px 0; }
@@ -860,27 +868,27 @@
       <div id="input-area">
         <div class="input-box" id="input-box">
           <div class="input-tools">
-            <button class="mode-btn" id="think-btn" onclick="setMode('think')" aria-label="Thinking mode">
+            <button class="mode-btn" id="think-btn" onclick="toggleMode('think')" aria-label="Thinking mode">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                 <circle cx="12" cy="12" r="10"/>
               </svg>
               Think
             </button>
-            <button class="mode-btn" id="web-btn" onclick="setMode('web')" aria-label="Web search">
+            <button class="mode-btn" id="web-btn" onclick="toggleMode('web')" aria-label="Web search">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
               </svg>
               Search
             </button>
-            <button class="mode-btn" id="code-btn" onclick="setMode('code')" aria-label="Code mode">
+            <button class="mode-btn" id="code-btn" onclick="toggleMode('code')" aria-label="Code mode">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
               </svg>
               Code
             </button>
-            <button class="mode-btn" id="image-btn" onclick="setMode('image')" aria-label="Image generation">
+            <button class="mode-btn" id="image-btn" onclick="toggleMode('image')" aria-label="Image generation">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="2" width="20" height="20" rx="2.18"/>
                 <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -898,6 +906,8 @@
             </button>
           </div>
         </div>
+        <!-- Image mode notice shown below the input box -->
+        <div id="image-notice">Text-to-Image is currently in its alpha phase and undergoing active testing. As a result, image quality may be limited. This system is primarily optimized for coding and text-based tasks.</div>
       </div>
     </div>
 
@@ -986,7 +996,6 @@
     <script>
       "use strict";
 
-      // Fallbacks if CDN fails
       if (typeof marked === "undefined") {
         window.marked = { parse: (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>") };
       }
@@ -1026,8 +1035,8 @@
         activeId: null,
         busy: false,
         abort: null,
-        // 'none' | 'think' | 'web' | 'code' | 'image'
-        mode: "none",
+        // Multi-select modes stored as a Set
+        modes: new Set(), // can contain: 'think', 'web', 'code', 'image'
         settings: {
           timestamps: false,
           autoscroll: true,
@@ -1040,29 +1049,38 @@
 
       let toastTimer = null;
 
-      // ── MODE MANAGEMENT ───────────────────────────────────────────────────────
-      function setMode(m) {
-        S.mode = S.mode === m ? "none" : m;
+      // ── MODE MANAGEMENT (multi-toggle) ────────────────────────────────────────
+      function toggleMode(m) {
+        if (S.modes.has(m)) {
+          S.modes.delete(m);
+        } else {
+          S.modes.add(m);
+        }
         updateModeUI();
-        document.body.classList.toggle("code-mode", S.mode === "code");
-        const labels = { think: "Think mode on", web: "Search on", code: "Code mode on", image: "Image mode on", none: "Mode off" };
-        toast(labels[S.mode] || "Mode off");
+        // code-mode body class: active when 'code' is in modes
+        document.body.classList.toggle("code-mode", S.modes.has("code"));
+        // image notice
+        const notice = document.getElementById("image-notice");
+        if (notice) notice.classList.toggle("show", S.modes.has("image"));
+        const on = S.modes.has(m);
+        const labels = { think: "Think", web: "Search", code: "Code", image: "Image" };
+        toast(`${labels[m] || m} ${on ? "on" : "off"}`);
       }
 
       function updateModeUI() {
-        const modes = ["think", "web", "code", "image"];
-        modes.forEach((m) => {
+        const colorMap = { think: "purple", code: "green", image: "amber", web: null };
+        ["think", "web", "code", "image"].forEach((m) => {
           const btn = document.getElementById(m + "-btn");
           if (!btn) return;
-          btn.classList.toggle("active", S.mode === m);
+          const active = S.modes.has(m);
+          btn.classList.toggle("active", active);
           btn.classList.remove("green", "amber", "purple");
-          if (S.mode === m) {
-            if (m === "think")  btn.classList.add("purple");
-            if (m === "code")   btn.classList.add("green");
-            if (m === "image")  btn.classList.add("amber");
-          }
+          if (active && colorMap[m]) btn.classList.add(colorMap[m]);
         });
       }
+
+      // Helper: is a specific mode active?
+      function modeOn(m) { return S.modes.has(m); }
 
       // ── AUTO-SEARCH DETECTION ─────────────────────────────────────────────────
       const SEARCH_PATTERNS = [
@@ -1083,14 +1101,14 @@
       ];
 
       function needsSearch(text) {
-        if (S.mode === "web") return true;
-        if (S.mode === "image") return false;
+        if (modeOn("web")) return true;
+        if (modeOn("image")) return false;
         if (!S.settings.webSearchAuto) return false;
         const txt = text.toLowerCase().trim();
         if (txt.length < 10) return false;
         if (/^(hi|hello|hey|sup|yo|good\s?(morning|afternoon|evening)|thanks?|ok|bye|yes|no|sure|cool|lol)[\s!.?]*$/i.test(txt)) return false;
         if (SEARCH_PATTERNS.some((r) => r.test(txt))) return true;
-        if (S.mode === "code" && CODE_SEARCH_PATTERNS.some((r) => r.test(txt))) return true;
+        if (modeOn("code") && CODE_SEARCH_PATTERNS.some((r) => r.test(txt))) return true;
         if (/\b(who|what|when|where|why|how)\b.*\b(is|are|was|were|did|does|will|can)\b/i.test(txt) && txt.length > 20) return true;
         return false;
       }
@@ -1542,8 +1560,8 @@
         renderMsgs();
         renderSB();
 
-        // Image mode path
-        if (S.mode === "image") {
+        // Image mode path (image takes priority for generation)
+        if (modeOn("image")) {
           await generateImage(c, raw);
           S.busy = false;
           if (sb) sb.disabled = !inp.value.trim();
@@ -1588,27 +1606,27 @@
       }
 
       // ── ACTIVITY INDICATOR ────────────────────────────────────────────────────
-      const ACTIVITY_STATES = {
-        think:    { state: "thinking",  label: "Thinking",        sub: "Working through the problem" },
-        code:     { state: "coding",    label: "Writing Code",    sub: "Building the implementation" },
-        image:    { state: "imaging",   label: "Generating Image",sub: "Creating your image" },
-        web:      { state: "searching", label: "Searching Web",   sub: "Finding relevant sources" },
-        none:     { state: "writing",   label: "Working",         sub: "Composing a response" },
-      };
+      function getActivityState() {
+        // Priority: think > code > web > default writing
+        if (modeOn("think")) return { state: "thinking", label: "Thinking", sub: "Working through the problem" };
+        if (modeOn("code"))  return { state: "coding",   label: "Writing Code", sub: "Building the implementation" };
+        if (modeOn("web"))   return { state: "searching",label: "Searching Web", sub: "Finding relevant sources" };
+        return { state: "writing", label: "Working", sub: "Composing a response" };
+      }
 
       function appendThinking(id) {
         const ca = document.getElementById("chat-area");
         if (!ca) return;
 
-        const act = ACTIVITY_STATES[S.mode] || ACTIVITY_STATES.none;
+        const isThinkMode = modeOn("think");
+        const act = getActivityState();
 
         const row = document.createElement("div");
         row.className = "msg-row ai";
         row.id = id;
 
-        // For think mode: show collapsible think dropdown + answer area below
-        // For other modes: show activity orb indicator in ai-txt area
-        if (S.mode === "think") {
+        if (isThinkMode) {
+          // Think mode: show live collapsible thinking dropdown, then answer below
           row.innerHTML = `<div class="msg-in"><div class="msg-content">
             <img class="ai-av" src="icon.webp" alt=""/>
             <div class="ai-body">
@@ -1654,17 +1672,18 @@
         scrollBot();
       }
 
-      // ── GENERATE (NEW MESSAGE) ─────────────────────────────────────────────────
+      // ── GENERATE ──────────────────────────────────────────────────────────────
       async function generate(convo, aiId, searchData, isRetry = false, continueMode = false) {
         S.busy = true;
         S.abort = new AbortController();
 
-        const isThinkMode = S.mode === "think";
+        const isThinkMode = modeOn("think");
+        const isCodeMode  = modeOn("code");
 
         let sysPrompt = CF.systemPrompt;
-        if (S.mode === "code") sysPrompt += CF.codeModeAddendum;
+        if (isCodeMode) sysPrompt += CF.codeModeAddendum;
         if (isThinkMode) {
-          sysPrompt += "\n\n[THINKING MODE: Before answering, reason through the problem inside <think>...</think> tags. Then give your answer after the closing tag.]";
+          sysPrompt += "\n\n[THINKING MODE: Before answering, reason through the problem step by step inside <think>...</think> tags. Make your reasoning real and thorough. Then give your answer after the closing </think> tag.]";
         }
         if (searchData && (searchData.results?.length || searchData.answer)) {
           sysPrompt += buildSearchContext(searchData);
@@ -1674,8 +1693,8 @@
         }
 
         const msgs = convo.msgs.map((m) => ({ role: m.role, content: m.content }));
-        const txtEl = document.getElementById(aiId + "txt");
-        const thinkEl = document.getElementById(aiId + "think");
+        const txtEl      = document.getElementById(aiId + "txt");
+        const thinkEl    = document.getElementById(aiId + "think");
         const thinkContent = document.getElementById(aiId + "thcontent");
         const thinkLabel = document.getElementById(aiId + "thlabel");
 
@@ -1718,70 +1737,87 @@
                     full += delta;
 
                     if (isThinkMode) {
-                      // ── Parse <think>...</think> in real-time ──
+                      // ── Real-time <think>...</think> parsing ──
                       if (!thinkDone) {
+                        // Check if <think> tag has started
+                        const openIdx = full.indexOf("<think>");
+                        if (openIdx !== -1 && !thinkStarted) {
+                          thinkStarted = true;
+                          thinkStartTime = Date.now();
+                        }
+
                         const closeIdx = full.indexOf("</think>");
                         if (closeIdx !== -1) {
-                          // thinking block complete
+                          // Thinking block is complete
                           thinkDone = true;
-                          const openIdx = full.indexOf("<think>");
                           thinkRaw = openIdx !== -1
                             ? full.slice(openIdx + 7, closeIdx).trim()
                             : full.slice(0, closeIdx).trim();
                           answerRaw = full.slice(closeIdx + 8).trim();
 
-                          const elapsed = thinkStartTime ? ((Date.now() - thinkStartTime) / 1000).toFixed(1) : null;
+                          const elapsed = thinkStartTime
+                            ? ((Date.now() - thinkStartTime) / 1000).toFixed(1)
+                            : null;
 
-                          // finalize think dropdown
+                          // Finalize think dropdown: remove streaming, collapse, update label
                           if (thinkEl) {
                             thinkEl.classList.remove("streaming");
-                            // collapse it now that thinking is done
-                            thinkEl.classList.remove("open");
+                            thinkEl.classList.remove("open"); // collapse after done
                           }
                           if (thinkLabel) {
                             thinkLabel.style.animation = "none";
-                            thinkLabel.textContent = elapsed ? `Thought for ${elapsed}s` : "Thought";
+                            thinkLabel.textContent = elapsed
+                              ? `Thought for ${elapsed}s`
+                              : "Thought";
                           }
                           if (thinkContent) {
                             thinkContent.innerHTML = DOMPurify.sanitize(marked.parse(thinkRaw));
                           }
 
-                          // show answer area
+                          // Show the answer area and start streaming the answer
                           if (txtEl) {
                             txtEl.style.display = "";
-                            txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                            if (answerRaw) {
+                              txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                            } else {
+                              // Answer not started yet, show writing indicator briefly
+                              txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
+                                <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                                <div class="activity-right"><div class="activity-label">Working</div></div>
+                              </div>`;
+                            }
                           }
                         } else {
-                          // still inside <think>
-                          const openIdx = full.indexOf("<think>");
-                          if (openIdx !== -1 && !thinkStarted) {
-                            thinkStarted = true;
-                            thinkStartTime = Date.now();
-                          }
+                          // Still inside <think>, stream thought content live
                           if (thinkStarted && thinkContent) {
-                            const partialThink = full.slice((full.indexOf("<think>") + 7)).trim();
+                            const partialThink = full.slice(openIdx + 7).trim();
                             thinkContent.innerHTML = DOMPurify.sanitize(marked.parse(partialThink)) + '<span class="stream-cur" style="background:#7c3aed"></span>';
                           } else if (!thinkStarted && thinkContent) {
-                            // model hasn't opened think tag yet, treat as pre-think
+                            // Before <think> opens
                             thinkContent.textContent = full;
                           }
                         }
                       } else {
-                        // past </think>, stream answer
-                        answerRaw = full.slice(full.indexOf("</think>") + 8).trim();
+                        // Past </think>, stream the answer
+                        const closeTagEnd = full.indexOf("</think>") + 8;
+                        answerRaw = full.slice(closeTagEnd).trim();
                         if (txtEl) {
-                          txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                          // Remove activity wrap if present
+                          const actWrap = txtEl.querySelector(".activity-wrap");
+                          if (actWrap) actWrap.remove();
+                          if (answerRaw) {
+                            txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                          }
                         }
                       }
                     } else {
-                      // Normal (non-think) streaming — update activity sub-label with a preview snippet
+                      // Normal streaming
                       const subEl = document.getElementById(aiId + "sub");
                       if (subEl && full.length > 10) {
                         const snippet = full.replace(/[#*`_\[\]]/g, "").trim().slice(-60);
                         subEl.textContent = snippet || subEl.textContent;
                       }
                       if (txtEl) {
-                        // Once we have content, swap activity indicator for real text
                         const actWrap = txtEl.querySelector(".activity-wrap");
                         if (actWrap) actWrap.remove();
                         txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full)) + '<span class="stream-cur"></span>';
@@ -1817,7 +1853,7 @@
           return;
         }
 
-        // Extract thinking from full text (works for both streamed and non-streamed)
+        // Extract thinking from full text (for non-streamed or partial)
         const { thinking, answer } = extractThinking(full);
         const finalContent = answer || full || "(empty response)";
         const truncated = finishReason === "length";
@@ -1828,7 +1864,7 @@
           thinkDuration = ((Date.now() - thinkStartTime) / 1000).toFixed(1);
         }
 
-        if (!searchData && !isRetry && S.mode !== "code" && S.mode !== "image" && aiDoesNotKnow(finalContent)) {
+        if (!searchData && !isRetry && !modeOn("code") && !modeOn("image") && aiDoesNotKnow(finalContent)) {
           const lastUser = [...convo.msgs].reverse().find((m) => m.role === "user");
           if (lastUser) {
             showSearchIndicator();
@@ -1850,8 +1886,8 @@
           ts: Date.now(),
           searched: !!searchData,
           sources: searchData?.results || [],
-          codeMode: S.mode === "code",
-          thinking,
+          codeMode: isCodeMode,
+          thinking: isThinkMode ? (thinkRaw || thinking) : null,
           thinkDuration,
           truncated,
         });
@@ -1874,9 +1910,7 @@
         const msg = c.msgs[msgIndex];
         if (!msg || msg.role !== "assistant") return;
 
-        // Remove truncated flag temporarily, will be re-added if needed
         msg.truncated = false;
-        // Update UI to remove continue button and show stop button
         const msgRow = document.querySelector(`.msg-row.ai[data-msg-index="${msgIndex}"]`);
         if (msgRow) {
           const actionsDiv = msgRow.querySelector(".msg-acts");
@@ -1947,16 +1981,12 @@
             finishReason = d.choices?.[0]?.finish_reason;
           }
         } catch (err) {
-          if (err.name !== "AbortError") {
-            errored = true;
-          }
+          if (err.name !== "AbortError") errored = true;
         }
 
-        // Clean up stream cursor
         txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full));
 
         if (errored) {
-          // Restore continue button
           msg.truncated = true;
           if (msgRow) {
             const actionsDiv = msgRow.querySelector(".msg-acts");
@@ -1975,21 +2005,17 @@
         const { thinking, answer } = extractThinking(full);
         msg.content = answer || full;
         msg.thinking = thinking;
-        msg.thinkDuration = null; // duration not tracked on continue
+        msg.thinkDuration = null;
         msg.truncated = finishReason === "length";
         msg.ts = Date.now();
 
-        // Re-render the message to update any structural changes (e.g., thinking block)
-        // But we can just update the content and actions manually to avoid full re-render
         if (msgRow) {
-          // Update thinking block if any
           const thinkDiv = msgRow.querySelector(".ai-think");
           if (msg.thinking) {
             if (thinkDiv) {
-              const thinkContent = thinkDiv.querySelector(".ai-think-content");
-              if (thinkContent) thinkContent.innerHTML = DOMPurify.sanitize(marked.parse(msg.thinking));
+              const thinkContentEl = thinkDiv.querySelector(".ai-think-content");
+              if (thinkContentEl) thinkContentEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.thinking));
             } else {
-              // Insert thinking block
               const badge = msgRow.querySelector(".web-badge");
               const aiBody = msgRow.querySelector(".ai-body");
               const newThinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')">
@@ -2005,7 +2031,6 @@
             }
           }
 
-          // Update actions
           const actionsDiv = msgRow.querySelector(".msg-acts");
           if (actionsDiv) {
             let actionsHtml = "";
@@ -2017,7 +2042,6 @@
             actionsDiv.innerHTML = actionsHtml;
           }
 
-          // Update timestamp if enabled
           if (S.settings.timestamps) {
             let tsDiv = msgRow.querySelector(".msg-ts");
             if (!tsDiv) {
@@ -2028,7 +2052,6 @@
             tsDiv.textContent = new Date(msg.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           }
 
-          // Attach code buttons for any new code blocks
           attachCodeBtns();
         }
 
