@@ -7,13 +7,11 @@ const MODEL_MAP = {
 };
 
 // ─── System prompts per model ─────────────────────────────────────────────────
-// ─── System prompts per model ─────────────────────────────────────────────────
 const SYSTEM_PROMPTS = {
   '0':   `You are 0 (model 0). balanced, no‑nonsense assistant. Answer directly and concisely. No fluff, no internal monologue, no markdown hype. Use plain language.`,
   '00':  `You are 00 (model 00). fast, accurate, and thoughtful. You reason internally to improve your answers, but never expose your reasoning to the user. Respond with clear, well‑structured answers. Use minimal markdown when it helps readability.`,
   '000': `You are 000 (model 000). rapid, highly accurate, and precise. You think step‑by‑step internally but deliver only the polished final answer. Be concise, factual, and direct. Use markdown sparingly for clarity.`,
 };
-// ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default async function handler(req) {
@@ -40,9 +38,6 @@ export default async function handler(req) {
 
   const modelId = MODEL_MAP[modelKey] || MODEL_MAP['0'];
 
-  // Build final system prompt:
-  // 1. Model's own system prompt (from SYSTEM_PROMPTS)
-  // 2. Extra context injected from frontend (date/time, search results, code mode, etc.)
   const basePrompt = SYSTEM_PROMPTS[modelKey] || SYSTEM_PROMPTS['0'] || '';
   const finalSystemPrompt = [basePrompt, extraCtx].filter(Boolean).join('\n\n') || 'Be helpful.';
 
