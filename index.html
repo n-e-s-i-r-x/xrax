@@ -153,20 +153,16 @@
       #mp-overlay{position:fixed;inset:0;z-index:9997;display:none;background:transparent}
       #mp-overlay.open{display:block}
       .mp-head{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#444;padding:6px 10px 8px}
-
       .mp-item{padding:11px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:background .15s,border-color .15s;margin-bottom:2px;display:flex;align-items:center;gap:10px}
       .mp-item:last-child{margin-bottom:0}
       .mp-item:active{opacity:.8}
       .mp-item.sel{border-color:#2a2a2a;background:#141414}
-
       .mp-label-row{display:flex;align-items:center;gap:6px;margin-bottom:2px}
       .mp-name{font-size:13px;font-weight:700;color:#ddd}
       .mp-item.sel .mp-name{color:#fff}
-
       .mp-badge{font-size:10px;font-weight:700;letter-spacing:.3px;padding:2px 7px;border-radius:99px;display:inline-flex;align-items:center}
       .mp-badge.fast{color:#4a9eff;border:1px solid #1a3050}
       .mp-badge.rapid{color:#ef4444;border:1px solid #3a1010}
-
       .mp-desc{font-size:11px;color:#555;line-height:1.3}
       .mp-item.sel .mp-desc{color:#666}
 
@@ -257,10 +253,6 @@
       .tog.on{background:#4ade80}
       .tog::after{content:"";position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 4px rgba(0,0,0,.3)}
       .tog.on::after{transform:translateX(20px)}
-      .sl-wrap{display:flex;align-items:center;gap:10px;flex-shrink:0}
-      input[type="range"]{-webkit-appearance:none;width:110px;height:4px;background:#2a2a2a;border-radius:99px}
-      input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;background:#fff;border-radius:50%;cursor:pointer}
-      .sl-v{font-size:13px;color:#aaa;min-width:38px;text-align:right}
       .s-btn{padding:8px 14px;background:#2a1010;border:1px solid #3a1515;border-radius:8px;color:#e06060;font-size:13px;font-weight:600;transition:background .15s,transform .1s;cursor:pointer}
       .s-btn:active{background:#3a1515;transform:scale(.96)}
 
@@ -340,9 +332,7 @@
       <div class="mp-head">Select Model</div>
       <div class="mp-item sel" id="mp-item-0" onclick="selectModel('0')">
         <div class="mp-info">
-          <div class="mp-label-row">
-            <div class="mp-name">0</div>
-          </div>
+          <div class="mp-label-row"><div class="mp-name">0</div></div>
           <div class="mp-desc">Balanced. No thinking.</div>
         </div>
       </div>
@@ -440,19 +430,25 @@
     };
 
     /* ══════════════════════════════════════
-       PROMPTS (frontend side — phase routing)
+       FRONTEND PROMPTS
+       (phase routing helpers only — the real
+        per-model identity lives in chat.js)
     ══════════════════════════════════════ */
-    const PROMPT = {
-      codeAdd: `\n\n[CODE MODE: Working code only. Fenced code blocks with correct language tags. Concise.]`,
-      think: `You are the internal reasoning engine for 0v AI.
-Think step by step through the user's message. Write raw reasoning only.
+
+    /* Thinking phase — reasoning engine prompt */
+    const THINK_PHASE_PROMPT =
+`You are the internal reasoning engine for 0v AI.
+Think step by step through the user message. Write raw reasoning only.
 No final answer. No greetings. No markdown headers. Plain text only.
 Be concise but thorough.
 
-CRITICAL: If you do not know something, are uncertain, or the question needs current/live information, write exactly <<SEARCH>> on its own line. This will trigger a live web search before the answer is generated.
+CRITICAL: If you do not know something, are uncertain, or the question needs current or live information, write exactly <<SEARCH>> on its own line. This triggers a live web search.
 
-Do not reveal that you are reasoning. This is internal only.`,
-    };
+Do not reveal that you are reasoning. This is internal only.`;
+
+    /* Code mode extra instruction appended to answer phase */
+    const CODE_MODE_EXTRA =
+`\n\n[CODE MODE: Provide working code only. Use fenced code blocks with correct language tags. Be concise.]`;
 
     /* ══════════════════════════════════════
        STATE
@@ -463,7 +459,7 @@ Do not reveal that you are reasoning. This is internal only.`,
       modes:new Set(),
       settings:{
         timestamps:false, autoscroll:true,
-        save:true, temperature:0.5, webSearchAuto:true,
+        save:true, webSearchAuto:true,
       },
     };
 
@@ -495,8 +491,7 @@ Do not reveal that you are reasoning. This is internal only.`,
       closeModelPicker();
       const m = MODELS[key]; if (!m) return;
       S.model = key;
-      const btn = document.getElementById('model-btn');
-      btn.textContent = m.label;
+      document.getElementById('model-btn').textContent = m.label;
       document.getElementById('user-input').placeholder = m.placeholder;
       ['0','00','000'].forEach(k => {
         document.getElementById('mp-item-' + k)?.classList.toggle('sel', k === key);
@@ -513,9 +508,9 @@ Do not reveal that you are reasoning. This is internal only.`,
       document.getElementById('image-notice')?.classList.toggle('show', S.modes.has('image'));
     }
     function updateModeUI() {
-      const cm = {code:'green',image:'amber'};
+      const cm = { code:'green', image:'amber' };
       ['web','code','image'].forEach(m => {
-        const btn = document.getElementById(m+'-btn'); if (!btn) return;
+        const btn = document.getElementById(m + '-btn'); if (!btn) return;
         btn.classList.toggle('active', S.modes.has(m));
         btn.classList.remove('green','amber');
         if (S.modes.has(m) && cm[m]) btn.classList.add(cm[m]);
@@ -524,15 +519,19 @@ Do not reveal that you are reasoning. This is internal only.`,
     function modeOn(m) { return S.modes.has(m); }
 
     /* ══════════════════════════════════════
-       DATE / TIME
+       DATE / TIME CONTEXT
     ══════════════════════════════════════ */
     function dtCtx() {
       const n = new Date();
-      return `\n\n[Live — always accurate]\nDate: ${n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}\nTime: ${n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})}`;
+      return (
+        '\n\n[Current date and time — always accurate]\n' +
+        'Date: ' + n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '\n' +
+        'Time: ' + n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})
+      );
     }
 
     /* ══════════════════════════════════════
-       SEARCH
+       WEB SEARCH
     ══════════════════════════════════════ */
     const ALWAYS_SEARCH_RE = [
       /\b(202[4-9]|20[3-9]\d)\b/,
@@ -569,7 +568,11 @@ Do not reveal that you are reasoning. This is internal only.`,
     }
     async function doSearch(q) {
       try {
-        const r = await fetch('/api/search.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+        const r = await fetch('/api/search.js', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({query:q}),
+        });
         if (!r.ok) return null;
         const d = await r.json();
         return (d.results?.length || d.answer) ? d : null;
@@ -578,9 +581,11 @@ Do not reveal that you are reasoning. This is internal only.`,
     function buildSearchCtx(sd) {
       if (!sd) return '';
       let c = '\n\n--- WEB SEARCH RESULTS ---\n';
-      c += `(Today: ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})})\n\n`;
-      if (sd.answer) c += `DIRECT ANSWER: ${sd.answer}\n\n`;
-      (sd.results||[]).forEach((r,i) => { c += `[${i+1}] ${r.title}\nURL: ${r.url}\n${r.snippet}\n\n`; });
+      c += '(Today: ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) + ')\n\n';
+      if (sd.answer) c += 'DIRECT ANSWER: ' + sd.answer + '\n\n';
+      (sd.results||[]).forEach((r,i) => {
+        c += '[' + (i+1) + '] ' + r.title + '\nURL: ' + r.url + '\n' + r.snippet + '\n\n';
+      });
       c += '--- USE THE ABOVE TO ANSWER. ---\n';
       return c;
     }
@@ -596,7 +601,10 @@ Do not reveal that you are reasoning. This is internal only.`,
       setTimeout(() => {
         document.getElementById('intro')?.classList.add('hide');
         document.getElementById('app')?.classList.add('ready');
-        setTimeout(() => { const i=document.getElementById('intro'); if(i)i.style.display='none'; }, 1000);
+        setTimeout(() => {
+          const i = document.getElementById('intro');
+          if (i) i.style.display = 'none';
+        }, 1000);
       }, 2600);
     }
     document.addEventListener('DOMContentLoaded', init);
@@ -623,15 +631,15 @@ Do not reveal that you are reasoning. This is internal only.`,
     function saveStore() {
       if (!S.settings.save) return;
       try {
-        localStorage.setItem('vg_convos', JSON.stringify(S.convos));
+        localStorage.setItem('vg_convos',   JSON.stringify(S.convos));
         localStorage.setItem('vg_settings', JSON.stringify(S.settings));
       } catch(e) {}
     }
     function loadStore() {
       try {
-        const c = localStorage.getItem('vg_convos'); if (c) S.convos = JSON.parse(c)||{};
-        const s = localStorage.getItem('vg_settings'); if (s) S.settings = {...S.settings,...JSON.parse(s)};
-      } catch(e) { S.convos={}; }
+        const c = localStorage.getItem('vg_convos');   if (c) S.convos   = JSON.parse(c) || {};
+        const s = localStorage.getItem('vg_settings'); if (s) S.settings = {...S.settings, ...JSON.parse(s)};
+      } catch(e) { S.convos = {}; }
     }
 
     /* ══════════════════════════════════════
@@ -641,11 +649,16 @@ Do not reveal that you are reasoning. This is internal only.`,
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-ov').classList.remove('show'); }
     function renderSB(filter='') {
       const ct = document.getElementById('chat-list'); if (!ct) return;
-      const ids = Object.keys(S.convos).sort((a,b) => (S.convos[b].ts||0)-(S.convos[a].ts||0));
-      const list = filter ? ids.filter(id => (S.convos[id].title||'').toLowerCase().includes(filter.toLowerCase())) : ids;
-      if (!list.length) { ct.innerHTML=`<div class="empty-list">${filter?'No matches':'No conversations yet'}</div>`; return; }
+      const ids = Object.keys(S.convos).sort((a,b) => (S.convos[b].ts||0) - (S.convos[a].ts||0));
+      const list = filter
+        ? ids.filter(id => (S.convos[id].title||'').toLowerCase().includes(filter.toLowerCase()))
+        : ids;
+      if (!list.length) {
+        ct.innerHTML = `<div class="empty-list">${filter ? 'No matches' : 'No conversations yet'}</div>`;
+        return;
+      }
       ct.innerHTML = list.map(id => {
-        const c=S.convos[id], act=id===S.activeId?'active':'';
+        const c = S.convos[id], act = id === S.activeId ? 'active' : '';
         return `<div class="chat-item ${act}" onclick="switchConvo('${id}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span class="chat-item-txt">${esc(c.title||'Untitled')}</span>
@@ -660,67 +673,70 @@ Do not reveal that you are reasoning. This is internal only.`,
     /* ══════════════════════════════════════
        CONVOS
     ══════════════════════════════════════ */
-    function uid() { return 'c'+Date.now()+Math.random().toString(36).slice(2,7); }
+    function uid() { return 'c' + Date.now() + Math.random().toString(36).slice(2,7); }
     function newChat() {
-      S.activeId=null; showEmpty(); renderSB(); setTitle('');
-      const inp=document.getElementById('user-input'); if(inp){inp.value='';autoGrow(inp);inp.focus();}
-      const sb=document.getElementById('send-btn'); if(sb)sb.disabled=true;
+      S.activeId = null; showEmpty(); renderSB(); setTitle('');
+      const inp = document.getElementById('user-input');
+      if (inp) { inp.value = ''; autoGrow(inp); inp.focus(); }
+      const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
     }
     function switchConvo(id) {
-      if(!S.convos[id])return; S.activeId=id;
-      renderMsgs(); renderSB(); setTitle(S.convos[id].title||'Chat'); saveStore(); closeSidebar();
+      if (!S.convos[id]) return; S.activeId = id;
+      renderMsgs(); renderSB(); setTitle(S.convos[id].title || 'Chat'); saveStore(); closeSidebar();
     }
-    function delConvo(id,e) {
-      if(e)e.stopPropagation();
-      dlgConfirm('Delete conversation?','This cannot be undone.',()=>{
+    function delConvo(id, e) {
+      if (e) e.stopPropagation();
+      dlgConfirm('Delete conversation?', 'This cannot be undone.', () => {
         delete S.convos[id];
-        if(S.activeId===id){S.activeId=null;showEmpty();setTitle('');}
-        renderSB();saveStore();
-      },true);
+        if (S.activeId === id) { S.activeId = null; showEmpty(); setTitle(''); }
+        renderSB(); saveStore();
+      }, true);
     }
     function clearAll() {
-      dlgConfirm('Clear everything?','All conversations will be deleted.',()=>{
-        S.convos={};S.activeId=null;showEmpty();renderSB();setTitle('');saveStore();closeSidebar();
-      },true);
+      dlgConfirm('Clear everything?', 'All conversations will be deleted.', () => {
+        S.convos = {}; S.activeId = null; showEmpty(); renderSB(); setTitle(''); saveStore(); closeSidebar();
+      }, true);
     }
     function ensureConvo() {
-      if(!S.activeId||!S.convos[S.activeId]){
-        const id=uid(); S.convos[id]={id,title:'',msgs:[],ts:Date.now()}; S.activeId=id;
+      if (!S.activeId || !S.convos[S.activeId]) {
+        const id = uid();
+        S.convos[id] = { id, title:'', msgs:[], ts:Date.now() };
+        S.activeId = id;
       }
       return S.convos[S.activeId];
     }
-    function curConvo() { return S.activeId&&S.convos[S.activeId]?S.convos[S.activeId]:null; }
-    function setTitle(t) { const el=document.getElementById('tb-title'); if(el)el.textContent=t; }
-    function mkTitle(raw) { const t=raw.trim().replace(/\s+/g,' '); return t.length>40?t.slice(0,40)+'...':t; }
+    function curConvo() { return S.activeId && S.convos[S.activeId] ? S.convos[S.activeId] : null; }
+    function setTitle(t) { const el = document.getElementById('tb-title'); if (el) el.textContent = t; }
+    function mkTitle(raw) { const t = raw.trim().replace(/\s+/g,' '); return t.length > 40 ? t.slice(0,40) + '...' : t; }
 
     /* ══════════════════════════════════════
-       RENDER
+       RENDER MESSAGES
     ══════════════════════════════════════ */
     function showEmpty() {
-      const ca=document.getElementById('chat-area'); if(!ca)return;
-      ca.innerHTML=`<div id="empty-state">
+      const ca = document.getElementById('chat-area'); if (!ca) return;
+      ca.innerHTML = `<div id="empty-state">
         <img id="empty-logo" src="icon.webp" alt=""/>
         <div id="empty-h">How can I help?</div>
         <div id="empty-s">Ask me anything. I can write, explain, code, and more.</div>
       </div>`;
     }
     function renderMsgs() {
-      const c=curConvo(); const ca=document.getElementById('chat-area'); if(!ca)return;
-      if(!c||!c.msgs.length){showEmpty();return;}
-      ca.innerHTML=c.msgs.map((m,i)=>buildMsg(m,i)).join('');
+      const c = curConvo(); const ca = document.getElementById('chat-area'); if (!ca) return;
+      if (!c || !c.msgs.length) { showEmpty(); return; }
+      ca.innerHTML = c.msgs.map((m,i) => buildMsg(m,i)).join('');
       attachCodeBtns(); scrollBot();
     }
     function toggleSources(el) { el.closest('.sources-wrap')?.classList.toggle('open'); }
 
     function buildMsg(msg, idx) {
-      const ts = S.settings.timestamps&&msg.ts
+      const ts = S.settings.timestamps && msg.ts
         ? `<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>` : '';
 
-      if (msg.role==='user') {
+      if (msg.role === 'user') {
         return `<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`;
       }
 
-      const cma = msg.codeMode ? 'data-codemode="true"' : '';
+      const cma   = msg.codeMode ? 'data-codemode="true"' : '';
       const badge = msg.searched
         ? `<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>` : '';
 
@@ -738,12 +754,15 @@ Do not reveal that you are reasoning. This is internal only.`,
       }
 
       let sourcesHtml = '';
-      if (msg.sources&&msg.sources.length) {
+      if (msg.sources && msg.sources.length) {
         const items = msg.sources.map(s => {
-          let h=''; try{h=new URL(s.url).hostname.replace('www.','');}catch(e){h=s.url;}
+          let h = ''; try { h = new URL(s.url).hostname.replace('www.',''); } catch(e) { h = s.url; }
           return `<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">
             <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(h)}&sz=32" alt="" onerror="this.style.display='none'"/>
-            <div class="source-text"><span class="source-name">${esc(s.title||h)}</span><span class="source-url">${esc(h)}</span></div>
+            <div class="source-text">
+              <span class="source-name">${esc(s.title||h)}</span>
+              <span class="source-url">${esc(h)}</span>
+            </div>
           </a>`;
         }).join('');
         sourcesHtml = `<div class="sources-wrap">
@@ -755,11 +774,12 @@ Do not reveal that you are reasoning. This is internal only.`,
         </div>`;
       }
 
-      const html = DOMPurify.sanitize(marked.parse(msg.content||''));
-      let imgHtml = ''; if(msg.imageUrl) imgHtml=`<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
+      const html   = DOMPurify.sanitize(marked.parse(msg.content||''));
+      let imgHtml  = '';
+      if (msg.imageUrl) imgHtml = `<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
       let acts = '';
-      if(msg.truncated) acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`;
-      if(msg.emptyRetry) acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
+      if (msg.truncated) acts = `<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`;
+      if (msg.emptyRetry) acts = `<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
 
       return `<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content">
         <img class="ai-av" src="icon.webp" alt=""/>
@@ -777,126 +797,140 @@ Do not reveal that you are reasoning. This is internal only.`,
     ══════════════════════════════════════ */
     function attachCodeBtns() {
       document.querySelectorAll('.ai-txt pre').forEach(pre => {
-        if(pre.closest('.code-wrap'))return;
-        const code=pre.querySelector('code');
-        const lang=(code?.className||'').replace('language-','')||'code';
-        const isCM=pre.closest('.msg-row')?.dataset.codemode==='true';
-        const wrap=document.createElement('div'); wrap.className='code-wrap';
-        const hdr=document.createElement('div'); hdr.className='code-hdr';
-        let extra='';
-        if(isCM)extra=`
+        if (pre.closest('.code-wrap')) return;
+        const code = pre.querySelector('code');
+        const lang = (code?.className||'').replace('language-','') || 'code';
+        const isCM = pre.closest('.msg-row')?.dataset.codemode === 'true';
+        const wrap = document.createElement('div'); wrap.className = 'code-wrap';
+        const hdr  = document.createElement('div'); hdr.className  = 'code-hdr';
+        let extra = '';
+        if (isCM) extra = `
           <button class="view-btn" data-lang="${esc(lang)}" onclick="viewCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
-          <button class="dl-btn" data-lang="${esc(lang)}" onclick="downloadCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
-        hdr.innerHTML=`<span class="code-lang">${esc(lang)}</span><div class="code-hdr-btns">${extra}<button class="copy-code" onclick="cpyCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button></div>`;
-        pre.parentNode.insertBefore(wrap,pre); wrap.appendChild(hdr); wrap.appendChild(pre);
+          <button class="dl-btn"   data-lang="${esc(lang)}" onclick="downloadCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
+        hdr.innerHTML = `<span class="code-lang">${esc(lang)}</span>
+          <div class="code-hdr-btns">${extra}
+            <button class="copy-code" onclick="cpyCode(this)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy
+            </button>
+          </div>`;
+        pre.parentNode.insertBefore(wrap, pre); wrap.appendChild(hdr); wrap.appendChild(pre);
       });
     }
-    function cpyCode(btn){
-      const code=btn.closest('.code-wrap').querySelector('code').innerText;
-      copyText(code,()=>{
-        const orig=btn.innerHTML;
-        btn.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Copied`;
-        setTimeout(()=>{btn.innerHTML=orig;},1800);
+    function cpyCode(btn) {
+      const code = btn.closest('.code-wrap').querySelector('code').innerText;
+      copyText(code, () => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Copied`;
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
       });
     }
 
     const EXT = {
-      html:'html',htm:'html',css:'css',scss:'scss',
-      javascript:'js',js:'js',jsx:'jsx',
-      typescript:'ts',ts:'ts',tsx:'tsx',
-      python:'py',py:'py',java:'java',
-      c:'c',cpp:'cpp',csharp:'cs',cs:'cs',
-      go:'go',rust:'rs',rs:'rs',ruby:'rb',rb:'rb',
-      php:'php',swift:'swift',kotlin:'kt',kt:'kt',
-      sql:'sql',json:'json',xml:'xml',
-      yaml:'yml',yml:'yml',markdown:'md',md:'md',
-      bash:'sh',sh:'sh',shell:'sh',
-      vue:'vue',svelte:'svelte',dart:'dart',lua:'lua',
+      html:'html', htm:'html', css:'css', scss:'scss',
+      javascript:'js', js:'js', jsx:'jsx',
+      typescript:'ts', ts:'ts', tsx:'tsx',
+      python:'py', py:'py', java:'java',
+      c:'c', cpp:'cpp', csharp:'cs', cs:'cs',
+      go:'go', rust:'rs', rs:'rs', ruby:'rb', rb:'rb',
+      php:'php', swift:'swift', kotlin:'kt', kt:'kt',
+      sql:'sql', json:'json', xml:'xml',
+      yaml:'yml', yml:'yml', markdown:'md', md:'md',
+      bash:'sh', sh:'sh', shell:'sh',
+      vue:'vue', svelte:'svelte', dart:'dart', lua:'lua',
     };
-    function downloadCode(btn){
-      const codeEl=btn.closest('.code-wrap').querySelector('code'); if(!codeEl)return;
-      const rawLang=(btn.dataset.lang||'code').toLowerCase().replace(/^language-/,'');
-      const ext=EXT[rawLang]||rawLang||'txt';
-      const filename=`code.${ext}`;
-      const mimeMap={html:'text/html',css:'text/css',js:'application/javascript',json:'application/json',svg:'image/svg+xml'};
-      const mime=mimeMap[ext]||'text/plain';
-      const blob=new Blob([codeEl.innerText],{type:mime+';charset=utf-8'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=filename;
+    function downloadCode(btn) {
+      const codeEl  = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
+      const rawLang = (btn.dataset.lang||'code').toLowerCase().replace(/^language-/,'');
+      const ext     = EXT[rawLang] || rawLang || 'txt';
+      const mimeMap = { html:'text/html', css:'text/css', js:'application/javascript', json:'application/json', svg:'image/svg+xml' };
+      const mime    = mimeMap[ext] || 'text/plain';
+      const blob    = new Blob([codeEl.innerText], { type: mime + ';charset=utf-8' });
+      const url     = URL.createObjectURL(blob);
+      const a       = document.createElement('a'); a.href = url; a.download = `code.${ext}`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     }
-
-    function viewCode(btn){
-      const codeEl=btn.closest('.code-wrap').querySelector('code'); if(!codeEl)return;
-      const code=codeEl.innerText;
-      const lang=(btn.dataset.lang||'code').toLowerCase().replace('language-','');
-      let html='';
-      if(lang==='html'||lang==='htm'){html=code;}
-      else if(lang==='css'||lang==='scss'){html=`<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;padding:20px}${code}</style></head><body><h1>Heading</h1><p>Paragraph.</p><button>Button</button></body></html>`;}
-      else if(['javascript','js','jsx','typescript','ts','tsx'].includes(lang)){html=`<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px}.error{color:#ff6b6b}</style></head><body><div id="o"></div><script>const _o=document.getElementById('o');console.log=(...a)=>{_o.innerHTML+='<pre>'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>'};try{${code}}catch(e){_o.innerHTML+='<pre class="error">'+e.message+'</pre>'}<\/script></body></html>`;}
-      else if(lang==='json'){try{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(JSON.stringify(JSON.parse(code),null,2))}</body></html>`;}catch(e){html=`<body style="background:#111;color:#f66;padding:20px">Invalid JSON</body>`;}}
-      else if(lang==='svg'){html=`<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;}
-      else{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`;}
-      document.getElementById('view-title').textContent=`View · ${lang}`;
-      document.getElementById('view-frame').srcdoc=html;
+    function viewCode(btn) {
+      const codeEl = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
+      const code   = codeEl.innerText;
+      const lang   = (btn.dataset.lang||'code').toLowerCase().replace('language-','');
+      let html = '';
+      if (lang==='html'||lang==='htm') {
+        html = code;
+      } else if (lang==='css'||lang==='scss') {
+        html = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;padding:20px}${code}</style></head><body><h1>Heading</h1><p>Paragraph.</p><button>Button</button></body></html>`;
+      } else if (['javascript','js','jsx','typescript','ts','tsx'].includes(lang)) {
+        html = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px}.error{color:#ff6b6b}</style></head><body><div id="o"></div><script>const _o=document.getElementById('o');console.log=(...a)=>{_o.innerHTML+='<pre>'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>'};try{${code}}catch(e){_o.innerHTML+='<pre class="error">'+e.message+'</pre>'}<\/script></body></html>`;
+      } else if (lang==='json') {
+        try { html = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(JSON.stringify(JSON.parse(code),null,2))}</body></html>`; }
+        catch(e) { html = `<body style="background:#111;color:#f66;padding:20px">Invalid JSON</body>`; }
+      } else if (lang==='svg') {
+        html = `<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;
+      } else {
+        html = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`;
+      }
+      document.getElementById('view-title').textContent = `View · ${lang}`;
+      document.getElementById('view-frame').srcdoc = html;
       document.getElementById('view-ov').classList.add('show');
     }
-    function closeView(){ document.getElementById('view-frame').srcdoc=''; document.getElementById('view-ov').classList.remove('show'); }
+    function closeView() {
+      document.getElementById('view-frame').srcdoc = '';
+      document.getElementById('view-ov').classList.remove('show');
+    }
 
     /* ══════════════════════════════════════
        SEND
     ══════════════════════════════════════ */
     async function sendMsg() {
-      const inp=document.getElementById('user-input'); if(!inp)return;
-      const raw=inp.value.trim(); if(!raw||S.busy)return;
-      const c=ensureConvo();
-      c.msgs.push({role:'user',content:raw,ts:Date.now()});
-      if(c.msgs.length===1){c.title=mkTitle(raw);setTitle(c.title);}
-      c.ts=Date.now();
-      inp.value=''; autoGrow(inp);
-      const sb=document.getElementById('send-btn'); if(sb)sb.disabled=true;
+      const inp = document.getElementById('user-input'); if (!inp) return;
+      const raw = inp.value.trim(); if (!raw || S.busy) return;
+      const c   = ensureConvo();
+      c.msgs.push({ role:'user', content:raw, ts:Date.now() });
+      if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); }
+      c.ts = Date.now();
+      inp.value = ''; autoGrow(inp);
+      const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
       renderMsgs(); renderSB();
 
-      if(modeOn('image')){
-        await genImage(c,raw); S.busy=false;
-        if(sb)sb.disabled=!inp.value.trim(); return;
+      if (modeOn('image')) {
+        await genImage(c, raw); S.busy = false;
+        if (sb) sb.disabled = !inp.value.trim(); return;
       }
 
-      let searchData=null;
-      if(userQueryNeedsSearch(raw)){
+      let searchData = null;
+      if (userQueryNeedsSearch(raw)) {
         showSearchInd();
-        searchData=await doSearch(raw);
+        searchData = await doSearch(raw);
         hideSearchInd();
       }
 
-      const aiId='ai'+Date.now();
+      const aiId = 'ai' + Date.now();
       appendPending(aiId);
-      await generate(c,aiId,searchData,raw);
+      await generate(c, aiId, searchData, raw);
     }
 
-    function showSearchInd(){
-      const ca=document.getElementById('chat-area'); if(!ca||document.getElementById('srch-ind'))return;
-      const el=document.createElement('div'); el.id='srch-ind'; el.style.cssText='padding:4px 14px;margin:4px 0';
-      el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0">
+    function showSearchInd() {
+      const ca = document.getElementById('chat-area');
+      if (!ca || document.getElementById('srch-ind')) return;
+      const el = document.createElement('div'); el.id = 'srch-ind'; el.style.cssText = 'padding:4px 14px;margin:4px 0';
+      el.innerHTML = `<div class="activity-wrap" data-state="searching" style="padding:6px 0">
         <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
         <div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div>
       </div>`;
       ca.appendChild(el); scrollBot();
     }
-    function hideSearchInd(){ document.getElementById('srch-ind')?.remove(); }
+    function hideSearchInd() { document.getElementById('srch-ind')?.remove(); }
 
     /* ══════════════════════════════════════
        PENDING ROW
     ══════════════════════════════════════ */
     function appendPending(id) {
-      const ca=document.getElementById('chat-area'); if(!ca)return;
-      const m=MODELS[S.model]||MODELS['0'];
-      const useThink=m.hasThink;
-      const row=document.createElement('div');
-      row.className='msg-row ai'; row.id=id;
+      const ca = document.getElementById('chat-area'); if (!ca) return;
+      const m  = MODELS[S.model] || MODELS['0'];
+      const row = document.createElement('div');
+      row.className = 'msg-row ai'; row.id = id;
 
-      if(useThink){
-        row.innerHTML=`<div class="msg-in"><div class="msg-content">
+      if (m.hasThink) {
+        row.innerHTML = `<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             <div class="ai-think open streaming" id="${id}think">
@@ -911,9 +945,9 @@ Do not reveal that you are reasoning. This is internal only.`,
           </div>
         </div></div>`;
       } else {
-        const aState=modeOn('code')?'coding':'writing';
-        const aLabel=modeOn('code')?'Writing Code':'Typing';
-        row.innerHTML=`<div class="msg-in"><div class="msg-content">
+        const aState = modeOn('code') ? 'coding' : 'writing';
+        const aLabel = modeOn('code') ? 'Writing Code' : 'Typing';
+        row.innerHTML = `<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             <div class="ai-txt" id="${id}txt">
@@ -930,23 +964,23 @@ Do not reveal that you are reasoning. This is internal only.`,
       }
 
       ca.appendChild(row);
-      const sr=document.createElement('div'); sr.id='stop-row';
-      sr.innerHTML=`<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
+      const sr = document.createElement('div'); sr.id = 'stop-row';
+      sr.innerHTML = `<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
       ca.appendChild(sr); scrollBot();
     }
 
     /* ══════════════════════════════════════
        CORE API CALL
     ══════════════════════════════════════ */
-    async function apiCall(msgs, sys, modelKey, maxTok, onDelta) {
+    async function apiCall(msgs, extraCtx, modelKey, maxTok, onDelta) {
       const mDef = MODELS[modelKey] || MODELS['0'];
       S.abort = new AbortController();
       const res = await fetch('/api/chat.js', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages:     msgs,
-          systemPrompt: sys,
+          systemPrompt: extraCtx,   /* extra context only — base prompt lives in chat.js */
           temperature:  mDef.temp,
           maxTokens:    maxTok || 2048,
           model:        modelKey,
@@ -955,7 +989,7 @@ Do not reveal that you are reasoning. This is internal only.`,
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
 
-      let full='', fr=null;
+      let full = '', fr = null;
       if (res.body) {
         const reader  = res.body.getReader();
         const dec     = new TextDecoder();
@@ -979,22 +1013,22 @@ Do not reveal that you are reasoning. This is internal only.`,
           }
         }
       } else {
-        const d  = await res.json();
-        full     = d.choices?.[0]?.message?.content || '';
-        fr       = d.choices?.[0]?.finish_reason;
+        const d = await res.json();
+        full    = d.choices?.[0]?.message?.content || '';
+        fr      = d.choices?.[0]?.finish_reason;
         if (onDelta && full) onDelta(full, full);
       }
       return { full: full.trim(), finishReason: fr };
     }
 
     /* ══════════════════════════════════════
-       STREAM TEXT
+       STREAM WORDS
     ══════════════════════════════════════ */
     async function streamWords(el, text, onChunk) {
-      if (!text) { el.innerHTML=''; return; }
+      if (!text) { el.innerHTML = ''; return; }
       const parts = text.split(/(\s+)/);
       let built = '';
-      for (let i=0; i<parts.length; i++) {
+      for (let i = 0; i < parts.length; i++) {
         if (S.abort?.signal?.aborted) break;
         built += parts[i];
         el.innerHTML = DOMPurify.sanitize(marked.parse(built)) + '<span class="stream-cur"></span>';
@@ -1003,7 +1037,7 @@ Do not reveal that you are reasoning. This is internal only.`,
       }
       el.innerHTML = DOMPurify.sanitize(marked.parse(built));
     }
-    function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     /* ══════════════════════════════════════
        MAIN GENERATE
@@ -1012,15 +1046,15 @@ Do not reveal that you are reasoning. This is internal only.`,
       contMode = contMode || false;
       S.busy   = true;
 
-      const txtEl   = document.getElementById(aiId+'txt');
-      const thinkEl = document.getElementById(aiId+'think');
-      const thCont  = document.getElementById(aiId+'thcont');
-      const thLbl   = document.getElementById(aiId+'thlbl');
+      const txtEl   = document.getElementById(aiId + 'txt');
+      const thinkEl = document.getElementById(aiId + 'think');
+      const thCont  = document.getElementById(aiId + 'thcont');
+      const thLbl   = document.getElementById(aiId + 'thlbl');
 
-      const modelKey  = S.model;
-      const mDef      = MODELS[modelKey] || MODELS['0'];
-      const useThink  = mDef.hasThink;
-      const baseMsgs  = convo.msgs.map(m=>({role:m.role,content:m.content}));
+      const modelKey = S.model;
+      const mDef     = MODELS[modelKey] || MODELS['0'];
+      const useThink = mDef.hasThink;
+      const baseMsgs = convo.msgs.map(m => ({ role:m.role, content:m.content }));
 
       let thinkText    = null;
       let answerText   = null;
@@ -1032,22 +1066,26 @@ Do not reveal that you are reasoning. This is internal only.`,
       S.abort = new AbortController();
 
       try {
+
         /* ─────────────────────────────────────
            PATH A: THINK MODELS (00 / 000)
         ───────────────────────────────────── */
         if (useThink) {
-          /* PHASE 1: REASONING */
-          const tStart   = Date.now();
-          let thinkSys   = PROMPT.think + dtCtx();
+
+          /* PHASE 1: REASONING
+             We send THINK_PHASE_PROMPT as the extra context.
+             The model's own base identity prompt is applied by chat.js. */
+          const tStart = Date.now();
+          let thinkExtra = THINK_PHASE_PROMPT + dtCtx();
           if (searchData && (searchData.results?.length || searchData.answer)) {
-            thinkSys += buildSearchCtx(searchData);
+            thinkExtra += buildSearchCtx(searchData);
           }
           if (thCont) thCont.textContent = '';
 
           let rawThink = '';
           try {
             const result = await apiCall(
-              baseMsgs, thinkSys, modelKey, 700,
+              baseMsgs, thinkExtra, modelKey, 700,
               (delta, full) => {
                 rawThink = full;
                 if (thCont) {
@@ -1066,7 +1104,7 @@ Do not reveal that you are reasoning. This is internal only.`,
           const tEnd  = Date.now();
           thinkDurStr = ((tEnd - tStart) / 1000).toFixed(1);
 
-          /* Trigger search if reasoning signals it */
+          /* Trigger web search if reasoning signals uncertainty */
           if (!searchData && thinkTextNeedsSearch(rawThink)) {
             if (thCont) {
               const pill = document.createElement('div');
@@ -1075,11 +1113,11 @@ Do not reveal that you are reasoning. This is internal only.`,
               thCont.appendChild(pill);
               if (S.settings.autoscroll) scrollBot();
             }
-            const q  = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+            const q  = userQuery || baseMsgs.filter(m => m.role==='user').slice(-1)[0]?.content || '';
             const sd = await doSearch(q);
             const pill = thCont?.querySelector('.think-search-pill');
             if (pill) pill.parentElement?.remove();
-            if (sd) { searchData=sd; usedSearch=true; finalSources=sd.results||[]; }
+            if (sd) { searchData = sd; usedSearch = true; finalSources = sd.results || []; }
           }
 
           if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
@@ -1100,26 +1138,26 @@ Do not reveal that you are reasoning. This is internal only.`,
             if (S.settings.autoscroll) scrollBot();
           }
 
-          let ansSys = dtCtx();
-          ansSys += '\n\n[CRITICAL: Deliver the FINAL ANSWER only. No reasoning. No internal monologue. Direct, polished response.]';
-          if (modeOn('code')) ansSys += PROMPT.codeAdd;
-          if (searchData && (searchData.results?.length || searchData.answer)) ansSys += buildSearchCtx(searchData);
-          if (contMode) ansSys += '\n\n[SYSTEM: Continue from where cut off. Do not repeat anything.]';
+          let ansExtra = dtCtx();
+          ansExtra += '\n\n[FINAL ANSWER PHASE: Respond directly to the user. No reasoning. No internal notes. Polished, complete answer only.]';
+          if (modeOn('code'))  ansExtra += CODE_MODE_EXTRA;
+          if (searchData && (searchData.results?.length || searchData.answer)) ansExtra += buildSearchCtx(searchData);
+          if (contMode)        ansExtra += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
           const ansMsgs = [...baseMsgs];
           if (thinkText) {
-            const lui = ansMsgs.map(m=>m.role).lastIndexOf('user');
+            const lui = ansMsgs.map(m => m.role).lastIndexOf('user');
             if (lui !== -1) {
               ansMsgs.splice(lui, 0, {
-                role:'system',
-                content:`[Internal reasoning — use to inform your answer only. Never reveal or repeat it.]\n\n${thinkText}`,
+                role: 'system',
+                content: '[Internal reasoning — use only to inform your answer. Never reveal or repeat it to the user.]\n\n' + thinkText,
               });
             }
           }
 
           let rawAnswer = '';
           try {
-            const result = await apiCall(ansMsgs, ansSys, modelKey, 3072, null);
+            const result = await apiCall(ansMsgs, ansExtra, modelKey, 3072, null);
             rawAnswer    = result.full;
             finishReason = result.finishReason;
           } catch(e) {
@@ -1132,7 +1170,7 @@ Do not reveal that you are reasoning. This is internal only.`,
             const aw = txtEl.querySelector('.activity-wrap'); if (aw) aw.remove();
             txtEl.innerHTML = '';
             if (answerText) {
-              await streamWords(txtEl, answerText, () => { if(S.settings.autoscroll)scrollBot(); });
+              await streamWords(txtEl, answerText, () => { if (S.settings.autoscroll) scrollBot(); });
             } else {
               txtEl.innerHTML = DOMPurify.sanitize(marked.parse('_(No response generated — try again)_'));
             }
@@ -1142,30 +1180,31 @@ Do not reveal that you are reasoning. This is internal only.`,
            PATH B: NORMAL MODEL (0)
         ───────────────────────────────────── */
         } else {
-          let ansSys = dtCtx();
-          ansSys += '\n\n[CRITICAL: Deliver the FINAL ANSWER only. No reasoning. Direct, polished response.]';
-          if (modeOn('code')) ansSys += PROMPT.codeAdd;
-          if (searchData && (searchData.results?.length || searchData.answer)) ansSys += buildSearchCtx(searchData);
-          if (contMode) ansSys += '\n\n[SYSTEM: Continue from where cut off. Do not repeat anything.]';
+
+          let ansExtra = dtCtx();
+          ansExtra += '\n\n[Respond directly to the user. Polished, complete answer only.]';
+          if (modeOn('code'))  ansExtra += CODE_MODE_EXTRA;
+          if (searchData && (searchData.results?.length || searchData.answer)) ansExtra += buildSearchCtx(searchData);
+          if (contMode)        ansExtra += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
           const { full, finishReason: fr } = await apiCall(
-            baseMsgs, ansSys, modelKey, 4096,
+            baseMsgs, ansExtra, modelKey, 4096,
             (delta, cur) => {
               if (txtEl) {
-                const aw=txtEl.querySelector('.activity-wrap'); if(aw)aw.remove();
-                txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';
+                const aw = txtEl.querySelector('.activity-wrap'); if (aw) aw.remove();
+                txtEl.innerHTML = DOMPurify.sanitize(marked.parse(cur)) + '<span class="stream-cur"></span>';
               }
-              const subEl=document.getElementById(aiId+'sub');
+              const subEl = document.getElementById(aiId + 'sub');
               if (subEl && cur.length > 10) {
-                const snip=cur.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
-                if (snip) subEl.textContent=snip;
+                const snip = cur.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
+                if (snip) subEl.textContent = snip;
               }
               if (S.settings.autoscroll) scrollBot();
             }
           );
           finishReason = fr;
           answerText   = full;
-          if (txtEl) txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText||''));
+          if (txtEl) txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText || ''));
 
           /* Smart re-search if model sounds uncertain */
           if (answerText && !usedSearch && S.settings.webSearchAuto) {
@@ -1178,29 +1217,32 @@ Do not reveal that you are reasoning. This is internal only.`,
             );
             if (looksUncertain) {
               showSearchInd();
-              const q  = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+              const q  = userQuery || baseMsgs.filter(m => m.role==='user').slice(-1)[0]?.content || '';
               const sd = await doSearch(q);
               hideSearchInd();
               if (sd) {
-                searchData=sd; usedSearch=true; finalSources=sd.results||[];
+                searchData = sd; usedSearch = true; finalSources = sd.results || [];
                 let sys2 = dtCtx() + buildSearchCtx(sd);
-                if(modeOn('code'))sys2+=PROMPT.codeAdd;
-                if(txtEl){
-                  txtEl.innerHTML=`<div class="activity-wrap" data-state="writing">
+                if (modeOn('code')) sys2 += CODE_MODE_EXTRA;
+                if (txtEl) {
+                  txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
                     <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
                     <div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div>
                   </div>`;
                 }
                 S.abort = new AbortController();
-                const {full:full2,finishReason:fr2} = await apiCall(
+                const { full:full2, finishReason:fr2 } = await apiCall(
                   baseMsgs, sys2, modelKey, 4096,
                   (delta, cur) => {
-                    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';}
-                    if(S.settings.autoscroll)scrollBot();
+                    if (txtEl) {
+                      const aw = txtEl.querySelector('.activity-wrap'); if (aw) aw.remove();
+                      txtEl.innerHTML = DOMPurify.sanitize(marked.parse(cur)) + '<span class="stream-cur"></span>';
+                    }
+                    if (S.settings.autoscroll) scrollBot();
                   }
                 );
-                finishReason=fr2; answerText=full2;
-                if(txtEl) txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));
+                finishReason = fr2; answerText = full2;
+                if (txtEl) txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText || ''));
               }
             }
           }
@@ -1211,10 +1253,10 @@ Do not reveal that you are reasoning. This is internal only.`,
           document.getElementById(aiId)?.remove();
           document.getElementById('stop-row')?.remove();
           showErr();
-          S.busy=false; S.abort=null;
-          const inp=document.getElementById('user-input');
-          const sb=document.getElementById('send-btn');
-          if(sb) sb.disabled=!inp||!inp.value.trim();
+          S.busy = false; S.abort = null;
+          const inp = document.getElementById('user-input');
+          const sb  = document.getElementById('send-btn');
+          if (sb) sb.disabled = !inp || !inp.value.trim();
           return;
         }
         answerText = answerText || '';
@@ -1241,144 +1283,162 @@ Do not reveal that you are reasoning. This is internal only.`,
       }
 
       renderMsgs(); saveStore();
-      S.busy=false; S.abort=null;
-      const inp=document.getElementById('user-input');
-      const sb=document.getElementById('send-btn');
-      if(sb) sb.disabled=!inp||!inp.value.trim();
+      S.busy = false; S.abort = null;
+      const inp = document.getElementById('user-input');
+      const sb  = document.getElementById('send-btn');
+      if (sb) sb.disabled = !inp || !inp.value.trim();
       scrollBot();
     }
 
     /* ══════════════════════════════════════
        RETRY / CONTINUE / IMAGE / STOP
     ══════════════════════════════════════ */
-    async function retryEmpty(idx){
-      const c=curConvo(); if(!c||S.busy)return;
-      const msg=c.msgs[idx]; if(!msg||!msg.emptyRetry)return;
-      c.msgs.splice(idx,1); renderMsgs();
-      const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0]; if(!um)return;
-      const aiId='ai'+Date.now(); appendPending(aiId);
-      await generate(c,aiId,null,um.content);
+    async function retryEmpty(idx) {
+      const c = curConvo(); if (!c || S.busy) return;
+      const msg = c.msgs[idx]; if (!msg || !msg.emptyRetry) return;
+      c.msgs.splice(idx, 1); renderMsgs();
+      const um = c.msgs.filter(m => m.role==='user').slice(-1)[0]; if (!um) return;
+      const aiId = 'ai' + Date.now(); appendPending(aiId);
+      await generate(c, aiId, null, um.content);
     }
 
-    async function continueMsg(idx){
-      const c=curConvo(); if(!c||S.busy)return;
-      const msg=c.msgs[idx]; if(!msg||msg.role!=='assistant')return;
-      msg.truncated=false;
-      const msgRow=document.querySelector(`.msg-row.ai[data-msg-index="${idx}"]`);
-      if(msgRow){const ad=msgRow.querySelector('.msg-acts');if(ad)ad.innerHTML=`<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;}
-      const txtEl=document.getElementById(`msg-${idx}-text`); if(!txtEl)return;
-      S.busy=true; S.abort=new AbortController();
+    async function continueMsg(idx) {
+      const c = curConvo(); if (!c || S.busy) return;
+      const msg = c.msgs[idx]; if (!msg || msg.role !== 'assistant') return;
+      msg.truncated = false;
+      const msgRow = document.querySelector(`.msg-row.ai[data-msg-index="${idx}"]`);
+      if (msgRow) {
+        const ad = msgRow.querySelector('.msg-acts');
+        if (ad) ad.innerHTML = `<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
+      }
+      const txtEl = document.getElementById(`msg-${idx}-text`); if (!txtEl) return;
+      S.busy = true; S.abort = new AbortController();
 
-      let contSys = dtCtx();
-      contSys += '\n\n[You are the final assistant. Answer directly and concisely. No internal monologue.]';
-      if (modeOn('code')) contSys += PROMPT.codeAdd;
-      if (msg.sources && msg.sources.length) contSys += buildSearchCtx({results:msg.sources});
-      contSys += '\n\n[SYSTEM: Continue from where cut off. Do not repeat anything.]';
+      let contExtra = dtCtx();
+      contExtra += '\n\n[Respond directly to the user. Polished, complete answer only.]';
+      if (modeOn('code')) contExtra += CODE_MODE_EXTRA;
+      if (msg.sources && msg.sources.length) contExtra += buildSearchCtx({ results:msg.sources });
+      contExtra += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-      const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
-      let full=msg.content, fr=null;
-      try{
-        const r=await apiCall(msgs, contSys, msg.modelKey||S.model, 4096,
-          (delta, cur)=>{
-            txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';
-            if(S.settings.autoscroll)scrollBot();
+      const msgs = c.msgs.slice(0, idx+1).map(m => ({ role:m.role, content:m.content }));
+      let full = msg.content, fr = null;
+      try {
+        const r = await apiCall(msgs, contExtra, msg.modelKey || S.model, 4096,
+          (delta, cur) => {
+            txtEl.innerHTML = DOMPurify.sanitize(marked.parse(cur)) + '<span class="stream-cur"></span>';
+            if (S.settings.autoscroll) scrollBot();
           }
         );
-        full=r.full; fr=r.finishReason;
-      }catch(e){}
-      txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full));
-      msg.content=full; msg.truncated=fr==='length'; msg.ts=Date.now();
-      const ad=msgRow?.querySelector('.msg-acts');
-      if(ad)ad.innerHTML=msg.truncated
-        ?`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`:'' ;
+        full = r.full; fr = r.finishReason;
+      } catch(e) {}
+
+      txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full));
+      msg.content   = full; msg.truncated = fr === 'length'; msg.ts = Date.now();
+      const ad = msgRow?.querySelector('.msg-acts');
+      if (ad) ad.innerHTML = msg.truncated
+        ? `<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`
+        : '';
       attachCodeBtns(); saveStore();
-      S.busy=false; S.abort=null;
-      const inp=document.getElementById('user-input');
-      const sb=document.getElementById('send-btn');
-      if(sb) sb.disabled=!inp||!inp.value.trim();
+      S.busy = false; S.abort = null;
+      const inp = document.getElementById('user-input');
+      const sb  = document.getElementById('send-btn');
+      if (sb) sb.disabled = !inp || !inp.value.trim();
       scrollBot();
     }
 
-    async function genImage(convo, prompt){
-      S.busy=true;
-      const aiId='img'+Date.now();
-      const ca=document.getElementById('chat-area');
-      const row=document.createElement('div'); row.className='msg-row ai'; row.id=aiId;
-      row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt">
+    async function genImage(convo, prompt) {
+      S.busy = true;
+      const aiId = 'img' + Date.now();
+      const ca   = document.getElementById('chat-area');
+      const row  = document.createElement('div'); row.className = 'msg-row ai'; row.id = aiId;
+      row.innerHTML = `<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt">
         <div class="activity-wrap" data-state="imaging">
           <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-          <div class="activity-right"><div class="activity-label anim-dots">Generating Image</div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div>
+          <div class="activity-right">
+            <div class="activity-label anim-dots">Generating Image</div>
+            <div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div>
+          </div>
         </div>
       </div></div></div></div>`;
       ca.appendChild(row); scrollBot();
-      try{
-        const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&model=flux&nologo=true`;
-        await new Promise((res,rej)=>{const img=new Image();img.onload=res;img.onerror=rej;img.src=url;setTimeout(()=>rej(new Error('Timeout')),35000);});
-        convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:url,ts:Date.now(),truncated:false,modelKey:S.model});
-      }catch(err){
-        convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model});
+      try {
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&model=flux&nologo=true`;
+        await new Promise((res, rej) => {
+          const img = new Image();
+          img.onload  = res;
+          img.onerror = rej;
+          img.src     = url;
+          setTimeout(() => rej(new Error('Timeout')), 35000);
+        });
+        convo.msgs.push({ role:'assistant', content:`Generated image for: *"${prompt}"*`, imageUrl:url, ts:Date.now(), truncated:false, modelKey:S.model });
+      } catch(err) {
+        convo.msgs.push({ role:'assistant', content:`Couldn't generate that image. ${err.message||'Try again.'}`, ts:Date.now(), truncated:false, modelKey:S.model });
       }
-      document.getElementById(aiId)?.remove(); renderMsgs(); saveStore(); S.busy=false;
+      document.getElementById(aiId)?.remove(); renderMsgs(); saveStore(); S.busy = false;
     }
 
-    function stopGen(){ if(S.abort)S.abort.abort(); }
+    function stopGen() { if (S.abort) S.abort.abort(); }
 
-    function showErr(){
-      const ca=document.getElementById('chat-area'); if(!ca)return;
+    function showErr() {
+      const ca = document.getElementById('chat-area'); if (!ca) return;
       document.getElementById('err-row')?.remove();
-      const r=document.createElement('div'); r.className='err-row'; r.id='err-row';
-      r.innerHTML=`<div class="err-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="err-msg">Failed to get a response</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;
+      const r = document.createElement('div'); r.className = 'err-row'; r.id = 'err-row';
+      r.innerHTML = `<div class="err-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span class="err-msg">Failed to get a response</span>
+        <button class="retry-btn" onclick="retryLast()">Retry</button>
+      </div>`;
       ca.appendChild(r); scrollBot();
     }
-    function retryLast(){
-      const c=curConvo(); if(!c||S.busy)return;
+    function retryLast() {
+      const c = curConvo(); if (!c || S.busy) return;
       document.getElementById('err-row')?.remove();
-      const aiId='ai'+Date.now(); appendPending(aiId); generate(c,aiId,null,'',false);
+      const aiId = 'ai' + Date.now(); appendPending(aiId); generate(c, aiId, null, '', false);
     }
 
     /* ══════════════════════════════════════
        INPUT / SCROLL
     ══════════════════════════════════════ */
-    function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
-    function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();sendMsg();}}
-    function isMobile(){return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||'ontouchstart'in window;}
-    function scrollBot(smooth=false){const ca=document.getElementById('chat-area');if(!ca)return;ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'});}
+    function autoGrow(el) { if (!el) return; el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
+    function onKey(e) { if (e.key==='Enter' && !e.shiftKey && !isMobile()) { e.preventDefault(); sendMsg(); } }
+    function isMobile() { return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 'ontouchstart' in window; }
+    function scrollBot(smooth=false) { const ca=document.getElementById('chat-area'); if(!ca)return; ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'}); }
 
     /* ══════════════════════════════════════
        DIALOG
     ══════════════════════════════════════ */
-    function showDialog(opts){
-      document.getElementById('dialog-title').textContent=opts.title||'';
-      document.getElementById('dialog-msg').textContent=opts.msg||'';
-      const iw=document.getElementById('dialog-input-wrap');
-      const inp=document.getElementById('dialog-input');
-      if(opts.input){iw.style.display='block';inp.value=opts.inputVal||'';inp.placeholder=opts.input;}
-      else{iw.style.display='none';}
-      const bts=document.getElementById('dialog-btns'); bts.innerHTML='';
-      if(opts.cancel!==false){
-        const cb=document.createElement('button');
-        cb.className='dlg-btn cancel'; cb.textContent=opts.cancelText||'Cancel';
-        cb.onclick=closeDialog; bts.appendChild(cb);
+    function showDialog(opts) {
+      document.getElementById('dialog-title').textContent = opts.title || '';
+      document.getElementById('dialog-msg').textContent   = opts.msg   || '';
+      const iw  = document.getElementById('dialog-input-wrap');
+      const inp = document.getElementById('dialog-input');
+      if (opts.input) { iw.style.display='block'; inp.value=opts.inputVal||''; inp.placeholder=opts.input; }
+      else            { iw.style.display='none'; }
+      const bts = document.getElementById('dialog-btns'); bts.innerHTML = '';
+      if (opts.cancel !== false) {
+        const cb = document.createElement('button');
+        cb.className = 'dlg-btn cancel'; cb.textContent = opts.cancelText || 'Cancel';
+        cb.onclick = closeDialog; bts.appendChild(cb);
       }
-      const ok=document.createElement('button');
-      ok.className='dlg-btn '+(opts.danger?'danger':'confirm');
-      ok.textContent=opts.confirmText||'OK';
-      ok.onclick=()=>{const v=inp?inp.value:'';closeDialog();if(opts.onConfirm)opts.onConfirm(v);};
+      const ok = document.createElement('button');
+      ok.className = 'dlg-btn ' + (opts.danger ? 'danger' : 'confirm');
+      ok.textContent = opts.confirmText || 'OK';
+      ok.onclick = () => { const v = inp ? inp.value : ''; closeDialog(); if (opts.onConfirm) opts.onConfirm(v); };
       bts.appendChild(ok);
       document.getElementById('dialog-ov').classList.add('show');
-      if(opts.input){setTimeout(()=>inp?.focus(),100);if(inp)inp.onkeydown=e=>{if(e.key==='Enter')ok.click();};}
+      if (opts.input) { setTimeout(() => inp?.focus(), 100); if (inp) inp.onkeydown = e => { if (e.key==='Enter') ok.click(); }; }
     }
-    function closeDialog(){document.getElementById('dialog-ov').classList.remove('show');}
-    function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,confirmText:d?'Delete':'Confirm'});}
+    function closeDialog() { document.getElementById('dialog-ov').classList.remove('show'); }
+    function dlgConfirm(t, m, onY, d) { showDialog({ title:t, msg:m, onConfirm:onY, danger:d, confirmText:d?'Delete':'Confirm' }); }
 
     /* ══════════════════════════════════════
        SETTINGS
     ══════════════════════════════════════ */
-    function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
-    function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-    function renderSettings(){
-      const body=document.getElementById('sheet-body'); if(!body)return;
-      body.innerHTML=`
+    function openSettings()  { closeSidebar(); renderSettings(); document.getElementById('settings-ov').classList.add('show'); }
+    function closeSettings() { document.getElementById('settings-ov').classList.remove('show'); }
+    function renderSettings() {
+      const body = document.getElementById('sheet-body'); if (!body) return;
+      body.innerHTML = `
         <div class="sg"><div class="sg-lbl">Display</div>
           <div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div>
           <div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div>
@@ -1391,21 +1451,27 @@ Do not reveal that you are reasoning. This is internal only.`,
           <div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div>
         </div>`;
     }
-    function togSet(k,el){S.settings[k]=!S.settings[k];if(el)el.classList.toggle('on',S.settings[k]);saveStore();}
-    function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>{try{localStorage.clear();}catch(e){}location.reload();},true);}
+    function togSet(k, el) { S.settings[k] = !S.settings[k]; if (el) el.classList.toggle('on', S.settings[k]); saveStore(); }
+    function nukeAll() { dlgConfirm('Reset everything?','All data will be wiped.',() => { try{localStorage.clear();}catch(e){} location.reload(); }, true); }
 
     /* ══════════════════════════════════════
        UTILS
     ══════════════════════════════════════ */
-    function copyText(text,onDone){
-      if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(onDone).catch(()=>fbCopy(text,onDone));}
-      else fbCopy(text,onDone);
+    function copyText(text, onDone) {
+      if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(onDone).catch(() => fbCopy(text, onDone)); }
+      else fbCopy(text, onDone);
     }
-    function fbCopy(text,onDone){
-      try{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;pointer-events:none';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);if(onDone)onDone();}
-      catch(e){}
+    function fbCopy(text, onDone) {
+      try {
+        const ta = document.createElement('textarea'); ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        if (onDone) onDone();
+      } catch(e) {}
     }
-    function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+    function esc(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
     </script>
   </body>
 </html>
