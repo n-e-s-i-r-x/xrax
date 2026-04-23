@@ -2,8 +2,8 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':   'nvidia/nemotron-nano-9b-v2:free',
-  '00':  'google/gemma-3-4b-it:free',
-  '000': 'meta-llama/llama-3.2-3b-instruct:free',
+  '00':  'nvidia/nemotron-nano-9b-v2:free',
+  '000': 'nvidia/nemotron-nano-9b-v2:free',
 };
 
 export default async function handler(req) {
