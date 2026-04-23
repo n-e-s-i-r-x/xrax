@@ -7,7 +7,7 @@ export default async function handler(req) {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const { messages, systemPrompt, temperature = 0.7, maxTokens = 4096 } = await req.json();
+  const { messages, systemPrompt, temperature, maxTokens = 4096 } = await req.json();
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
