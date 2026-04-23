@@ -198,8 +198,11 @@
         content: ''; display: inline-block; width: 1.4em; text-align: left;
         animation: ellipsis 1.4s steps(4,end) infinite;
       }
-      .ai-think-body { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1); }
-      .ai-think.open .ai-think-body { max-height: 500px; overflow-y: auto; }
+      .ai-think-body {
+        max-height: 0; overflow: hidden;
+        transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+      }
+      .ai-think.open .ai-think-body { max-height: 600px; overflow-y: auto; }
       .ai-think-content {
         padding: 10px 12px 12px; font-size: 12.5px; line-height: 1.7;
         color: #7a6aaa; border-top: 1px solid #1e1530;
@@ -268,7 +271,7 @@
         padding: 3px 8px; font-size: 11px; color: #4a9eff; margin-bottom: 8px;
       }
 
-      /* ── SOURCES DROPDOWN ─────────────────────────────────────────── */
+      /* SOURCES DROPDOWN */
       .sources-wrap { margin-top: 10px; border-top: 1px solid #141414; padding-top: 8px; }
       .sources-toggle {
         display: inline-flex; align-items: center; gap: 6px;
@@ -279,21 +282,14 @@
       }
       .sources-toggle:hover { color: #666; }
       .sources-toggle:active { color: #888; }
-      .sources-chevron {
-        transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-        flex-shrink: 0;
-      }
+      .sources-chevron { transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; }
       .sources-wrap.open .sources-chevron { transform: rotate(90deg); }
       .sources-list {
-        overflow: hidden;
-        max-height: 0;
+        overflow: hidden; max-height: 0;
         transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;
         opacity: 0;
       }
-      .sources-wrap.open .sources-list {
-        max-height: 600px;
-        opacity: 1;
-      }
+      .sources-wrap.open .sources-list { max-height: 600px; opacity: 1; }
       .source-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; text-decoration: none; }
       .source-favicon { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; margin-top: 2px; object-fit: contain; }
       .source-text { flex: 1; min-width: 0; }
@@ -345,13 +341,10 @@
       .mode-btn.active.purple { color: #c084fc; border-color: #3b1f6e; background: #160d2e; }
       .mode-btn svg { flex-shrink: 0; }
 
-      /* ── IMAGE NOTICE — bright yellow ─────────────────────────────── */
       #image-notice {
         display: none; text-align: center; font-size: 10.5px;
-        color: #ffe066;
-        text-shadow: 0 0 10px rgba(255,224,50,0.45);
-        padding: 6px 14px 0; line-height: 1.5;
-        animation: noticeIn 0.3s ease;
+        color: #ffe066; text-shadow: 0 0 10px rgba(255,224,50,0.45);
+        padding: 6px 14px 0; line-height: 1.5; animation: noticeIn 0.3s ease;
       }
       @keyframes noticeIn {
         from { opacity: 0; transform: translateY(-4px); }
@@ -685,8 +678,14 @@
 
       codeModeAddendum: `\n\n[CODE MODE: Prioritize working code. Always use fenced code blocks with correct language tags. Be concise.]`,
 
-      // ── THINK MODE: much shorter instructions so the model has token room to actually answer
-      thinkingInstructions: `\n\n[THINK MODE: Before answering, write your raw internal reasoning inside <think>...</think> tags. Then write your reply outside those tags. Keep thinking concise. Always produce a reply after </think>.]`,
+      // Think mode: instruct the model to wrap reasoning in <think> tags
+      thinkingInstructions: `\n\n[THINK MODE: You MUST first write your internal reasoning inside <think>...</think> tags. Then write your actual reply AFTER the closing </think> tag. Example format:
+<think>
+your reasoning here...
+</think>
+Your reply here.
+
+Always follow this format exactly. Never skip the </think> closing tag.]`,
     };
 
     /* ── STATE ──────────────────────────────────────────────────────────────── */
@@ -701,7 +700,7 @@
         autoscroll: true,
         streaming: true,
         save: true,
-        temperature: 0.7,
+        temperature: 0.5,   // ← changed default from 0.7 to 0.5
         webSearchAuto: true,
       },
     };
@@ -761,26 +760,39 @@
       );
     }
 
-    // ── FIX: robust think/answer extractor that handles models which don't close the tag
+    /* ── THINK EXTRACTOR ────────────────────────────────────────────────────── */
+    // Robustly pulls <think>...</think> out of full text.
+    // Returns { thinking: string|null, answer: string }
     function extractThinking(text) {
-      // Try proper open+close
-      const m = text.match(/^<think\s*>([\s\S]*?)<\/think\s*>\s*/i);
-      if (m) return { thinking: m[1].trim(), answer: text.slice(m[0].length).trim() };
+      const openTag  = /<think\s*>/i;
+      const closeTag = /<\/think\s*>/i;
+      const openMatch  = openTag.exec(text);
+      const closeMatch = closeTag.exec(text);
 
-      // Model opened <think> but never closed it — treat everything as thinking, no answer
-      // (this causes blank response — we return null thinking and the whole text as answer)
-      const openOnly = text.match(/^<think\s*>([\s\S]*)$/i);
-      if (openOnly) return { thinking: openOnly[1].trim(), answer: "" };
+      if (openMatch && closeMatch && closeMatch.index > openMatch.index) {
+        // Both tags present and in correct order
+        const thinkContent = text.slice(openMatch.index + openMatch[0].length, closeMatch.index).trim();
+        const afterClose   = text.slice(closeMatch.index + closeMatch[0].length).trim();
+        return { thinking: thinkContent || null, answer: afterClose };
+      }
 
+      if (openMatch && !closeMatch) {
+        // Model opened <think> but never closed it
+        // Treat everything after <think> as thinking, no answer yet
+        const thinkContent = text.slice(openMatch.index + openMatch[0].length).trim();
+        return { thinking: thinkContent || null, answer: "" };
+      }
+
+      // No think tags at all
       return { thinking: null, answer: text };
     }
 
     /* ── INIT ───────────────────────────────────────────────────────────────── */
     function dismissIntro() {
       const intro = document.getElementById("intro");
-      const app = document.getElementById("app");
+      const app   = document.getElementById("app");
       if (intro) intro.classList.add("hide");
-      if (app) app.classList.add("ready");
+      if (app)   app.classList.add("ready");
       setTimeout(() => { if (intro) intro.style.display = "none"; }, 1000);
     }
     let inited = false;
@@ -813,14 +825,14 @@
     function saveStore() {
       if (!S.settings.save) return;
       try {
-        localStorage.setItem("vg_convos", JSON.stringify(S.convos));
+        localStorage.setItem("vg_convos",   JSON.stringify(S.convos));
         localStorage.setItem("vg_settings", JSON.stringify(S.settings));
       } catch(e) {}
     }
     function loadStore() {
       try {
-        const c = localStorage.getItem("vg_convos"); if (c) S.convos = JSON.parse(c)||{};
-        const st = localStorage.getItem("vg_settings"); if (st) S.settings = {...S.settings,...JSON.parse(st)};
+        const c  = localStorage.getItem("vg_convos");   if (c)  S.convos   = JSON.parse(c) || {};
+        const st = localStorage.getItem("vg_settings"); if (st) S.settings = { ...S.settings, ...JSON.parse(st) };
       } catch(e) { S.convos = {}; }
     }
 
@@ -828,8 +840,8 @@
     async function doSearch(query) {
       try {
         const res = await fetch("/api/search.js", {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({query}),
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
         });
         if (!res.ok) return null;
         const data = await res.json();
@@ -933,20 +945,24 @@
       const cma=msg.codeMode?'data-codemode="true"':"";
       const badge=msg.searched
         ?`<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>`:"";
-      let thinkHtml="";
-      if(msg.thinking){
-        const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:"Thought";
-        thinkHtml=`<div class="ai-think" onclick="this.classList.toggle('open')">
+
+      // ── Thinking block (only if we have actual thinking content)
+      let thinkHtml = "";
+      if (msg.thinking && msg.thinking.trim()) {
+        const dur = msg.thinkDuration ? `Thought for ${msg.thinkDuration}s` : "Thought";
+        thinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')">
           <div class="ai-think-header">
             <svg class="ai-think-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             <svg class="ai-think-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d71e8" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
             <span class="ai-think-label" style="animation:none">${esc(dur)}</span>
           </div>
-          <div class="ai-think-body"><div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div></div>
+          <div class="ai-think-body">
+            <div class="ai-think-content">${DOMPurify.sanitize(marked.parse(msg.thinking))}</div>
+          </div>
         </div>`;
       }
 
-      // ── SOURCES as collapsible dropdown
+      // ── Sources
       let sourcesHtml="";
       if(msg.sources&&msg.sources.length){
         const count = msg.sources.length;
@@ -1031,28 +1047,28 @@
 
     /* ── SEND ───────────────────────────────────────────────────────────────── */
     async function sendMsg() {
-      const inp=document.getElementById("user-input"); if(!inp)return;
-      const raw=inp.value.trim(); if(!raw||S.busy)return;
-      const c=ensureConvo();
-      c.msgs.push({role:"user",content:raw,ts:Date.now()});
-      if(c.msgs.length===1){c.title=mkTitle(raw);setTitle(c.title);}
-      c.ts=Date.now();
-      inp.value=""; autoGrow(inp);
-      const sb=document.getElementById("send-btn"); if(sb)sb.disabled=true;
+      const inp = document.getElementById("user-input"); if (!inp) return;
+      const raw = inp.value.trim(); if (!raw || S.busy) return;
+      const c = ensureConvo();
+      c.msgs.push({ role:"user", content:raw, ts:Date.now() });
+      if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); }
+      c.ts = Date.now();
+      inp.value = ""; autoGrow(inp);
+      const sb = document.getElementById("send-btn"); if (sb) sb.disabled = true;
       renderMsgs(); renderSB();
 
-      if(modeOn("image")){await generateImage(c,raw);S.busy=false;if(sb)sb.disabled=!inp.value.trim();return;}
+      if (modeOn("image")) { await generateImage(c, raw); S.busy=false; if(sb)sb.disabled=!inp.value.trim(); return; }
 
-      let searchData=null;
-      if(needsSearch(raw)){
+      let searchData = null;
+      if (needsSearch(raw)) {
         showSearchInd();
-        searchData=await doSearch(raw);
+        searchData = await doSearch(raw);
         hideSearchInd();
       }
 
-      const aiId="ai"+Date.now();
+      const aiId = "ai" + Date.now();
       appendPending(aiId);
-      await generate(c,aiId,searchData,raw);
+      await generate(c, aiId, searchData, raw);
     }
 
     function showSearchInd() {
@@ -1066,15 +1082,18 @@
     }
     function hideSearchInd() { document.getElementById("srch-ind")?.remove(); }
 
+    /* ── APPEND PENDING ROW ─────────────────────────────────────────────────── */
     function appendPending(id) {
-      const ca=document.getElementById("chat-area"); if(!ca)return;
-      const isThink=modeOn("think");
-      const aState=modeOn("code")?"coding":modeOn("web")?"searching":"writing";
-      const aLabel=modeOn("code")?"Writing Code":modeOn("web")?"Searching":"Working";
-      const row=document.createElement("div"); row.className="msg-row ai"; row.id=id;
+      const ca = document.getElementById("chat-area"); if (!ca) return;
+      const isThink = modeOn("think");
+      const aState  = modeOn("code") ? "coding" : modeOn("web") ? "searching" : "writing";
+      const aLabel  = modeOn("code") ? "Writing Code" : modeOn("web") ? "Searching" : "Working";
+      const row = document.createElement("div");
+      row.className = "msg-row ai"; row.id = id;
 
-      if(isThink){
-        row.innerHTML=`<div class="msg-in"><div class="msg-content">
+      if (isThink) {
+        // Think mode: show the think block open + streaming, answer hidden below
+        row.innerHTML = `<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             <div class="ai-think open streaming" id="${id}think">
@@ -1083,13 +1102,20 @@
                 <svg class="ai-think-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d71e8" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
                 <span class="ai-think-label" id="${id}thlabel">Thinking</span>
               </div>
-              <div class="ai-think-body"><div class="ai-think-content" id="${id}thcont"></div></div>
+              <div class="ai-think-body">
+                <div class="ai-think-content" id="${id}thcont">
+                  <div class="activity-wrap" data-state="thinking" style="padding:2px 0">
+                    <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                    <div class="activity-right"><div class="activity-label">Thinking</div></div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="ai-txt" id="${id}txt" style="display:none"></div>
           </div>
         </div></div>`;
       } else {
-        row.innerHTML=`<div class="msg-in"><div class="msg-content">
+        row.innerHTML = `<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             <div class="ai-txt" id="${id}txt">
@@ -1105,57 +1131,58 @@
         </div></div>`;
       }
       ca.appendChild(row);
-      const sr=document.createElement("div"); sr.id="stop-row";
-      sr.innerHTML=`<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
+      const sr = document.createElement("div"); sr.id = "stop-row";
+      sr.innerHTML = `<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
       ca.appendChild(sr); scrollBot();
     }
 
     /* ── GENERATE ───────────────────────────────────────────────────────────── */
     async function generate(convo, aiId, searchData, userQuery, isRetry, contMode) {
-      userQuery  = userQuery || "";
-      isRetry    = isRetry || false;
-      contMode   = contMode || false;
-      S.busy = true;
+      userQuery = userQuery || "";
+      isRetry   = isRetry   || false;
+      contMode  = contMode  || false;
+      S.busy    = true;
+
       const MAX_ATTEMPTS = 2;
-      let attempt = 0;
-      let success = false;
-      let errored = false;
-      let finishReason = null;
+      let attempt = 0, success = false, errored = false, finishReason = null;
 
-      const txtEl   = document.getElementById(aiId+"txt");
-      const thinkEl = document.getElementById(aiId+"think");
-      const thCont  = document.getElementById(aiId+"thcont");
-      const thLabel = document.getElementById(aiId+"thlabel");
+      // Live DOM refs
+      const txtEl   = document.getElementById(aiId + "txt");
+      const thinkEl = document.getElementById(aiId + "think");
+      const thCont  = document.getElementById(aiId + "thcont");
+      const thLabel = document.getElementById(aiId + "thlabel");
 
-      let inThink = false, thinkDone = false;
-      let thinkRaw = "", answerRaw = "";
+      // Streaming state
+      let thinkRaw  = "", answerRaw = "";
+      let thinkDone = false, inThink = false;
       let thinkStart = null;
       let midSearchTriggered = false;
       let finalThink = null, finalAnswer = null;
 
       while (attempt < MAX_ATTEMPTS && !success) {
         attempt++;
+
+        // Reset per-attempt state
         if (attempt > 1) {
+          thinkRaw = ""; answerRaw = ""; thinkDone = false; inThink = false; midSearchTriggered = false;
           if (txtEl) txtEl.innerHTML = `<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">Retrying</div></div></div>`;
-          if (thCont) thCont.innerHTML = "";
-          if (thinkEl) thinkEl.classList.add("streaming");
-          if (thLabel) { thLabel.style.animation = ""; thLabel.textContent = "Retrying"; }
-          inThink = false; thinkDone = false; thinkRaw = ""; answerRaw = ""; midSearchTriggered = false;
+          if (thinkEl) { thinkEl.classList.add("open","streaming"); }
+          if (thCont)  thCont.innerHTML = `<div class="activity-wrap" data-state="thinking" style="padding:2px 0"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">Thinking</div></div></div>`;
+          if (thLabel) { thLabel.textContent = "Thinking"; }
         }
 
-        let full = "";
-        errored = false;
-        finishReason = null;
-        S.abort = new AbortController();
+        let full    = "";
+        errored     = false;
+        finishReason= null;
+        S.abort     = new AbortController();
 
+        // Build system prompt
         let sys = CF.systemPrompt;
-        if (modeOn("code")) sys += CF.codeModeAddendum;
+        if (modeOn("code"))  sys += CF.codeModeAddendum;
         if (modeOn("think")) sys += CF.thinkingInstructions;
         if (searchData && (searchData.results?.length || searchData.answer)) sys += buildSearchCtx(searchData);
         if (contMode) sys += "\n\n[SYSTEM: Previous response cut off. Continue exactly where it stopped. Do not repeat anything.]";
-        if (attempt === MAX_ATTEMPTS) {
-          sys += "\n\n[SYSTEM: IMPORTANT: your previous answer was empty. You MUST provide a complete reply now. Even a single sentence is fine. Never return an empty message.]";
-        }
+        if (attempt === MAX_ATTEMPTS) sys += "\n\n[SYSTEM: IMPORTANT — your previous attempt produced no content. You MUST reply now with at least one sentence.]";
 
         const msgs = convo.msgs.map(m => ({ role: m.role, content: m.content }));
 
@@ -1168,124 +1195,174 @@
           });
           if (!res.ok) throw new Error("HTTP " + res.status);
 
+          /* ── STREAMING ── */
           if (S.settings.streaming && res.body) {
             const reader = res.body.getReader();
-            const dec = new TextDecoder();
-            outer: while (true) {
+            const dec    = new TextDecoder();
+
+            while (true) {
               const { done, value } = await reader.read();
               if (done) break;
               const chunk = dec.decode(value, { stream: true });
+
               for (const line of chunk.split("\n")) {
                 if (!line.startsWith("data: ")) continue;
                 const data = line.slice(6).trim();
                 if (data === "[DONE]") continue;
+
+                let delta = "";
                 try {
                   const d = JSON.parse(data);
-                  const delta = d.choices?.[0]?.delta?.content || "";
-                  if (delta) {
-                    full += delta;
-                    if (modeOn("think")) {
-                      if (!thinkDone) {
-                        const openIdx = full.indexOf("<think>");
-                        const closeIdx = full.indexOf("</think>");
-                        if (openIdx !== -1 && !inThink && closeIdx === -1) {
-                          inThink = true; thinkStart = Date.now();
-                        }
-                        if (closeIdx !== -1) {
-                          thinkDone = true; inThink = false;
-                          thinkRaw = openIdx !== -1 ? full.slice(openIdx + 7, closeIdx).trim() : full.slice(0, closeIdx).trim();
-                          answerRaw = full.slice(closeIdx + 8).trim();
+                  delta = d.choices?.[0]?.delta?.content || "";
+                  if (d.choices?.[0]?.finish_reason) finishReason = d.choices[0].finish_reason;
+                } catch(e) { continue; }
 
-                          // mid-stream search trigger
-                          if (!searchData && !isRetry && !midSearchTriggered && thinkSignalsSearch(thinkRaw)) {
-                            midSearchTriggered = true;
-                            if (thCont) thCont.innerHTML += `<div style="margin-top:8px"><div class="think-search-pill"><div class="think-search-dot"></div><div class="think-search-dot"></div><div class="think-search-dot"></div>Searching the web</div></div>`;
-                            try { reader.cancel(); } catch (e) {}
-                            const q = userQuery || (convo.msgs.filter(m => m.role === "user").slice(-1)[0]?.content || "");
-                            const newSD = await doSearch(q);
-                            if (newSD) {
-                              document.getElementById(aiId)?.remove();
-                              document.getElementById("stop-row")?.remove();
-                              const newId = "ai" + Date.now();
-                              appendPending(newId);
-                              await generate(convo, newId, newSD, q, true, false);
-                              return;
-                            }
-                          }
+                if (!delta) continue;
+                full += delta;
 
-                          if (thinkEl) { thinkEl.classList.remove("streaming", "open"); }
-                          if (thLabel) { thLabel.style.animation = "none"; thLabel.textContent = thinkStart ? `Thought for ${((Date.now() - thinkStart) / 1000).toFixed(1)}s` : "Thought"; }
-                          if (thCont) thCont.innerHTML = DOMPurify.sanitize(marked.parse(thinkRaw));
-                          if (txtEl) {
-                            txtEl.style.display = "";
-                            if (answerRaw) txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
-                            else txtEl.innerHTML = `<div class="activity-wrap" data-state="${modeOn("code") ? "coding" : "writing"}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">${modeOn("code") ? "Writing Code" : "Working"}</div></div></div>`;
-                          }
-                        } else if (inThink && thCont) {
-                          const openIdx2 = full.indexOf("<think>");
-                          const partialRaw = openIdx2 !== -1 ? full.slice(openIdx2 + 7).trim() : full.trim();
-                          thCont.innerHTML = DOMPurify.sanitize(marked.parse(partialRaw)) + '<span class="stream-cur" style="background:#7c3aed;animation:blink 0.8s infinite;margin-left:2px"></span>';
-                        }
-                      } else {
-                        const ci = full.indexOf("</think>");
-                        answerRaw = full.slice(ci + 8).trim();
-                        if (txtEl && answerRaw) {
-                          const aw = txtEl.querySelector(".activity-wrap"); if (aw) aw.remove();
-                          txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                /* ─ THINK MODE streaming ─ */
+                if (modeOn("think")) {
+                  const openIdx  = full.indexOf("<think>");
+                  const closeIdx = full.indexOf("</think>");
+
+                  if (!thinkDone) {
+                    if (openIdx !== -1 && !inThink && closeIdx === -1) {
+                      // Just found the opening tag, start streaming think content
+                      inThink = true;
+                      thinkStart = thinkStart || Date.now();
+                    }
+
+                    if (closeIdx !== -1 && openIdx !== -1) {
+                      // Think section complete
+                      thinkDone = true; inThink = false;
+                      thinkRaw  = full.slice(openIdx + 7, closeIdx).trim();
+                      answerRaw = full.slice(closeIdx + 8).trim();
+
+                      // Mid-stream search trigger
+                      if (!searchData && !isRetry && !midSearchTriggered && thinkSignalsSearch(thinkRaw)) {
+                        midSearchTriggered = true;
+                        if (thCont) thCont.innerHTML += `<div style="margin-top:8px"><div class="think-search-pill"><div class="think-search-dot"></div><div class="think-search-dot"></div><div class="think-search-dot"></div>Searching the web</div></div>`;
+                        try { reader.cancel(); } catch(e) {}
+                        const q     = userQuery || (convo.msgs.filter(m=>m.role==="user").slice(-1)[0]?.content || "");
+                        const newSD = await doSearch(q);
+                        if (newSD) {
+                          document.getElementById(aiId)?.remove();
+                          document.getElementById("stop-row")?.remove();
+                          const newId = "ai" + Date.now();
+                          appendPending(newId);
+                          await generate(convo, newId, newSD, q, true, false);
+                          return;
                         }
                       }
-                    } else {
-                      // Normal (non-think) streaming
-                      const subEl = document.getElementById(aiId + "sub");
-                      if (subEl && full.length > 10) {
-                        const snip = full.replace(/[#*`_\[\]]/g, "").trim().slice(-60);
-                        if (snip) subEl.textContent = snip;
-                      }
+
+                      // Collapse + finalize think block
+                      if (thinkEl) { thinkEl.classList.remove("streaming"); thinkEl.classList.remove("open"); }
+                      if (thLabel) { thLabel.textContent = thinkStart ? `Thought for ${((Date.now()-thinkStart)/1000).toFixed(1)}s` : "Thought"; }
+                      if (thCont)  thCont.innerHTML = DOMPurify.sanitize(marked.parse(thinkRaw || "_(thinking complete)_"));
+
+                      // Show answer area
                       if (txtEl) {
-                        const aw = txtEl.querySelector(".activity-wrap"); if (aw) aw.remove();
+                        txtEl.style.display = "";
+                        if (answerRaw) {
+                          txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                        } else {
+                          // Still waiting for answer tokens
+                          txtEl.innerHTML = `<div class="activity-wrap" data-state="${modeOn("code")?"coding":"writing"}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">${modeOn("code")?"Writing Code":"Working"}</div></div></div>`;
+                        }
+                      }
+
+                    } else if (inThink && thCont) {
+                      // Streaming think content character by character
+                      const partialThink = openIdx !== -1 ? full.slice(openIdx + 7) : full;
+                      // Only update if we have something to show
+                      if (partialThink.trim()) {
+                        thCont.innerHTML = DOMPurify.sanitize(marked.parse(partialThink.trim())) +
+                          '<span class="stream-cur" style="background:#7c3aed;animation:blink 0.8s infinite;display:inline-block;width:2px;height:13px;margin-left:2px;vertical-align:text-bottom"></span>';
+                      }
+                    } else if (!inThink && openIdx === -1 && full.trim()) {
+                      // Model didn't use <think> tags at all — treat as normal answer
+                      if (thinkEl) { thinkEl.style.display = "none"; }
+                      if (txtEl)   {
+                        txtEl.style.display = "";
                         txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full)) + '<span class="stream-cur"></span>';
                       }
                     }
-                    if (S.settings.autoscroll) scrollBot();
+
+                  } else {
+                    // After think is done, stream the answer
+                    const ci  = full.indexOf("</think>");
+                    answerRaw = full.slice(ci + 8).trim();
+                    if (txtEl && answerRaw) {
+                      const aw = txtEl.querySelector(".activity-wrap"); if (aw) aw.remove();
+                      txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerRaw)) + '<span class="stream-cur"></span>';
+                    }
                   }
-                  if (d.choices?.[0]?.finish_reason) finishReason = d.choices[0].finish_reason;
-                } catch (e) {}
+
+                } else {
+                  /* ─ NORMAL streaming ─ */
+                  const subEl = document.getElementById(aiId + "sub");
+                  if (subEl && full.length > 10) {
+                    const snip = full.replace(/[#*`_\[\]]/g,"").trim().slice(-60);
+                    if (snip) subEl.textContent = snip;
+                  }
+                  if (txtEl) {
+                    const aw = txtEl.querySelector(".activity-wrap"); if (aw) aw.remove();
+                    txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full)) + '<span class="stream-cur"></span>';
+                  }
+                }
+
+                if (S.settings.autoscroll) scrollBot();
               }
             }
+
           } else {
-            const d = await res.json();
-            full = d.choices?.[0]?.message?.content || "";
+            /* ─ NON-STREAMING ─ */
+            const d  = await res.json();
+            full     = d.choices?.[0]?.message?.content || "";
             finishReason = d.choices?.[0]?.finish_reason;
           }
-        } catch (err) {
+
+        } catch(err) {
           if (err.name !== "AbortError") errored = true;
         }
 
         if (errored) break;
 
-        // ── THINK MODE: if model never closed </think>, extract what we have
-        if (modeOn("think") && !thinkDone && full.includes("<think>")) {
-          const { thinking, answer } = extractThinking(full);
-          thinkRaw = thinking || "";
-          answerRaw = answer || "";
-          // If the model wrote everything inside <think> and left no answer,
-          // use the thinking text itself as the answer so we don't show blank
-          if (!answerRaw && thinkRaw) {
-            answerRaw = thinkRaw;
-            thinkRaw = "";
+        /* ── Post-stream: handle think mode cleanup ── */
+        if (modeOn("think")) {
+          if (!thinkDone) {
+            // Model never emitted </think> — extract what we can
+            const { thinking, answer } = extractThinking(full);
+            thinkRaw  = thinking || "";
+            answerRaw = answer   || "";
+
+            // If the model wrote everything in <think> and gave no answer,
+            // promote the thinking to answer so we show something
+            if (!answerRaw.trim() && thinkRaw.trim()) {
+              answerRaw = thinkRaw;
+              thinkRaw  = "";
+            }
+
+            // Hide the think block if we ended up with no separate thinking
+            if (!thinkRaw && thinkEl) thinkEl.style.display = "none";
+          }
+
+          const finalText = answerRaw.trim() || thinkRaw.trim() || full.trim();
+          if (finalText) {
+            success    = true;
+            finalThink = thinkRaw.trim() || null;
+            finalAnswer= finalText;
+          }
+        } else {
+          const finalText = full.trim();
+          if (finalText) {
+            success     = true;
+            finalAnswer = finalText;
           }
         }
+      } // end while
 
-        const finalText = modeOn("think") ? answerRaw : (full || "");
-        if (finalText.trim().length > 0) {
-          success = true;
-          finalThink = modeOn("think") && thinkRaw ? thinkRaw : null;
-          finalAnswer = finalText;
-        } else {
-          thinkRaw = ""; answerRaw = ""; inThink = false; thinkDone = false;
-        }
-      }
-
+      /* ── Clean up pending row ── */
       document.getElementById(aiId)?.remove();
       document.getElementById("stop-row")?.remove();
 
@@ -1301,7 +1378,7 @@
           content: "_(Empty response — tap Retry to try again)_",
           ts: Date.now(), searched: !!searchData, sources: searchData?.results || [],
           codeMode: modeOn("code"), thinking: null, thinkDuration: null,
-          truncated: false, emptyRetry: true
+          truncated: false, emptyRetry: true,
         };
         convo.msgs.push(emptyMsg);
         renderMsgs(); saveStore();
@@ -1311,17 +1388,22 @@
         scrollBot(); return;
       }
 
-      const thinkDur = (modeOn("think") && thinkStart) ? ((Date.now() - thinkStart) / 1000).toFixed(1) : null;
+      const thinkDur = (modeOn("think") && thinkStart)
+        ? ((Date.now() - thinkStart) / 1000).toFixed(1)
+        : null;
+
       convo.msgs.push({
         role: "assistant", content: finalAnswer, ts: Date.now(),
         searched: !!searchData, sources: searchData?.results || [],
-        codeMode: modeOn("code"), thinking: finalThink, thinkDuration: thinkDur,
+        codeMode: modeOn("code"),
+        thinking: finalThink, thinkDuration: thinkDur,
         truncated: finishReason === "length",
       });
 
       renderMsgs(); saveStore();
       S.busy = false; S.abort = null;
-      const inp = document.getElementById("user-input"); const sbtn = document.getElementById("send-btn");
+      const inp  = document.getElementById("user-input");
+      const sbtn = document.getElementById("send-btn");
       if (sbtn) sbtn.disabled = !inp || !inp.value.trim();
       scrollBot();
     }
@@ -1387,7 +1469,7 @@
       if(sbtn)sbtn.disabled=!inp||!inp.value.trim();scrollBot();
     }
 
-    /* ── IMAGE ──────────────────────────────────────────────────────────────── */
+    /* ── IMAGE GENERATION ───────────────────────────────────────────────────── */
     async function generateImage(convo,prompt){
       S.busy=true;const aiId="img"+Date.now();const ca=document.getElementById("chat-area");
       const row=document.createElement("div");row.className="msg-row ai";row.id=aiId;
@@ -1410,8 +1492,8 @@
     }
 
     /* ── STOP / ERR ─────────────────────────────────────────────────────────── */
-    function stopGen(){ if(S.abort)S.abort.abort(); toast("Stopped"); }
-    function showErr(){
+    function stopGen() { if (S.abort) S.abort.abort(); toast("Stopped"); }
+    function showErr() {
       const ca=document.getElementById("chat-area");if(!ca)return;
       const r=document.createElement("div");r.className="err-row";r.id="err-row";
       r.innerHTML=`<div class="err-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="err-msg">Failed to get a response</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;
