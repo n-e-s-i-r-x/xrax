@@ -340,7 +340,6 @@
             </button>
           </div>
           <div class="input-row">
-            <!-- Model button: plain text, shows current model key -->
             <button class="model-btn" id="model-btn" onclick="openModelPicker(event)">0</button>
             <textarea id="user-input" placeholder="Message 0..." rows="1" oninput="autoGrow(this)" onkeydown="onKey(event)"></textarea>
             <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
@@ -348,17 +347,14 @@
             </button>
           </div>
         </div>
-        <!-- Image notice: no em dash -->
         <div id="image-notice">Text-to-Image is in alpha. Quality may vary.</div>
       </div>
     </div>
 
-    <!-- Model picker -->
     <div id="mp-overlay" onclick="closeModelPicker()"></div>
     <div id="mp-popup">
       <div class="mp-head">Select Model</div>
 
-      <!-- 0: no badge -->
       <div class="mp-item sel" id="mp-item-0" onclick="selectModel('0')">
         <div class="mp-info">
           <div class="mp-label-row">
@@ -368,7 +364,6 @@
         </div>
       </div>
 
-      <!-- 00: Fast badge -->
       <div class="mp-item" id="mp-item-00" onclick="selectModel('00')">
         <div class="mp-info">
           <div class="mp-label-row">
@@ -379,7 +374,6 @@
         </div>
       </div>
 
-      <!-- 000: Rapid badge -->
       <div class="mp-item" id="mp-item-000" onclick="selectModel('000')">
         <div class="mp-info">
           <div class="mp-label-row">
@@ -844,7 +838,6 @@ Do not reveal that you are reasoning. This is internal only.`,
       const codeEl = btn.closest('.code-wrap').querySelector('code'); if(!codeEl)return;
       const rawLang = (btn.dataset.lang || 'code').toLowerCase().replace(/^language-/,'');
       const ext = EXT[rawLang] || rawLang || 'txt';
-      // filename: "code.html" not "code.html.txt"
       const filename = `code.${ext}`;
       const mimeMap = { html:'text/html', css:'text/css', js:'application/javascript', json:'application/json', svg:'image/svg+xml' };
       const mime = mimeMap[ext] || 'text/plain';
@@ -937,7 +930,6 @@ Do not reveal that you are reasoning. This is internal only.`,
           </div>
         </div></div>`;
       } else {
-        /* Normal model: "Typing..." indicator instead of "Typing..." */
         const aState = modeOn('code') ? 'coding' : 'writing';
         const aLabel = modeOn('code') ? 'Writing Code' : 'Typing';
         row.innerHTML=`<div class="msg-in"><div class="msg-content">
@@ -963,7 +955,7 @@ Do not reveal that you are reasoning. This is internal only.`,
     }
 
     /* ══════════════════════════════════════
-       CORE API CALL
+       CORE API CALL (FIXED: Added robust SSE stream buffering)
     ══════════════════════════════════════ */
     async function apiCall(msgs, sys, modelKey, maxTok, onDelta) {
       const mDef = MODELS[modelKey] || MODELS['0'];
@@ -986,28 +978,34 @@ Do not reveal that you are reasoning. This is internal only.`,
 
       let full='', fr=null;
       if (res.body) {
-        const reader=res.body.getReader(); const dec=new TextDecoder();
-        while(true){
-          const {done,value}=await reader.read(); if(done)break;
-          const chunk=dec.decode(value,{stream:true});
-          for(const line of chunk.split('\n')){
-            if(!line.startsWith('data: '))continue;
-            const data=line.slice(6).trim(); if(data==='[DONE]')continue;
-            try{
-              const d=JSON.parse(data);
-              const delta=d.choices?.[0]?.delta?.content||'';
-              if(delta){full+=delta; if(onDelta)onDelta(delta,full);}
-              if(d.choices?.[0]?.finish_reason)fr=d.choices[0].finish_reason;
-            }catch(e){}
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += dec.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? ''; // Retain incomplete network chunk
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const d = JSON.parse(data);
+              const delta = d.choices?.[0]?.delta?.content || '';
+              if (delta) { full += delta; if (onDelta) onDelta(delta, full); }
+              if (d.choices?.[0]?.finish_reason) fr = d.choices[0].finish_reason;
+            } catch (e) {}
           }
         }
       } else {
-        const d=await res.json();
-        full=d.choices?.[0]?.message?.content||'';
-        fr=d.choices?.[0]?.finish_reason;
-        if(onDelta&&full)onDelta(full,full);
+        const d = await res.json();
+        full = d.choices?.[0]?.message?.content || '';
+        fr = d.choices?.[0]?.finish_reason;
+        if (onDelta && full) onDelta(full, full);
       }
-      return {full:full.trim(), finishReason:fr};
+      return { full: full.trim(), finishReason: fr };
     }
 
     /* ══════════════════════════════════════
@@ -1086,7 +1084,6 @@ Do not reveal that you are reasoning. This is internal only.`,
           const tEnd = Date.now();
           thinkDurStr = ((tEnd - tStart) / 1000).toFixed(1);
 
-          /* Check if think wants search */
           if (!searchData && thinkTextNeedsSearch(rawThink)) {
             if (thCont) {
               const pill = document.createElement('div');
@@ -1120,7 +1117,7 @@ Do not reveal that you are reasoning. This is internal only.`,
             if (S.settings.autoscroll) scrollBot();
           }
 
-                    let ansSysExtra = dtCtx();
+          let ansSysExtra = dtCtx();
           ansSysExtra += '\n\n[CRITICAL: You are now delivering the FINAL ANSWER to the user. Do NOT include your reasoning, thought process, or any internal monologue. Give only the direct, polished response. Never say "my reasoning" or "I think" in this final output.]';
           if (modeOn('code')) ansSysExtra += PROMPT.codeAdd;
           if (searchData && (searchData.results?.length||searchData.answer)) ansSysExtra += buildSearchCtx(searchData);
@@ -1160,15 +1157,15 @@ Do not reveal that you are reasoning. This is internal only.`,
           }
 
         } else {
-          /* PATH B: NORMAL MODEL (0) */
-                    let ansSysExtra = dtCtx();
+          /* PATH B: NORMAL MODEL (0) (FIXED: Passed correct variable) */
+          let ansSysExtra = dtCtx();
           ansSysExtra += '\n\n[CRITICAL: You are now delivering the FINAL ANSWER to the user. Do NOT include your reasoning, thought process, or any internal monologue. Give only the direct, polished response. Never say "my reasoning" or "I think" in this final output.]';
           if (modeOn('code')) ansSysExtra += PROMPT.codeAdd;
           if (searchData && (searchData.results?.length||searchData.answer)) ansSysExtra += buildSearchCtx(searchData);
           if (contMode) ansSysExtra += '\n\n[SYSTEM: Continue from where cut off. Do not repeat anything.]';
 
           const {full, finishReason:fr} = await apiCall(
-            baseMsgs, sysExtra, modelKey, 4096,
+            baseMsgs, ansSysExtra, modelKey, 4096, // FIX: Was 'sysExtra', renamed back to 'ansSysExtra'
             (delta, cur) => {
               if (txtEl) {
                 const aw=txtEl.querySelector('.activity-wrap'); if(aw)aw.remove();
@@ -1276,6 +1273,7 @@ Do not reveal that you are reasoning. This is internal only.`,
       await generate(c,aiId,null,um.content);
     }
 
+    // FIX: Scope variable references repaired
     async function continueMsg(idx){
       const c=curConvo(); if(!c||S.busy)return;
       const msg=c.msgs[idx]; if(!msg||msg.role!=='assistant')return;
@@ -1284,12 +1282,13 @@ Do not reveal that you are reasoning. This is internal only.`,
       if(msgRow){const ad=msgRow.querySelector('.msg-acts');if(ad)ad.innerHTML=`<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;}
       const txtEl=document.getElementById(`msg-${idx}-text`); if(!txtEl)return;
       S.busy=true; S.abort=new AbortController();
-                /* PATH B: NORMAL MODEL (0) */
-          let sysExtra = dtCtx();
-          sysExtra += '\n\n[You are the final assistant. Answer directly and concisely. No internal monologue.]';
-          if (modeOn('code')) sysExtra += PROMPT.codeAdd;
-          if (searchData && (searchData.results?.length||searchData.answer)) sysExtra += buildSearchCtx(searchData);
-          if (contMode) sysExtra += '\n\n[SYSTEM: Continue from where cut off. Do not repeat anything.]';
+
+      let sysExtra = dtCtx();
+      sysExtra += '\n\n[You are the final assistant. Answer directly and concisely. No internal monologue.]';
+      if (modeOn('code')) sysExtra += PROMPT.codeAdd;
+      if (msg.sources && msg.sources.length) sysExtra += buildSearchCtx({results: msg.sources});
+      sysExtra += '\n\n[SYSTEM: Continue from where cut off. Do not repeat anything.]';
+
       const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
       let full=msg.content, fr=null;
       try{
