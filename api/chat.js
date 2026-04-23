@@ -24,7 +24,6 @@ export default async function handler(req) {
     messages,
     systemPrompt: extraCtx,
     temperature = 0.5,
-    maxTokens = 4096,
     model: modelKey = '0',
   } = await req.json();
 
