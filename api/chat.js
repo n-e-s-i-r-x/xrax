@@ -7,7 +7,7 @@ export default async function handler(req) {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const { messages, systemPrompt } = await req.json();
+  const { messages, systemPrompt, temperature = 0.7 } = await req.json();
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   const trimmedMessages = messages.slice(-4); // 🔥 VERY aggressive
@@ -34,7 +34,7 @@ export default async function handler(req) {
             { role: 'system', content: systemPrompt || 'Be short and fast.' },
             ...trimmedMessages
           ],
-          temperature: 0.2, // 🔥 lower = faster + more deterministic
+          temperature, // 🔥 now respects frontend slider setting
           max_tokens: 1200,  // 🔥 shorter = faster
           stream: true
         }),
