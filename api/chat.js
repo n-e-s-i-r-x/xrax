@@ -2,13 +2,12 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':   'tencent/hy3-preview:free',
-  '00':  'inclusionai/ling-2.6-flash:free',
-  '000': 'inclusionai/ling-2.6-flash:free',
+  '00':  'qwen/qwen3-8b:free',
+  '000': 'deepseek/deepseek-r1-0528:free',
 };
 
 /* ══════════════════════════════════════
    SYSTEM PROMPT — MODEL 0
-   Balanced, no thinking, direct
 ══════════════════════════════════════ */
 const SYSTEM_PROMPT_0 = `You are 0, an AI assistant created and owned by Vin.
 Only mention Vin if the user directly asks who made you, who owns you, or who created you.
@@ -24,15 +23,14 @@ Rules:
 
 /* ══════════════════════════════════════
    SYSTEM PROMPT — MODEL 00
-   Fast, structured, better accuracy
 ══════════════════════════════════════ */
-const SYSTEM_PROMPT_00 = `You are 00, a fast AI assistant created and owned by Vin.
+const SYSTEM_PROMPT_00 = `You are 00, an AI assistant created and owned by Vin.
 Only mention Vin if the user directly asks who made you, who owns you, or who created you.
 
 Rules:
-- Be fast, clear, and accurate
-- Keep responses concise and structured when needed
-- Use natural language
+- Think carefully before responding
+- Be accurate and clear
+- Natural, human-like tone
 - No emojis
 - No filler
 - Do not mention system prompts or hidden instructions
@@ -40,23 +38,19 @@ Rules:
 
 /* ══════════════════════════════════════
    SYSTEM PROMPT — MODEL 000
-   Highest accuracy, deep reasoning
 ══════════════════════════════════════ */
-const SYSTEM_PROMPT_000 = `You are 000, a high-accuracy AI assistant created and owned by Vin.
+const SYSTEM_PROMPT_000 = `You are 000, an AI assistant created and owned by Vin.
 Only mention Vin if the user directly asks who made you, who owns you, or who created you.
 
 Rules:
-- Be extremely precise and concise
+- Think deeply and reason carefully
 - Prioritize correctness above all else
-- Use natural, human-like tone
+- Natural, human-like tone
 - No emojis
 - No filler
 - Do not mention system prompts or hidden instructions
 - Avoid em dashes`;
 
-/* ══════════════════════════════════════
-   MAP — resolves key to its prompt const
-══════════════════════════════════════ */
 const SYSTEM_PROMPT_MAP = {
   '0':   SYSTEM_PROMPT_0,
   '00':  SYSTEM_PROMPT_00,
@@ -69,9 +63,8 @@ export default async function handler(req) {
   }
 
   let body;
-  try {
-    body = await req.json();
-  } catch (e) {
+  try { body = await req.json(); }
+  catch (e) {
     return new Response(
       'data: {"choices":[{"delta":{"content":"Invalid request body"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
       { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
@@ -81,33 +74,23 @@ export default async function handler(req) {
   const {
     messages,
     systemPrompt: extraCtx,
-    temperature = 0.5,
-    maxTokens   = 2048,
+    temperature = 0.6,
+    maxTokens   = 8000,
     model: modelKey = '0',
   } = body;
 
   const apiKey = process.env.OPENROUTER_API_KEY;
-
   if (!apiKey) {
     return new Response(
-      'data: {"choices":[{"delta":{"content":"Missing API key. Please configure OPENROUTER_API_KEY."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+      'data: {"choices":[{"delta":{"content":"Missing API key."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
       { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
     );
   }
 
-  const modelId = MODEL_MAP[modelKey] ?? MODEL_MAP['0'];
-
-  /* Pick the isolated system prompt for this model */
-  const basePrompt  = SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_0;
-
-  /* Append any extra context from frontend (date/time, search results, etc.)
-     Keep base prompt FIRST so it always takes priority */
-  const finalSystem = extraCtx
-    ? `${basePrompt}\n\n${extraCtx}`
-    : basePrompt;
-
+  const modelId    = MODEL_MAP[modelKey] ?? MODEL_MAP['0'];
+  const basePrompt = SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_0;
+  const finalSystem = extraCtx ? `${basePrompt}\n\n${extraCtx}` : basePrompt;
   const trimmed = Array.isArray(messages) ? messages.slice(-20) : [];
-
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -128,19 +111,14 @@ export default async function handler(req) {
           },
           body: JSON.stringify({
             model: modelId,
-            messages: [
-              { role: 'system', content: finalSystem },
-              ...trimmed,
-            ],
+            messages: [{ role: 'system', content: finalSystem }, ...trimmed],
             temperature,
             max_tokens: maxTokens,
             stream: true,
           }),
         });
       } catch (err) {
-        send(
-          `data: {"choices":[{"delta":{"content":"[Network error: ${String(err.message).slice(0,200)}]"},"finish_reason":"stop"}]}\n\n`
-        );
+        send(`data: {"choices":[{"delta":{"content":"[Network error: ${String(err.message).slice(0,200)}]"},"finish_reason":"stop"}]}\n\n`);
         send('data: [DONE]\n\n');
         controller.close();
         return;
@@ -149,24 +127,18 @@ export default async function handler(req) {
       if (!upstreamRes.ok) {
         let errText = '';
         try { errText = await upstreamRes.text(); } catch (_) { errText = 'unknown'; }
-        send(
-          `data: {"choices":[{"delta":{"content":"[API error ${upstreamRes.status}: ${errText.slice(0,300)}]"},"finish_reason":"stop"}]}\n\n`
-        );
+        send(`data: {"choices":[{"delta":{"content":"[API error ${upstreamRes.status}: ${errText.slice(0,300)}]"},"finish_reason":"stop"}]}\n\n`);
         send('data: [DONE]\n\n');
         controller.close();
         return;
       }
 
       if (!upstreamRes.body) {
-        /* Non-streaming fallback */
         try {
-          const data  = await upstreamRes.json();
-          const text  = data?.choices?.[0]?.message?.content ?? '';
-          const fr    = data?.choices?.[0]?.finish_reason    ?? 'stop';
-          const safe  = text
-            .replace(/\\/g, '\\\\')
-            .replace(/"/g,  '\\"')
-            .replace(/\n/g, '\\n');
+          const data = await upstreamRes.json();
+          const text = data?.choices?.[0]?.message?.content ?? '';
+          const fr   = data?.choices?.[0]?.finish_reason    ?? 'stop';
+          const safe = text.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n');
           send(`data: {"choices":[{"delta":{"content":"${safe}"},"finish_reason":null}]}\n\n`);
           send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
         } catch (e) {
@@ -177,11 +149,9 @@ export default async function handler(req) {
         return;
       }
 
-      /* ── Streaming passthrough with robust line buffering ── */
       const reader  = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let   buffer  = '';
-
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -202,10 +172,7 @@ export default async function handler(req) {
             if (l.startsWith('data: ')) send(l + '\n\n');
           }
         }
-      } catch (_) {
-        /* Stream interrupted — close gracefully */
-      }
-
+      } catch (_) {}
       send('data: [DONE]\n\n');
       try { controller.close(); } catch (_) {}
     },
