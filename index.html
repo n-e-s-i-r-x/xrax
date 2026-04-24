@@ -867,12 +867,26 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     }
   }catch(err){if(err.name!=='AbortError'){document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();showErr(err.message||null);S.busy=false;S.abort=null;const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}return;}}
 
-  document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();
+  document.getElementById('stop-row')?.remove();
   const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];const savedAnswer=answerText.trim();
   const wasFinallyTruncated=!useThink&&typeof wasTruncated!=='undefined'&&wasTruncated;
+  const savedThinking=sanitizeThinkText(thinkText).trim()||null;
   if(!savedAnswer&&!thinkText.trim()){convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});}
-  else{convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:sanitizeThinkText(thinkText).trim()||null,thinkDuration:thinkDurStr,truncated:wasFinallyTruncated,modelKey});}
-  renderMsgs();saveStore();S.busy=false;S.abort=null;
+  else{convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasFinallyTruncated,modelKey});}
+  /* Finalize the streaming row in-place so the thinking block never disappears on re-render.
+     Replace the pending row with the fully-rendered saved message, preserving scroll position. */
+  const msgIdx=convo.msgs.length-1;
+  const pendingRow=document.getElementById(aiId);
+  if(pendingRow){
+    const finalHtml=buildMsg(convo.msgs[msgIdx],msgIdx);
+    const tmp=document.createElement('div');tmp.innerHTML=finalHtml;
+    const finalRow=tmp.firstElementChild;
+    pendingRow.replaceWith(finalRow);
+    attachCodeBtns();
+  }else{
+    renderMsgs();
+  }
+  saveStore();S.busy=false;S.abort=null;
   const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}scrollBot();
 }
 
