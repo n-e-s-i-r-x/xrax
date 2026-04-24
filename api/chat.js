@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   'tencent/hy3-preview:free',
   '00':  'tencent/hy3-preview:free',
-  '000': 'qwen/qwen-2.5-7b-instruct:free',
+  '000': 'qwen/qwen3-coder:free',
 };
 
 /* ══════════════════════════════════════
