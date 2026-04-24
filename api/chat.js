@@ -257,9 +257,11 @@ function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, i
 
   messages.push(...trimmedMsgs);
 
-  // Inject <think> prefix assistant turn to force model into think block immediately.
-  // Works for both native reasoning models and prompted-think models.
-  if (isThinkModel) {
+  // Inject <think> prefix assistant turn ONLY for native reasoning models (hasReasoning).
+  // hasPromptedThink models generate their own <think> tags via the system prompt instruction —
+  // injecting a prefix turn here causes OpenRouter (which ignores prefix:true) to pass it as a
+  // plain assistant message, making the model think it already responded and skip the think block.
+  if (hasReasoning) {
     messages.push({ role:'assistant', content:'<think>\n', prefix:true });
   }
   return messages;
@@ -301,7 +303,7 @@ if(!hasReasoning){
   messages.push({role:'assistant',content:'Understood. I will follow my instructions precisely.'});
 }
 messages.push(...trimmedMsgs);
-if(isThinkModel){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
+if(isThinkModel&&hasReasoning){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
 process.stdout.write(JSON.stringify(messages));`.trim();
 
     const cmd = await sandbox.runCommand('node', ['-e', scriptSrc]);
@@ -447,9 +449,10 @@ export default async function handler(req) {
         return;
       }
 
-      // Pre-emit <think> opening for all think models so the frontend parser
-      // starts in inThink mode from the first token.
-      if (isThinkModel) send(sseContent('<think>\n'));
+      // Pre-emit <think> opening ONLY for native reasoning models.
+      // hasPromptedThink models generate their own <think>...</think> tags inline —
+      // pre-emitting here creates an extra unclosed <think> that swallows the answer.
+      if (hasReasoning) send(sseContent('<think>\n'));
 
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
