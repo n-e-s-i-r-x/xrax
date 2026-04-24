@@ -107,7 +107,7 @@
       @keyframes tsd{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
       .think-srch-done{display:flex;align-items:center;gap:7px;background:#030d03;border:1px solid #0e2010;border-radius:8px;padding:6px 11px;margin:6px 0;font-size:11px;color:#4ade80;font-style:normal;width:fit-content}
 
-      /* answer waiting indicator — shown while thinking is still streaming */
+      /* answer waiting indicator */
       .answer-waiting{display:flex;align-items:center;gap:8px;padding:6px 0 2px;opacity:.5}
       .answer-waiting-dots{display:flex;gap:4px}
       .answer-waiting-dots span{width:4px;height:4px;border-radius:50%;background:#555;animation:awDot 1.4s ease-in-out infinite}
@@ -439,27 +439,21 @@
 
     /* ══════════════════════════════════════
        UNCERTAINTY DETECTOR
-       Only fires on strong, specific signals
-       that the model genuinely lacks info —
-       not on normal conversational hedges.
     ══════════════════════════════════════ */
     const UNCERTAINTY_RE = [
       /\bmy (knowledge|training).{0,30}(cut.?off|outdated|limited)\b/i,
-      /\b(not (sure|certain)) (about|of|what|when|where|who|how|if) (the |a )?(current|latest|recent|today|now|live)\b/i,
       /\b(don'?t|do not) have (access|information|data) (on|about|for) (the )?(current|latest|recent|today|now|live)\b/i,
       /\b(need to (search|look up|verify)) (for )?(current|latest|recent|live|real.?time)\b/i,
       /\b(can'?t|cannot) (confirm|verify|find) (the )?(current|latest|recent|today|now|live)\b/i,
       /\b(this (might|may|could) (be )?(outdated|have changed|no longer be accurate))\b/i,
-      /\b(real.?time|live) (data|price|score|result|rate|stock)\b/i,
     ];
-    // If any of these match, it's NOT uncertain (model is confident)
     const CERTAIN_RE = [
       /\bi (know|am sure|am certain|am confident)\b/i,
       /\bthe answer is\b/i,
       /\bthis is (definitely|clearly|obviously)\b/i,
     ];
     function detectUncertainty(text) {
-      if (!text || text.length < 80) return false;
+      if (!text || text.length < 50) return false;
       const win = text.slice(-600);
       if (!UNCERTAINTY_RE.some(r => r.test(win))) return false;
       if (CERTAIN_RE.some(r => r.test(win))) return false;
@@ -532,24 +526,16 @@
     }
 
     /* ══════════════════════════════════════
-       SEARCH
-       Only searches on explicit signals or
-       when the user forces it via the toggle.
-       Does NOT search for general knowledge
-       questions that don't need real-time data.
+       SEARCH TRIGGER LOGIC
     ══════════════════════════════════════ */
     const USER_SEARCH_RE = [
-      /\b(202[4-9]|20[3-9]\d)\b/,                                              // recent year ref
-      /\b(today|right now|as of today|this (week|month|year)|current(ly)?)\b/i, // time-sensitive
-      /\b(latest|newest|most recent|new release|just (released|launched|dropped))\b/i,
-      /\b(live (score|result|price|rate)|real.?time)\b/i,                       // live data
-      /\b(stock price|crypto price|bitcoin|eth |exchange rate)\b/i,             // financial
-      /\b(weather (in|today|now|forecast|tomorrow))\b/i,                        // weather
-      /\b(breaking news|just happened|just announced)\b/i,                      // news
-      /\b(who (is|won|leads?|runs?|heads?|became)) .{3,40}(now|today|current)\b/i, // current roles
-      /\b(what('?s| is) the (current|latest|today'?s?))\b/i,                   // explicit current
+      /\b(weather|forecast) (in|for|today|tomorrow)\b/i,
+      /\b(live|current|real.?time) (score|result|price|rate|stock|exchange)\b/i,
+      /\b(breaking news|latest news|recent news)\b/i,
+      /\b(who (is|won|leads?|runs?|heads?|became)) .{1,30}(now|today|currently)\b/i,
+      /\bwhat('?s| is) the (current|latest|today'?s) (price|weather|news|status)\b/i,
+      /\b(how much is|price of) (bitcoin|btc|eth|ethereum|stock|shares) (now|today)\b/i,
     ];
-    // Do NOT search for these even if above matches
     const SEARCH_SKIP_RE = [
       /^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i,
       /\b(how (do|to)|what is|explain|why|define|difference between|compare)\b/i,
@@ -960,7 +946,7 @@
             if (raw === '[DONE]') return;
             try {
               const d     = JSON.parse(raw);
-              const delta = d.choices?.[0]?.delta?.content ?? '';
+              const delta = d.choices?.[0]?.delta?.content ?? d.message?.content ?? '';
               if (delta) yield delta;
             } catch (_) {}
           }
@@ -971,76 +957,58 @@
     }
 
     /* ══════════════════════════════════════
-       FIXED THINK TAG PARSER
+       SLIDING WINDOW THINK PARSER
        ─────────────────────────────────────
-       Properly handles <think>…</think> tags
-       in the raw stream without corrupting
-       text or misrouting tokens.
-
-       Strategy: buffer characters only while
-       we might be inside an opening/closing
-       tag. Once we know it's a real tag, flip
-       the inThink flag. Otherwise flush the
-       buffered chars as text of the current type.
+       Safely isolates the complete think block
+       from the final answer without mixing tokens.
     ══════════════════════════════════════ */
     async function* streamParsed(msgs, extraCtx, modelKey, maxTok) {
       let inThink = false;
-      let tagBuf  = '';   // only used while we're speculatively reading a tag
+      let buffer = '';
 
       for await (const delta of streamRaw(msgs, extraCtx, modelKey, maxTok)) {
-        let i = 0;
-        while (i < delta.length) {
-          const ch = delta[i++];
+        buffer += delta;
 
-          if (tagBuf.length > 0) {
-            // We're mid-way through a potential tag
-            tagBuf += ch;
-
-            if (ch === '>') {
-              // Tag is complete — check if it's one we care about
-              const tag = tagBuf.toLowerCase();
-              tagBuf = '';
-              if (tag === '<think>') {
-                inThink = true;
-              } else if (tag === '</think>') {
-                inThink = false;
-              } else {
-                // Not a think tag — emit the buffered chars as-is
-                yield { type: inThink ? 'think' : 'answer', text: tag };
+        while (buffer.length > 0) {
+          if (inThink) {
+            const endIdx = buffer.indexOf('</think>');
+            if (endIdx !== -1) {
+              const thinkPart = buffer.substring(0, endIdx);
+              if (thinkPart) yield { type: 'think', text: thinkPart };
+              inThink = false;
+              buffer = buffer.substring(endIdx + 8);
+            } else {
+              // Yield everything except the last 7 chars (potential start of </think>)
+              const safeLen = Math.max(0, buffer.length - 7);
+              if (safeLen > 0) {
+                yield { type: 'think', text: buffer.substring(0, safeLen) };
+                buffer = buffer.substring(safeLen);
               }
-              continue;
+              break;
             }
-
-            // Still building a tag; check if it's still a viable think tag prefix
-            const lo = tagBuf.toLowerCase();
-            const thinkTags = ['<think>', '</think>'];
-            const stillPossible = thinkTags.some(t => t.startsWith(lo));
-
-            if (!stillPossible || tagBuf.length > 10) {
-              // Not a think tag — flush buffer as text and continue
-              const flushed = tagBuf;
-              tagBuf = '';
-              yield { type: inThink ? 'think' : 'answer', text: flushed };
-              // Re-process current char (already added to tagBuf, now flushed) — no, it's included
+          } else {
+            const startIdx = buffer.indexOf('<think>');
+            if (startIdx !== -1) {
+              const ansPart = buffer.substring(0, startIdx);
+              if (ansPart) yield { type: 'answer', text: ansPart };
+              inThink = true;
+              buffer = buffer.substring(startIdx + 7);
+            } else {
+              // Yield everything except the last 6 chars (potential start of <think>)
+              const safeLen = Math.max(0, buffer.length - 6);
+              if (safeLen > 0) {
+                yield { type: 'answer', text: buffer.substring(0, safeLen) };
+                buffer = buffer.substring(safeLen);
+              }
+              break;
             }
-            continue;
           }
-
-          if (ch === '<') {
-            // Start of a potential tag
-            tagBuf = '<';
-            continue;
-          }
-
-          // Normal character
-          yield { type: inThink ? 'think' : 'answer', text: ch };
         }
       }
 
-      // Flush any remaining tag buffer as text
-      if (tagBuf.length > 0) {
-        yield { type: inThink ? 'think' : 'answer', text: tagBuf };
-        tagBuf = '';
+      // Flush any remaining buffer
+      if (buffer.length > 0) {
+        yield { type: inThink ? 'think' : 'answer', text: buffer };
       }
     }
 
@@ -1078,7 +1046,6 @@
       }
       if (contMode) extraCtx += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-      /* Transition from think → answer phase in the DOM */
       const enterAnswerPhase = () => {
         if (answerPhase) return;
         answerPhase = true;
@@ -1107,15 +1074,18 @@
         if (useThink) {
           tStart = Date.now();
 
-          const runStream = async (ctx) => {
-            for await (const chunk of streamParsed(baseMsgs, ctx, modelKey, 8000)) {
+          let whileSearchBreak = false;
+
+          while (true) {
+            whileSearchBreak = false;
+
+            for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 8000)) {
               if (S.abort?.signal?.aborted) break;
 
               if (chunk.type === 'think') {
                 thinkText += chunk.text;
 
                 if (thCont) {
-                  // Use a single text node for live updating — fast and correct
                   if (!thCont._tn) {
                     thCont._tn = document.createTextNode('');
                     thCont.appendChild(thCont._tn);
@@ -1124,55 +1094,15 @@
                   if (S.settings.autoscroll) scrollBot();
                 }
 
-                /* Uncertainty detection — only fire if model explicitly signals
-                   it lacks current/live info, not just generic hedging */
-                if (
-                  !internalSearchFired &&
-                  S.settings.webSearchAuto &&
-                  !userSearchData &&
-                  thinkText.length > 120 &&
-                  detectUncertainty(thinkText)
-                ) {
+                if (!internalSearchFired && S.settings.webSearchAuto && !userSearchData && thinkText.length > 80 && detectUncertainty(thinkText)) {
                   internalSearchFired = true;
-
+                  whileSearchBreak = true;
                   if (S.abort) S.abort.abort();
-
-                  let pill = null;
-                  if (thCont) {
-                    pill = document.createElement('div');
-                    pill.className = 'think-srch-pill';
-                    pill.innerHTML =
-                      `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                      Searching for more info
-                      <div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>`;
-                    thCont.appendChild(pill);
-                    if (S.settings.autoscroll) scrollBot();
-                  }
-
-                  const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
-                  internalSearchData = await doSearch(q);
-
-                  if (pill && thCont) {
-                    const done = document.createElement('div');
-                    done.className = 'think-srch-done';
-                    done.innerHTML =
-                      `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      Found info — continuing`;
-                    pill.replaceWith(done);
-                  }
-
-                  const newCtx = ctx + (internalSearchData ? buildSearchCtx(internalSearchData) : '');
-                  S.abort = new AbortController();
-                  // Reset think text and restart fresh
-                  thinkText = '';
-                  if (thCont) { thCont.innerHTML = ''; thCont._tn = null; }
-                  await runStream(newCtx);
-                  return;
+                  break; 
                 }
 
               } else if (chunk.type === 'answer') {
                 enterAnswerPhase();
-
                 answerText += chunk.text;
                 if (txtEl) {
                   const aw = txtEl.querySelector('.activity-wrap');
@@ -1182,11 +1112,42 @@
                 }
               }
             }
-          };
 
-          await runStream(extraCtx);
+            if (whileSearchBreak) {
+                let pill = null;
+                if (thCont) {
+                  pill = document.createElement('div');
+                  pill.className = 'think-srch-pill';
+                  pill.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Searching for more info
+                    <div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>`;
+                  thCont.appendChild(pill);
+                  if (S.settings.autoscroll) scrollBot();
+                }
 
-          /* Finalize think block if answer never came */
+                const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+                internalSearchData = await doSearch(q);
+
+                if (pill && thCont) {
+                  const done = document.createElement('div');
+                  done.className = 'think-srch-done';
+                  done.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Found info — continuing`;
+                  pill.replaceWith(done);
+                }
+
+                extraCtx = extraCtx + (internalSearchData ? buildSearchCtx(internalSearchData) : '');
+                S.abort = new AbortController();
+                
+                thinkText += '\n\n[Search Complete. Rethinking...]\n\n';
+                if (thCont) thCont._tn = null; 
+                
+                continue; 
+            } else {
+                break; 
+            }
+          }
+
           if (!answerPhase) {
             thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
             if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
@@ -1194,7 +1155,6 @@
             if (awEl)    awEl.remove();
           }
 
-          /* Final answer render */
           if (txtEl) {
             const aw = txtEl.querySelector('.activity-wrap');
             if (aw) aw.remove();
@@ -1226,7 +1186,6 @@
             }
           }
 
-          /* Smart re-search for model 0 — only on strong uncertainty signals */
           if (answerText && !userSearchData && S.settings.webSearchAuto && !modeOn('image')) {
             if (detectUncertainty(answerText)) {
               showUserSearchInd();
@@ -1338,9 +1297,11 @@
         for await(const chunk of streamParsed(msgs,ctx,msg.modelKey||S.model,4096)){
           if(S.abort?.signal?.aborted)break;
           const txt=chunk.text||'';if(!txt)continue;
-          full+=txt;
-          txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
-          if(S.settings.autoscroll)scrollBot();
+          if (chunk.type === 'answer') {
+             full+=txt;
+             txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
+             if(S.settings.autoscroll)scrollBot();
+          }
         }
       }catch(e){}
       txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full));
