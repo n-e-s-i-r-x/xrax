@@ -4,7 +4,7 @@ export const config = { runtime: 'edge' };
    MODEL MAP
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   'google/gemma-3-27b-it:free',
+  '0':   'z-ai/glm-4.5-air:free',
   '00':  'nvidia/nemotron-3-nano-30b-a3b:free',
   '000': 'nvidia/nemotron-3-super-120b-a12b:free',
 };
