@@ -2,8 +2,8 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':   'tencent/hy3-preview:free',
-  '00':  'qwen/qwen3-8b:free',
-  '000': 'deepseek/deepseek-r1-0528:free',
+  '00':  'tencent/hy3-preview:free',
+  '000': 'tencent/hy3-preview:free',
 };
 
 /* ══════════════════════════════════════
