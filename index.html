@@ -685,7 +685,7 @@ function buildMsg(msg,idx){
   let thinkHtml='';
   if(msg.thinking&&msg.thinking.trim()){
     const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:'Thought';
-    thinkHtml=`<div class="ai-think" onclick="this.classList.toggle('open')">
+    thinkHtml=`<div class="ai-think open" onclick="this.classList.toggle('open')">
       <div class="ai-think-hdr">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl">${esc(dur)}</span>
@@ -782,7 +782,10 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
   let reasoningOpen=false,sawContentField=false;
   try{while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
     for(const line of lines){const l=line.trim();if(!l.startsWith('data:'))continue;const raw=l.slice(5).trim();if(raw==='[DONE]')return;
-      try{const d=JSON.parse(raw);const reasoning=d.choices?.[0]?.delta?.reasoning_content??d.choices?.[0]?.delta?.reasoning;const content=d.choices?.[0]?.delta?.content??d.message?.content??'';
+      try{const d=JSON.parse(raw);const choice=d.choices?.[0];if(!choice)continue;
+        const reasoning=choice.delta?.reasoning_content??choice.delta?.reasoning;const content=choice.delta?.content??d.message?.content??'';
+        // Propagate finish_reason so callers can detect truncation
+        if(choice.finish_reason)yield{type:'finish',reason:choice.finish_reason};
         if(reasoning){
           if(!reasoningOpen){yield'<think>';reasoningOpen=true;}
           yield reasoning;continue;
@@ -795,6 +798,8 @@ function findFirst(buffer,tags){let best=-1,bestTag=null;for(const t of tags){co
 async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,initialInThink=false){
   let inThink=!!initialInThink,answerStarted=false,buffer='';
   for await(const delta of streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal)){
+    // Pass through finish events (e.g. finish_reason:'length') directly
+    if(delta&&typeof delta==='object'){yield delta;continue;}
     buffer+=delta;
     while(true){const pi=buffer.indexOf(PARTIAL_CLOSE);if(pi===-1)break;buffer=buffer.slice(0,pi)+buffer.slice(pi+PARTIAL_CLOSE.length);}
     while(buffer.length>0){
@@ -844,9 +849,14 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       if(!answerPhase){const promoted=promoteThinkTail(thinkText);if(promoted){answerText=promoted;enterAnswerPhase();}else{thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');thinkEl.classList.remove('open');}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();}}
       if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.style.display='';txtEl.innerHTML=answerText?DOMPurify.sanitize(marked.parse(answerText)):DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));}
     }else{
-      for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,4096,S.abort.signal,false)){if(S.abort?.signal?.aborted)break;const txt=chunk.text||'';if(!txt)continue;answerText+=txt;
+      let wasTruncated=false;
+      for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,4096,S.abort.signal,false)){if(S.abort?.signal?.aborted)break;
+        if(chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
+        const txt=chunk.text||'';if(!txt)continue;answerText+=txt;
         if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';const subEl=document.getElementById(aiId+'sub');if(subEl&&answerText.length>10){const snip=answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);if(snip)subEl.textContent=snip;}if(S.settings.autoscroll)scrollBot();}}
-      if(answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')&&detectUncertainty(answerText)){
+      // Only trigger uncertainty re-answer if the response was NOT truncated by token cap.
+      // A truncated response always looks uncertain mid-sentence — looping on it causes infinite spam.
+      if(!wasTruncated&&answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')&&detectUncertainty(answerText)){
         showUserSearchInd();const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';const sd=await doSearch(q);hideUserSearchInd();
         if(sd){userSearchData=sd;userWantsSearch=true;const ctx2=extraCtx+buildSearchCtx(sd);if(txtEl){txtEl.innerHTML=`<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div></div>`;}
           answerText='';S.abort=new AbortController();
@@ -859,8 +869,9 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
 
   document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();
   const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];const savedAnswer=answerText.trim();
+  const wasFinallyTruncated=!useThink&&typeof wasTruncated!=='undefined'&&wasTruncated;
   if(!savedAnswer&&!thinkText.trim()){convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});}
-  else{convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:sanitizeThinkText(thinkText).trim()||null,thinkDuration:thinkDurStr,truncated:false,modelKey});}
+  else{convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:sanitizeThinkText(thinkText).trim()||null,thinkDuration:thinkDurStr,truncated:wasFinallyTruncated,modelKey});}
   renderMsgs();saveStore();S.busy=false;S.abort=null;
   const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}scrollBot();
 }
