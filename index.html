@@ -626,7 +626,7 @@ function modeOn(m){return S.modes.has(m);}
 
 const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nRules:\n- Write complete, working, production-quality code. No placeholders, no TODOs, no truncation.\n- Use the best design patterns, architecture, and algorithms.\n- Clean, readable, well-structured, modern best practices.\n- Proper error handling, edge cases, type safety.\n- For UI/frontend: pixel-perfect, beautiful, modern designs. Best CSS, animations, UX.\n- For backend: proper security, validation, efficiency.\n- Always fenced code blocks with correct language tag.\n- Multiple files if needed, each clearly labeled.\n- Highest coding accuracy. Best design. No shortcuts.`;
 
-function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'. Local time: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})+'. Year: '+n.getFullYear()+'. Treat all knowledge as current to '+n.getFullYear()+'. Do not caveat answers with outdated-knowledge disclaimers unless the user specifically asks about real-time data.';}
+function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'. Local time: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})+'. Year: 2026. Knowledge and training data is current to 2026. Answer confidently with 2026 as your present baseline. Do not caveat answers with outdated-knowledge disclaimers unless the user specifically asks about real-time live data (prices, scores, breaking news).';}
 
 /* ─── INIT ─── */
 let inited=false;
@@ -822,7 +822,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   if(contMode)extraCtx+='\n\nResume the previous response without repeating any prior text.';
   S.abort=new AbortController();
 
-  const enterAnswerPhase=()=>{if(answerPhase)return;answerPhase=true;thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');thinkEl.classList.remove('open');}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();
+  const enterAnswerPhase=()=>{if(answerPhase)return;answerPhase=true;thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');/* keep .open so the block stays visible */}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();
     if(txtEl){txtEl.style.display='';const aState=modeOn('code')?'coding':'writing';const aLabel=modeOn('code')?'Writing Code':'Writing';txtEl.innerHTML=`<div class="activity-wrap" data-state="${aState}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div></div></div>`;}
     if(S.settings.autoscroll)scrollBot();};
   const renderAnswer=()=>{if(!txtEl)return;const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';if(S.settings.autoscroll)scrollBot();};
@@ -846,7 +846,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           S.abort=new AbortController();userSearchData=internalSearchData;firstPass=false;if(thCont)thCont._tn=null;continue;
         }else{break;}
       }
-      if(!answerPhase){const promoted=promoteThinkTail(thinkText);if(promoted){answerText=promoted;enterAnswerPhase();}else{thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');thinkEl.classList.remove('open');}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();}}
+      if(!answerPhase){const promoted=promoteThinkTail(thinkText);if(promoted){answerText=promoted;enterAnswerPhase();}else{thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');/* keep .open so block stays visible */}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();}}
       if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.style.display='';txtEl.innerHTML=answerText?DOMPurify.sanitize(marked.parse(answerText)):DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));}
     }else{
       let wasTruncated=false;
