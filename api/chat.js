@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   'tencent/hy3-preview:free',
   '00':  'tencent/hy3-preview:free',
-  '000': 'qwen/qwen3-coder:free',
+  '000': 'meta-llama/llama-3.3-70b-instruct:free',
 };
 
 /* ══════════════════════════════════════
@@ -160,7 +160,7 @@ export default async function handler(req) {
     context: ctxField,
     systemPrompt: legacyCtx,
     temperature = 0.6,
-    maxTokens   = 8000,
+    maxTokens   = 4000,
     model: modelKey = '0',
   } = body;
 
