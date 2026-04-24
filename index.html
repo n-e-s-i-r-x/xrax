@@ -551,7 +551,8 @@
       const n=new Date();
       const d=n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
       const t=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
-      return '\n\nFor reference, the current date is '+d+' and the local time is '+t+'.';
+      const yr=n.getFullYear();
+      return '\n\nCurrent date: '+d+'. Local time: '+t+'. Year: '+yr+'. Treat all knowledge as current to '+yr+'. Do not caveat answers with outdated-knowledge disclaimers unless the user specifically asks about real-time data.';
     }
 
     /* ══════════════════════════════════════
@@ -1382,7 +1383,7 @@
         if (err.name !== 'AbortError') {
           document.getElementById(aiId)?.remove();
           document.getElementById('stop-row')?.remove();
-          showErr(); S.busy=false; S.abort=null;
+          showErr(err.message||null); S.busy=false; S.abort=null;
           const inp=document.getElementById('user-input');
           const sb=document.getElementById('send-btn');
           if(sb)sb.disabled=!inp||!inp.value.trim();
@@ -1518,15 +1519,31 @@
 
     function stopGen(){if(S.abort)S.abort.abort();}
 
-    function showErr(){
+    function showErr(msg){
       const ca=document.getElementById('chat-area');if(!ca)return;
       document.getElementById('err-row')?.remove();
       const r=document.createElement('div');r.className='err-row';r.id='err-row';
-      r.innerHTML=`<div class="err-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="err-msg">Failed to get a response</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;
+      const displayMsg=msg||'Failed to get a response';
+      const isRateLimit=/rate.?limit|slow down|busy/i.test(displayMsg);
+      r.innerHTML=`<div class="err-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="err-msg">${esc(displayMsg)}</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;
       ca.appendChild(r);scrollBot();
+      // Auto-retry after delay if rate limited (server already retried, this is a last-resort client retry)
+      if(isRateLimit){
+        const retryDelay=8000;
+        const countdown=r.querySelector('.err-msg');
+        let secs=Math.round(retryDelay/1000);
+        const iv=setInterval(()=>{
+          secs--;
+          if(countdown&&document.getElementById('err-row'))countdown.textContent=displayMsg+' Retrying in '+secs+'s…';
+          if(secs<=0){clearInterval(iv);if(document.getElementById('err-row'))retryLast();}
+        },1000);
+        r._retryIv=iv;
+      }
     }
     function retryLast(){
       const c=curConvo();if(!c||S.busy)return;
+      const er=document.getElementById('err-row');
+      if(er&&er._retryIv)clearInterval(er._retryIv);
       document.getElementById('err-row')?.remove();
       const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];
       const aiId='ai'+Date.now();appendPending(aiId);generate(c,aiId,null,um?.content||'',false);
