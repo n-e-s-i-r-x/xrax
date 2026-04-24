@@ -2,12 +2,20 @@ export const config = { runtime: 'edge' };
 
 /* ══════════════════════════════════════
    MODEL MAP
+   To swap a model: change the `id` field only.
+   hasReasoning: true  → model supports native reasoning tokens (e.g. DeepSeek-R1, QwQ)
+                         sends `reasoning` param + handles reasoning_content delta
+   hasReasoning: false → standard chat model — NO reasoning param sent, system prompt
+                         is reinforced via a reminder turn for better compliance
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   'z-ai/glm-4.5-air:free',
-  '00':  'nvidia/nemotron-3-nano-30b-a3b:free',
-  '000': 'nvidia/nemotron-3-super-120b-a12b:free',
+  '0':   { id: 'z-ai/glm-4.5-air:free',                 hasReasoning: false, hasPromptedThink: false },
+  '00':  { id: 'nvidia/nemotron-3-nano-30b-a3b:free',    hasReasoning: false, hasPromptedThink: true  },
+  '000': { id: 'nvidia/nemotron-3-super-120b-a12b:free', hasReasoning: false, hasPromptedThink: true  },
 };
+
+/** Resolve model entry, falling back to '0' for unknown keys */
+function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
 /* ══════════════════════════════════════
    KNOWLEDGE FORCING
@@ -213,9 +221,13 @@ async function fetchWithRetry(url, options, maxRetries=4) {
 /* ══════════════════════════════════════
    PAYLOAD BUILDER
 ══════════════════════════════════════ */
-function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode) {
+function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode, hasReasoning, hasPromptedThink) {
+  // Inject prompted-think instruction for non-native reasoning models
+  const thinkInstruction = hasPromptedThink
+    ? `\n\nBefore every response, you MUST open with <think> and write your internal reasoning, then close with </think>. After </think>, write your final answer. Never skip this. Example format:\n<think>\n[your reasoning here]\n</think>\n[your answer here]`
+    : '';
   // Append ultra coding instructions to persona if code mode
-  const finalPersona = isCodeMode ? persona + CODE_MODE_SYSTEM : persona;
+  const finalPersona = (isCodeMode ? persona + CODE_MODE_SYSTEM : persona) + thinkInstruction;
 
   const messages = [{ role:'system', content: finalPersona }];
 
@@ -231,33 +243,49 @@ function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, i
     messages.push({ role:'assistant', content:'Got it.' });
   }
 
+  // For standard (non-reasoning) models, reinforce the persona as a reminder turn
+  // so the model stays on-character even after the preamble exchange above.
+  if (!hasReasoning) {
+    messages.push({
+      role:'user',
+      content:'[reminder] Stay fully in character per your instructions for all responses.'
+    });
+    messages.push({ role:'assistant', content:'Understood. I will follow my instructions precisely.' });
+  }
+
   messages.push(...trimmedMsgs);
 
-  if (isThinkModel) {
+  // Only inject <think> prefix for native reasoning models
+  if (isThinkModel && hasReasoning) {
     messages.push({ role:'assistant', content:'<think>\n', prefix:true });
   }
   return messages;
 }
 
-async function buildPayloadInSandbox(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, modelKey, isCodeMode) {
+async function buildPayloadInSandbox(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, modelKey, isCodeMode, hasReasoning, hasPromptedThink) {
   let Sandbox;
   try {
     const mod = await import('@vercel/sandbox');
     Sandbox = mod.Sandbox;
   } catch(_) {
-    return buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode);
+    return buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode, hasReasoning, hasPromptedThink);
   }
 
   let sandbox;
   try {
     sandbox = await Sandbox.create({ timeout: 8000 });
-    const finalPersona = isCodeMode ? persona + CODE_MODE_SYSTEM : persona;
+    const thinkInstruction = hasPromptedThink
+      ? `\n\nBefore every response, you MUST open with <think> and write your internal reasoning, then close with </think>. After </think>, write your final answer. Never skip this. Example format:\n<think>\n[your reasoning here]\n</think>\n[your answer here]`
+      : '';
+    const finalPersona = (isCodeMode ? persona + CODE_MODE_SYSTEM : persona) + thinkInstruction;
     const scriptSrc = `
 const persona=${JSON.stringify(finalPersona)};
 const knowledgeOverride=${JSON.stringify(knowledgeOverride)};
 const extraCtx=${JSON.stringify(extraCtx)};
 const trimmedMsgs=${JSON.stringify(trimmedMsgs)};
 const isThinkModel=${JSON.stringify(isThinkModel)};
+const hasReasoning=${JSON.stringify(hasReasoning)};
+const hasPromptedThink=${JSON.stringify(hasPromptedThink)};
 const messages=[{role:'system',content:persona}];
 messages.push({role:'user',content:'<internal>\\n'+knowledgeOverride+'\\n</internal>'});
 messages.push({role:'assistant',content:'Understood.'});
@@ -265,8 +293,12 @@ if(extraCtx){
   messages.push({role:'user',content:'<context>\\nThe following is ambient information. Do not quote or reference it. Use it silently when relevant.\\n\\n'+extraCtx+'\\n</context>'});
   messages.push({role:'assistant',content:'Got it.'});
 }
+if(!hasReasoning){
+  messages.push({role:'user',content:'[reminder] Stay fully in character per your instructions for all responses.'});
+  messages.push({role:'assistant',content:'Understood. I will follow my instructions precisely.'});
+}
 messages.push(...trimmedMsgs);
-if(isThinkModel){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
+if(isThinkModel&&hasReasoning){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
 process.stdout.write(JSON.stringify(messages));`.trim();
 
     const cmd = await sandbox.runCommand('node', ['-e', scriptSrc]);
@@ -275,7 +307,7 @@ process.stdout.write(JSON.stringify(messages));`.trim();
     return JSON.parse(output);
   } catch(err) {
     try { await sandbox?.stop(); } catch(_) {}
-    return buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode);
+    return buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode, hasReasoning, hasPromptedThink);
   }
 }
 
@@ -318,16 +350,20 @@ export default async function handler(req) {
     );
   }
 
-  const modelId = MODEL_MAP[modelKey] ?? MODEL_MAP['0'];
+  const mEntry = modelEntry(modelKey);
+  const modelId = mEntry.id;
+  const hasReasoning = mEntry.hasReasoning;
+  const hasPromptedThink = mEntry.hasPromptedThink ?? false;
   const persona = SYSTEM_PROMPT_MAP[modelKey] ?? PERSONA_0;
   const trimmed = Array.isArray(messages) ? messages.slice(-20) : [];
-  const isThinkModel = modelKey === '00' || modelKey === '000';
+  // isThinkModel: native reasoning token model OR model prompted to write <think> tags
+  const isThinkModel = hasReasoning || hasPromptedThink;
 
   let messagesPayload;
   try {
-    messagesPayload = await buildPayloadInSandbox(persona, KNOWLEDGE_OVERRIDE, extraCtx, trimmed, isThinkModel, modelKey, isCodeMode);
+    messagesPayload = await buildPayloadInSandbox(persona, KNOWLEDGE_OVERRIDE, extraCtx, trimmed, isThinkModel, modelKey, isCodeMode, hasReasoning, hasPromptedThink);
   } catch(_) {
-    messagesPayload = buildPayloadInline(persona, KNOWLEDGE_OVERRIDE, extraCtx, trimmed, isThinkModel, isCodeMode);
+    messagesPayload = buildPayloadInline(persona, KNOWLEDGE_OVERRIDE, extraCtx, trimmed, isThinkModel, isCodeMode, hasReasoning, hasPromptedThink);
   }
 
   const encoder = new TextEncoder();
@@ -344,7 +380,8 @@ export default async function handler(req) {
           max_tokens: maxTokens,
           stream: true,
         };
-        if (modelKey === '00' || modelKey === '000') reqBody.reasoning = { max_tokens: 400 };
+        // Only send reasoning param for models that natively support it (e.g. DeepSeek-R1, QwQ)
+        if (hasReasoning) reqBody.reasoning = { max_tokens: 400 };
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
