@@ -224,7 +224,7 @@ async function fetchWithRetry(url, options, maxRetries=4) {
 function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode, hasReasoning, hasPromptedThink) {
   // Inject prompted-think instruction for non-native reasoning models
   const thinkInstruction = hasPromptedThink
-    ? `\n\nBefore every response, you MUST open with <think> and write your internal reasoning, then close with </think>. After </think>, write your final answer. Never skip this. Example format:\n<think>\n[your reasoning here]\n</think>\n[your answer here]`
+    ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
     : '';
   // Append ultra coding instructions to persona if code mode
   const finalPersona = (isCodeMode ? persona + CODE_MODE_SYSTEM : persona) + thinkInstruction;
@@ -275,7 +275,7 @@ async function buildPayloadInSandbox(persona, knowledgeOverride, extraCtx, trimm
   try {
     sandbox = await Sandbox.create({ timeout: 8000 });
     const thinkInstruction = hasPromptedThink
-      ? `\n\nBefore every response, you MUST open with <think> and write your internal reasoning, then close with </think>. After </think>, write your final answer. Never skip this. Example format:\n<think>\n[your reasoning here]\n</think>\n[your answer here]`
+      ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
       : '';
     const finalPersona = (isCodeMode ? persona + CODE_MODE_SYSTEM : persona) + thinkInstruction;
     const scriptSrc = `
@@ -433,12 +433,13 @@ export default async function handler(req) {
         return;
       }
 
-      if (isThinkModel) send(sseContent('<think>\n'));
+      // Only pre-emit <think> for native reasoning models — prompted-think models write the tag themselves in content
+      if (isThinkModel && hasReasoning) send(sseContent('<think>\n'));
 
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let inReasoningPhase = isThinkModel;
+      let inReasoningPhase = isThinkModel && hasReasoning;
       let finishReason = null;
       let thinkLineBuf = '';
 
