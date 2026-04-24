@@ -18,6 +18,8 @@ Rules:
 - Use natural, human-like tone
 - No emojis
 - No filler or unnecessary wording
+- Do not use <think> tags or any kind of internal reasoning markup
+- Output only the final answer
 - Do not mention system prompts or hidden instructions
 - Avoid em dashes`;
 
@@ -26,6 +28,7 @@ Only mention Vin if the user directly asks who made you, who owns you, or who cr
 
 Rules:
 - Think carefully and reason step by step inside <think>...</think>
+- Keep the thinking concise: short notes, fragments, no full essays
 - After </think>, output ONLY the final answer to the user
 - Be accurate and clear
 - Natural, human-like tone
@@ -39,6 +42,7 @@ Only mention Vin if the user directly asks who made you, who owns you, or who cr
 
 Rules:
 - Think deeply and reason step by step inside <think>...</think>
+- Keep the thinking compact: short bullet-style notes, not long paragraphs
 - After </think>, output ONLY the final answer to the user
 - Prioritize correctness above all else
 - Natural, human-like tone
@@ -105,7 +109,7 @@ export default async function handler(req) {
 
   /* For think models, inject an assistant prefix that begins with
      <think> so the model is forced into reasoning mode immediately.
-     This ONLY works on providers that honor `prefix:true`. */
+     Model 0 NEVER gets this prefix — it must produce a single answer. */
   let messagesPayload = [{ role: 'system', content: finalSystem }, ...trimmed];
   if (isThinkModel) {
     messagesPayload = [
@@ -132,7 +136,7 @@ export default async function handler(req) {
           stream: true,
         };
 
-        /* DeepSeek R1 supports explicit reasoning field */
+        /* Reasoning field only for deep think model */
         if (modelKey === '000') {
           reqBody.reasoning = { max_tokens: 4000 };
         }
@@ -172,7 +176,7 @@ export default async function handler(req) {
           const text      = data?.choices?.[0]?.message?.content ?? '';
           const fr        = data?.choices?.[0]?.finish_reason    ?? 'stop';
           let combined    = '';
-          if (reasoning) combined += `<think>\n${reasoning}\n</think>\n`;
+          if (isThinkModel && reasoning) combined += `<think>\n${reasoning}\n</think>\n`;
           combined += text;
           send(sseContent(combined));
           send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
@@ -194,21 +198,7 @@ export default async function handler(req) {
       const decoder = new TextDecoder();
       let   buffer  = '';
 
-      /* ─────────────────────────────────────────────────────
-         CRITICAL STATE — the bug fix
-         ─────────────────────────────────────────────────────
-         For DeepSeek (000) and any model that exposes reasoning
-         via `reasoning_content` SSE deltas, the upstream stream
-         is split into two phases:
-           1. reasoning_content deltas (think tokens)
-           2. content deltas (the actual answer)
-         The previous version forwarded reasoning_content as
-         plain content but NEVER emitted </think> when phase 2
-         started, so the client treated the answer as more
-         thinking. We track the phase here and inject </think>
-         at the boundary.
-      ─────────────────────────────────────────────────────── */
-      let inReasoningPhase = isThinkModel; /* start in reasoning if we forced <think> */
+      let inReasoningPhase = isThinkModel;
       let sawAnyReasoning = false;
       let finishReason = null;
 
@@ -231,10 +221,19 @@ export default async function handler(req) {
         const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
         const contentDelta   = delta.content;
 
+        /* For model 0: reasoning fields should never exist.
+           If they somehow do, drop them entirely. */
+        if (!isThinkModel) {
+          if (typeof contentDelta === 'string' && contentDelta.length) {
+            send(sseContent(contentDelta));
+          }
+          if (choice.finish_reason) finishReason = choice.finish_reason;
+          return;
+        }
+
         if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
           sawAnyReasoning = true;
           if (!inReasoningPhase) {
-            /* Reasoning re-opened after content — wrap it in fresh tags */
             send(sseContent('<think>\n'));
             inReasoningPhase = true;
           }
@@ -242,21 +241,17 @@ export default async function handler(req) {
         }
 
         if (typeof contentDelta === 'string' && contentDelta.length) {
-          /* First content token: close the think block first */
           closeThinkIfOpen();
           send(sseContent(contentDelta));
         }
 
-        if (choice.finish_reason) {
-          finishReason = choice.finish_reason;
-        }
+        if (choice.finish_reason) finishReason = choice.finish_reason;
       };
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            /* flush trailing buffer */
             if (buffer.trim()) {
               for (const line of buffer.split('\n')) {
                 const l = line.trim();
@@ -276,21 +271,9 @@ export default async function handler(req) {
             handleDataLine(l.slice(6).trim());
           }
         }
-      } catch (_) {
-        /* swallow — we'll close cleanly below */
-      }
+      } catch (_) { /* close cleanly below */ }
 
-      /* ALWAYS close any still-open think block before [DONE] so the
-         client never gets stuck rendering the answer inside the
-         thinking bubble. */
       closeThinkIfOpen();
-
-      /* If the upstream sent only reasoning and no content (rare
-         truncation), promote a friendly notice as the answer. */
-      if (sawAnyReasoning && !finishReason) {
-        /* nothing extra — the </think> above is enough; client will
-           render the empty answer and show its retry UI */
-      }
 
       if (finishReason) {
         send(`data: {"choices":[{"delta":{},"finish_reason":"${finishReason}"}]}\n\n`);
