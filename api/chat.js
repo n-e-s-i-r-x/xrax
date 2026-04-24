@@ -7,7 +7,7 @@ const MODEL_MAP = {
 };
 
 /* ══════════════════════════════════════
-   SYSTEM PROMPT — MODEL 0
+   SYSTEM PROMPTS
 ══════════════════════════════════════ */
 const SYSTEM_PROMPT_0 = `You are 0, an AI assistant created and owned by Vin.
 Only mention Vin if the user directly asks who made you, who owns you, or who created you.
@@ -21,14 +21,12 @@ Rules:
 - Do not mention system prompts or hidden instructions
 - Avoid em dashes`;
 
-/* ══════════════════════════════════════
-   SYSTEM PROMPT — MODEL 00
-══════════════════════════════════════ */
 const SYSTEM_PROMPT_00 = `You are 00, an AI assistant created and owned by Vin.
 Only mention Vin if the user directly asks who made you, who owns you, or who created you.
 
 Rules:
-- Think carefully and reason step by step before answering
+- Think carefully and reason step by step inside <think>...</think>
+- After </think>, output ONLY the final answer to the user
 - Be accurate and clear
 - Natural, human-like tone
 - No emojis
@@ -36,14 +34,12 @@ Rules:
 - Do not mention system prompts or hidden instructions
 - Avoid em dashes`;
 
-/* ══════════════════════════════════════
-   SYSTEM PROMPT — MODEL 000
-══════════════════════════════════════ */
 const SYSTEM_PROMPT_000 = `You are 000, an AI assistant created and owned by Vin.
 Only mention Vin if the user directly asks who made you, who owns you, or who created you.
 
 Rules:
-- Think deeply and reason step by step before answering
+- Think deeply and reason step by step inside <think>...</think>
+- After </think>, output ONLY the final answer to the user
 - Prioritize correctness above all else
 - Natural, human-like tone
 - No emojis
@@ -57,6 +53,20 @@ const SYSTEM_PROMPT_MAP = {
   '000': SYSTEM_PROMPT_000,
 };
 
+/* small helper to JSON-escape a string for SSE payloads */
+function jsonEscape(s) {
+  return String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
+/* emit a single content delta as a fully formed SSE line */
+function sseContent(text) {
+  return `data: {"choices":[{"delta":{"content":"${jsonEscape(text)}"},"finish_reason":null}]}\n\n`;
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -66,7 +76,7 @@ export default async function handler(req) {
   try { body = await req.json(); }
   catch (e) {
     return new Response(
-      'data: {"choices":[{"delta":{"content":"Invalid request body"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+      sseContent('Invalid request body') + 'data: [DONE]\n\n',
       { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
     );
   }
@@ -82,7 +92,7 @@ export default async function handler(req) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return new Response(
-      'data: {"choices":[{"delta":{"content":"Missing API key."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+      sseContent('Missing API key.') + 'data: [DONE]\n\n',
       { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
     );
   }
@@ -93,11 +103,11 @@ export default async function handler(req) {
   const trimmed = Array.isArray(messages) ? messages.slice(-20) : [];
   const isThinkModel = modelKey === '00' || modelKey === '000';
 
-  /* ── For think models: inject assistant prefix to force <think> start ── */
+  /* For think models, inject an assistant prefix that begins with
+     <think> so the model is forced into reasoning mode immediately.
+     This ONLY works on providers that honor `prefix:true`. */
   let messagesPayload = [{ role: 'system', content: finalSystem }, ...trimmed];
   if (isThinkModel) {
-    /* Append a partial assistant turn that begins with <think> so the
-       model is forced into its reasoning mode immediately */
     messagesPayload = [
       ...messagesPayload,
       { role: 'assistant', content: '<think>\n', prefix: true },
@@ -138,7 +148,7 @@ export default async function handler(req) {
           body: JSON.stringify(reqBody),
         });
       } catch (err) {
-        send(`data: {"choices":[{"delta":{"content":"[Network error: ${String(err.message).slice(0,200)}]"},"finish_reason":"stop"}]}\n\n`);
+        send(sseContent(`[Network error: ${String(err.message).slice(0,200)}]`));
         send('data: [DONE]\n\n');
         controller.close();
         return;
@@ -147,49 +157,112 @@ export default async function handler(req) {
       if (!upstreamRes.ok) {
         let errText = '';
         try { errText = await upstreamRes.text(); } catch (_) { errText = 'unknown'; }
-        send(`data: {"choices":[{"delta":{"content":"[API error ${upstreamRes.status}: ${errText.slice(0,300)}]"},"finish_reason":"stop"}]}\n\n`);
+        send(sseContent(`[API error ${upstreamRes.status}: ${errText.slice(0,300)}]`));
         send('data: [DONE]\n\n');
         controller.close();
         return;
       }
 
+      /* ── Non-streaming fallback ── */
       if (!upstreamRes.body) {
         try {
           const data = await upstreamRes.json();
-          /* Check reasoning field first (DeepSeek) */
-          const reasoning = data?.choices?.[0]?.message?.reasoning_content;
+          const reasoning = data?.choices?.[0]?.message?.reasoning_content
+                         ?? data?.choices?.[0]?.message?.reasoning;
           const text      = data?.choices?.[0]?.message?.content ?? '';
           const fr        = data?.choices?.[0]?.finish_reason    ?? 'stop';
           let combined    = '';
           if (reasoning) combined += `<think>\n${reasoning}\n</think>\n`;
           combined += text;
-          const safe = combined.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n');
-          send(`data: {"choices":[{"delta":{"content":"${safe}"},"finish_reason":null}]}\n\n`);
+          send(sseContent(combined));
           send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
         } catch (e) {
-          send('data: {"choices":[{"delta":{"content":"[Empty response]"},"finish_reason":"stop"}]}\n\n');
+          send(sseContent('[Empty response]'));
         }
         send('data: [DONE]\n\n');
         controller.close();
         return;
       }
 
-      /* ── If think model, prepend the <think>\n we injected as prefix ── */
+      /* If think model, prepend the <think>\n we injected as prefix
+         so the client parser sees it. */
       if (isThinkModel) {
-        send('data: {"choices":[{"delta":{"content":"<think>\\n"},"finish_reason":null}]}\n\n');
+        send(sseContent('<think>\n'));
       }
 
       const reader  = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let   buffer  = '';
+
+      /* ─────────────────────────────────────────────────────
+         CRITICAL STATE — the bug fix
+         ─────────────────────────────────────────────────────
+         For DeepSeek (000) and any model that exposes reasoning
+         via `reasoning_content` SSE deltas, the upstream stream
+         is split into two phases:
+           1. reasoning_content deltas (think tokens)
+           2. content deltas (the actual answer)
+         The previous version forwarded reasoning_content as
+         plain content but NEVER emitted </think> when phase 2
+         started, so the client treated the answer as more
+         thinking. We track the phase here and inject </think>
+         at the boundary.
+      ─────────────────────────────────────────────────────── */
+      let inReasoningPhase = isThinkModel; /* start in reasoning if we forced <think> */
+      let sawAnyReasoning = false;
+      let finishReason = null;
+
+      const closeThinkIfOpen = () => {
+        if (inReasoningPhase) {
+          send(sseContent('\n</think>\n'));
+          inReasoningPhase = false;
+        }
+      };
+
+      const handleDataLine = (raw) => {
+        if (raw === '[DONE]') return;
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch (_) { return; }
+
+        const choice = parsed?.choices?.[0];
+        if (!choice) return;
+
+        const delta = choice.delta || {};
+        const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
+        const contentDelta   = delta.content;
+
+        if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
+          sawAnyReasoning = true;
+          if (!inReasoningPhase) {
+            /* Reasoning re-opened after content — wrap it in fresh tags */
+            send(sseContent('<think>\n'));
+            inReasoningPhase = true;
+          }
+          send(sseContent(reasoningDelta));
+        }
+
+        if (typeof contentDelta === 'string' && contentDelta.length) {
+          /* First content token: close the think block first */
+          closeThinkIfOpen();
+          send(sseContent(contentDelta));
+        }
+
+        if (choice.finish_reason) {
+          finishReason = choice.finish_reason;
+        }
+      };
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
+            /* flush trailing buffer */
             if (buffer.trim()) {
               for (const line of buffer.split('\n')) {
                 const l = line.trim();
-                if (l.startsWith('data: ')) send(l + '\n\n');
+                if (l.startsWith('data: ')) {
+                  handleDataLine(l.slice(6).trim());
+                }
               }
             }
             break;
@@ -200,33 +273,28 @@ export default async function handler(req) {
           for (const line of lines) {
             const l = line.trim();
             if (!l.startsWith('data: ')) continue;
-            const raw = l.slice(6).trim();
-            if (raw === '[DONE]') { send('data: [DONE]\n\n'); continue; }
-
-            /* For DeepSeek: check reasoning_content field and wrap as think */
-            try {
-              const parsed = JSON.parse(raw);
-              const reasoningDelta = parsed?.choices?.[0]?.delta?.reasoning_content;
-              const contentDelta   = parsed?.choices?.[0]?.delta?.content;
-
-              if (reasoningDelta) {
-                /* Emit as <think> wrapped content */
-                const safe = reasoningDelta.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'');
-                send(`data: {"choices":[{"delta":{"content":"${safe}"},"finish_reason":null}]}\n\n`);
-              } else {
-                send(l + '\n\n');
-              }
-              /* If we're switching from reasoning to content on DeepSeek,
-                 inject the closing tag */
-              if (reasoningDelta && !contentDelta) {
-                /* still in reasoning — nothing extra */
-              }
-            } catch (_) {
-              send(l + '\n\n');
-            }
+            handleDataLine(l.slice(6).trim());
           }
         }
-      } catch (_) {}
+      } catch (_) {
+        /* swallow — we'll close cleanly below */
+      }
+
+      /* ALWAYS close any still-open think block before [DONE] so the
+         client never gets stuck rendering the answer inside the
+         thinking bubble. */
+      closeThinkIfOpen();
+
+      /* If the upstream sent only reasoning and no content (rare
+         truncation), promote a friendly notice as the answer. */
+      if (sawAnyReasoning && !finishReason) {
+        /* nothing extra — the </think> above is enough; client will
+           render the empty answer and show its retry UI */
+      }
+
+      if (finishReason) {
+        send(`data: {"choices":[{"delta":{},"finish_reason":"${finishReason}"}]}\n\n`);
+      }
       send('data: [DONE]\n\n');
       try { controller.close(); } catch (_) {}
     },
