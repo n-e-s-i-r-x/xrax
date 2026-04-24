@@ -59,7 +59,7 @@
       .ai-txt blockquote{border-left:3px solid #2a2a2a;padding:4px 12px;color:#888;margin:8px 0}
       .ai-txt code:not(pre code){background:#1a1a1a;border-radius:4px;padding:2px 6px;font-family:"M",Menlo,monospace;font-size:13px;color:#ddd}
 
-      /* ── Activity orbs ── */
+      /* activity */
       .activity-wrap{display:flex;align-items:center;gap:10px;padding:4px 0 6px}
       .activity-orb{width:28px;height:28px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center}
       .activity-orb-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;animation:orbSpin 1.8s linear infinite}
@@ -86,7 +86,7 @@
       .anim-dots::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
       @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}100%{content:''}}
 
-      /* ── Think block ── */
+      /* think block */
       .ai-think{margin-bottom:10px;border:1px solid #1e1530;border-radius:12px;overflow:hidden;background:#080810}
       .ai-think-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#0d0b14;cursor:pointer;user-select:none}
       .ai-think-hdr:active{background:#120f1c}
@@ -94,30 +94,28 @@
       .ai-think.open .ai-think-chev{transform:rotate(90deg)}
       .ai-think-lbl{font-size:12px;font-weight:600;color:#9d71e8;letter-spacing:.3px;flex:1}
       .ai-think.streaming .ai-think-lbl::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
-      .ai-think-body{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}
+      .ai-think-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
       .ai-think.open .ai-think-body{max-height:600px;overflow-y:auto}
-      .ai-think-content{padding:10px 12px 12px;font-size:12px;line-height:1.7;color:#6a5a9a;border-top:1px solid #1e1530;word-wrap:break-word;overflow-wrap:break-word;font-family:"M",Menlo,monospace;font-style:italic;white-space:pre-wrap}
+      .ai-think-content{padding:10px 12px 12px;font-size:12.5px;line-height:1.75;color:#7a6aaa;border-top:1px solid #1e1530;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;font-style:italic}
 
-      /* ── Internal search pill — inside thinking block only ── */
-      .think-search-inline{display:flex;align-items:center;gap:8px;margin:6px 0;padding:5px 10px;background:#0a1422;border:1px solid #152035;border-radius:8px;font-size:11px;color:#4a9eff;font-style:normal;font-family:"M",sans-serif}
-      .think-search-inline svg{flex-shrink:0;opacity:.8}
-      .think-search-inline-dots{display:flex;gap:3px;align-items:center;margin-left:2px}
-      .think-search-inline-dot{width:3px;height:3px;border-radius:50%;background:#4a9eff;animation:sDot 1.2s ease-in-out infinite;flex-shrink:0}
-      .think-search-inline-dot:nth-child(2){animation-delay:.2s}
-      .think-search-inline-dot:nth-child(3){animation-delay:.4s}
-      @keyframes sDot{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
-      .think-search-done{display:flex;align-items:center;gap:7px;margin:6px 0;padding:5px 10px;background:#0a1a0a;border:1px solid #152515;border-radius:8px;font-size:11px;color:#4ade80;font-style:normal;font-family:"M",sans-serif}
-      .think-search-done svg{flex-shrink:0}
+      /* internal search pill inside think */
+      .think-srch-pill{display:inline-flex;align-items:center;gap:7px;background:#060f1c;border:1px solid #0e2035;border-radius:8px;padding:5px 11px;margin:5px 0;font-size:11px;color:#4a9eff;font-style:normal;white-space:nowrap;width:fit-content}
+      .think-srch-pill svg{flex-shrink:0;opacity:.9}
+      .think-srch-dot{width:3px;height:3px;border-radius:50%;background:#4a9eff;animation:tsd 1.1s ease-in-out infinite;flex-shrink:0}
+      .think-srch-dot:nth-child(2){animation-delay:.18s}
+      .think-srch-dot:nth-child(3){animation-delay:.36s}
+      @keyframes tsd{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+      .think-srch-done{display:inline-flex;align-items:center;gap:7px;background:#030d03;border:1px solid #0e2010;border-radius:8px;padding:5px 11px;margin:5px 0;font-size:11px;color:#4ade80;font-style:normal;white-space:nowrap;width:fit-content}
 
-      /* ── Code blocks ── */
+      /* code */
       .code-wrap{margin:10px 0;border-radius:10px;overflow:hidden;background:#0a0a0a;border:1px solid #1a1a1a}
       .code-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#111;border-bottom:1px solid #1a1a1a}
       .code-lang{font-size:11px;color:#666}
       .code-hdr-btns{display:flex;gap:5px;align-items:center}
       .copy-code,.dl-btn,.view-btn{padding:4px 10px;background:#1a1a1a;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;transition:background .15s;border:none}
-      .copy-code{color:#aaa} .copy-code:active{background:#252525}
-      .dl-btn{color:#4a9eff} .dl-btn:active{background:#252525}
-      .view-btn{color:#4ade80} .view-btn:active{background:#252525}
+      .copy-code{color:#aaa}.copy-code:active{background:#252525}
+      .dl-btn{color:#4a9eff}.dl-btn:active{background:#252525}
+      .view-btn{color:#4ade80}.view-btn:active{background:#252525}
       .ai-txt pre{padding:12px;overflow-x:auto;margin:0;background:#0a0a0a}
       .ai-txt pre code{background:none;padding:0;font-family:"M",Menlo,monospace;font-size:13px;color:#ccc;line-height:1.5}
 
@@ -125,11 +123,8 @@
       .ma-btn{padding:5px 10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:6px;color:#888;font-size:11px;display:flex;align-items:center;gap:4px;transition:background .15s,transform .1s}
       .ma-btn:active{background:#1a1a1a;transform:scale(.94)}
       .msg-ts{font-size:10px;color:#444;margin-top:4px}
-
-      /* web badge — only shown when user toggled Search */
       .web-badge{display:inline-flex;align-items:center;gap:5px;background:#0a1628;border:1px solid #1a3050;border-radius:6px;padding:3px 8px;font-size:11px;color:#4a9eff;margin-bottom:8px}
 
-      /* sources — only shown when user toggled Search */
       .sources-wrap{margin-top:10px;border-top:1px solid #141414;padding-top:8px}
       .sources-toggle{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#444;cursor:pointer;user-select:none;padding:2px 0 6px;background:none;border:none;transition:color .15s}
       .sources-toggle:active{color:#888}
@@ -143,7 +138,6 @@
       .source-name{font-size:12px;color:#4a9eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;text-decoration:underline}
       .source-url{font-size:10px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 
-      /* input */
       #input-area{flex-shrink:0;padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:#000;border-top:1px solid #141414}
       .input-box{background:#0a0a0a;border:1px solid #1e1e1e;border-radius:18px;display:flex;flex-direction:column;transition:border-color .2s;overflow:hidden}
       .input-box:focus-within{border-color:#333}
@@ -155,7 +149,6 @@
       .send-btn{width:36px;height:36px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,transform .1s;color:#000}
       .send-btn:active{transform:scale(.9)}
       .send-btn:disabled{background:#2a2a2a;color:#555;opacity:.6}
-
       .model-btn{height:30px;padding:0 10px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:transparent;border:1px solid #252525;color:#666;transition:border-color .15s,color .15s,transform .1s;font-size:12px;font-weight:700;letter-spacing:.5px;white-space:nowrap;gap:5px}
       .model-btn:active{transform:scale(.9);border-color:#444;color:#aaa}
 
@@ -218,7 +211,7 @@
       .sb-lbl{padding:10px 16px 6px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#444}
       .chat-list{flex:1;overflow-y:auto;padding:0 8px 8px}
       .chat-item{padding:12px;border-radius:10px;display:flex;align-items:center;gap:10px;margin-bottom:2px;transition:background .15s;cursor:pointer}
-      .chat-item:active{background:#141414} .chat-item.active{background:#1a1a1a}
+      .chat-item:active{background:#141414}.chat-item.active{background:#1a1a1a}
       .chat-item svg{color:#555;flex-shrink:0}
       .chat-item-txt{flex:1;font-size:14px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .chat-item.active .chat-item-txt{color:#fff}
@@ -227,7 +220,7 @@
       .empty-list{padding:40px 16px;text-align:center;color:#444;font-size:13px}
       .sb-foot{padding:8px;border-top:1px solid #141414;display:flex;flex-direction:column;gap:2px}
       .sb-fbtn{padding:12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#aaa;font-size:14px;text-align:left;transition:background .15s;cursor:pointer}
-      .sb-fbtn:active{background:#141414} .sb-fbtn.danger{color:#cc6666} .sb-fbtn.danger:active{background:#1a0808}
+      .sb-fbtn:active{background:#141414}.sb-fbtn.danger{color:#cc6666}.sb-fbtn.danger:active{background:#1a0808}
 
       #dialog-ov{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
       #dialog-ov.show{display:flex}
@@ -241,9 +234,9 @@
       #dialog-btns{display:flex;gap:8px}
       .dlg-btn{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:600;transition:transform .1s,background .15s}
       .dlg-btn:active{transform:scale(.96)}
-      .dlg-btn.cancel{background:#1a1a1a;color:#aaa} .dlg-btn.cancel:active{background:#252525}
-      .dlg-btn.confirm{background:#fff;color:#000} .dlg-btn.confirm:active{background:#ddd}
-      .dlg-btn.danger{background:#2a1010;color:#e06060} .dlg-btn.danger:active{background:#3a1515}
+      .dlg-btn.cancel{background:#1a1a1a;color:#aaa}.dlg-btn.cancel:active{background:#252525}
+      .dlg-btn.confirm{background:#fff;color:#000}.dlg-btn.confirm:active{background:#ddd}
+      .dlg-btn.danger{background:#2a1010;color:#e06060}.dlg-btn.danger:active{background:#3a1515}
 
       #settings-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:flex-end;justify-content:center}
       #settings-ov.show{display:flex}
@@ -260,7 +253,7 @@
       .s-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #141414;gap:12px}
       .s-row:last-child{border-bottom:none}
       .s-row-info{flex:1;min-width:0}
-      .s-name{font-size:14px;color:#ddd} .s-desc{font-size:12px;color:#555;margin-top:2px}
+      .s-name{font-size:14px;color:#ddd}.s-desc{font-size:12px;color:#555;margin-top:2px}
       .tog{width:48px;height:28px;background:#2a2a2a;border-radius:99px;position:relative;transition:background .2s;flex-shrink:0;cursor:pointer}
       .tog.on{background:#4ade80}
       .tog::after{content:"";position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 4px rgba(0,0,0,.3)}
@@ -350,20 +343,14 @@
       </div>
       <div class="mp-item" id="mp-item-00" onclick="selectModel('00')">
         <div class="mp-info">
-          <div class="mp-label-row">
-            <div class="mp-name">00</div>
-            <span class="mp-badge fast">Fast</span>
-          </div>
-          <div class="mp-desc">Fast and better accuracy.</div>
+          <div class="mp-label-row"><div class="mp-name">00</div><span class="mp-badge fast">Fast</span></div>
+          <div class="mp-desc">Fast thinking and better accuracy.</div>
         </div>
       </div>
       <div class="mp-item" id="mp-item-000" onclick="selectModel('000')">
         <div class="mp-info">
-          <div class="mp-label-row">
-            <div class="mp-name">000</div>
-            <span class="mp-badge rapid">Rapid</span>
-          </div>
-          <div class="mp-desc">Faster and higher accuracy.</div>
+          <div class="mp-label-row"><div class="mp-name">000</div><span class="mp-badge rapid">Rapid</span></div>
+          <div class="mp-desc">Deep thinking and highest accuracy.</div>
         </div>
       </div>
     </div>
@@ -434,56 +421,75 @@
 
     /* ══════════════════════════════════════
        MODELS
+       hasThink = model natively outputs
+       <think>...</think> tokens we parse
     ══════════════════════════════════════ */
     const MODELS = {
       '0':   { key:'0',   label:'0',   placeholder:'Message 0...',   hasThink:false, temp:0.5 },
-      '00':  { key:'00',  label:'00',  placeholder:'Message 00...',  hasThink:true,  temp:0.4 },
-      '000': { key:'000', label:'000', placeholder:'Message 000...', hasThink:true,  temp:0.3 },
+      '00':  { key:'00',  label:'00',  placeholder:'Message 00...',  hasThink:true,  temp:0.6 },
+      '000': { key:'000', label:'000', placeholder:'Message 000...', hasThink:true,  temp:0.6 },
     };
 
     /* ══════════════════════════════════════
-       FRONTEND PHASE PROMPTS
-       These are EXTRA context sent alongside
-       the base identity prompt in chat.js
+       UNCERTAINTY DETECTOR
+       Runs against streamed think text to
+       decide if a search is needed.
+       Called by the streaming parser — no
+       prompt tricks, pure script logic.
     ══════════════════════════════════════ */
+    const UNCERTAINTY_RE = [
+      /\bi('?m| am) not (sure|certain|aware)\b/i,
+      /\bi (don'?t|do not) (know|have|have info|have data|recall|remember)\b/i,
+      /\bi (can'?t|cannot) (confirm|verify|recall|find|remember)\b/i,
+      /\bmy (knowledge|training|data).{0,40}(cut.?off|limited|outdated|old|end)\b/i,
+      /\b(not certain|unclear to me|unsure about|no idea|no information)\b/i,
+      /\b(need to (check|look up|search|find out|verify))\b/i,
+      /\b(let me (search|look|check|find))\b/i,
+      /\b(i (should|need to|have to) (search|look|check))\b/i,
+      /\b(don'?t have (access|info|data|information) (on|about|for))\b/i,
+      /\b(this (might|may|could) (be|have changed|be outdated))\b/i,
+      /\b(i('?ll| will) need (to )?(search|look|check|find))\b/i,
+      /\b(current(ly)?|latest|recent|up.?to.?date|live|real.?time|today'?s?)\b.{0,60}\b(don'?t|not sure|unsure|unknown|unclear)\b/i,
+    ];
 
-    /* Thinking phase — reasoning only, no answer */
-    const THINK_PHASE_PROMPT =
-`You are now in your internal reasoning phase. Think step by step.
-Write your raw thought process naturally as if thinking out loud.
-Be thorough but concise. Plain text only, no markdown headers.
+    /* Phrases that are certain / confident — ignore uncertainty if these appear */
+    const CERTAIN_RE = [
+      /\bi (know|am sure|am certain|am confident)\b/i,
+      /\bthe answer is\b/i,
+      /\bthis is (definitely|clearly|obviously)\b/i,
+    ];
 
-If you realize mid-thought that you need current or live information you do not have, write exactly the token <<SEARCH>> on its own line, then STOP generating immediately. Do not write anything after <<SEARCH>>.
-
-Do not write a final answer here. Do not greet the user. This is internal only.`;
-
-    /* Code mode extra */
-    const CODE_MODE_EXTRA =
-`\n\n[CODE MODE: Provide working code only. Use fenced code blocks with correct language tags. Be concise.]`;
+    function detectUncertainty(text) {
+      if (!text || text.length < 30) return false;
+      /* Only look at recent text — last 400 chars */
+      const window = text.slice(-400).toLowerCase();
+      const hasUncertain = UNCERTAINTY_RE.some(r => r.test(window));
+      if (!hasUncertain) return false;
+      const hasCertain = CERTAIN_RE.some(r => r.test(window));
+      return !hasCertain;
+    }
 
     /* ══════════════════════════════════════
        STATE
     ══════════════════════════════════════ */
     const S = {
       convos:{}, activeId:null, busy:false, abort:null,
-      model:'0',
-      modes:new Set(),
+      model:'0', modes:new Set(),
       settings:{ timestamps:false, autoscroll:true, save:true, webSearchAuto:true },
     };
 
     /* ══════════════════════════════════════
        MODEL PICKER
     ══════════════════════════════════════ */
-    function openModelPicker(e) {
+    function openModelPicker(e){
       e.stopPropagation();
-      const popup=document.getElementById('mp-popup'), ov=document.getElementById('mp-overlay');
-      const btn=document.getElementById('model-btn'), rect=btn.getBoundingClientRect();
-      const popW=230;
-      let left=rect.left, bottom=window.innerHeight-rect.top+8;
+      const popup=document.getElementById('mp-popup'),ov=document.getElementById('mp-overlay');
+      const btn=document.getElementById('model-btn'),rect=btn.getBoundingClientRect();
+      const popW=230;let left=rect.left,bottom=window.innerHeight-rect.top+8;
       if(left+popW>window.innerWidth-8)left=window.innerWidth-popW-8;
       if(left<8)left=8;
-      popup.style.left=left+'px'; popup.style.bottom=bottom+'px'; popup.style.top='auto';
-      ov.classList.add('open'); popup.classList.add('open');
+      popup.style.left=left+'px';popup.style.bottom=bottom+'px';popup.style.top='auto';
+      ov.classList.add('open');popup.classList.add('open');
     }
     function closeModelPicker(){
       document.getElementById('mp-popup').classList.remove('open');
@@ -491,7 +497,7 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
     }
     function selectModel(key){
       closeModelPicker();
-      const m=MODELS[key]; if(!m)return;
+      const m=MODELS[key];if(!m)return;
       S.model=key;
       document.getElementById('model-btn').textContent=m.label;
       document.getElementById('user-input').placeholder=m.placeholder;
@@ -502,7 +508,7 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
        MODES
     ══════════════════════════════════════ */
     function toggleMode(m){
-      if(S.modes.has(m))S.modes.delete(m); else S.modes.add(m);
+      if(S.modes.has(m))S.modes.delete(m);else S.modes.add(m);
       updateModeUI();
       document.body.classList.toggle('code-mode',S.modes.has('code'));
       document.getElementById('image-notice')?.classList.toggle('show',S.modes.has('image'));
@@ -510,7 +516,7 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
     function updateModeUI(){
       const cm={code:'green',image:'amber'};
       ['web','code','image'].forEach(m=>{
-        const btn=document.getElementById(m+'-btn'); if(!btn)return;
+        const btn=document.getElementById(m+'-btn');if(!btn)return;
         btn.classList.toggle('active',S.modes.has(m));
         btn.classList.remove('green','amber');
         if(S.modes.has(m)&&cm[m])btn.classList.add(cm[m]);
@@ -519,7 +525,7 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
     function modeOn(m){return S.modes.has(m);}
 
     /* ══════════════════════════════════════
-       DATE / TIME
+       DATE/TIME
     ══════════════════════════════════════ */
     function dtCtx(){
       const n=new Date();
@@ -529,12 +535,11 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
     }
 
     /* ══════════════════════════════════════
-       SEARCH HELPERS
-       doSearch — shared by both toggle-search
-       and internal think-search. They are
-       completely separate call sites.
+       SEARCH  (shared fn, two call sites:
+       1. user toggle / auto
+       2. think-internal — different UI)
     ══════════════════════════════════════ */
-    const ALWAYS_SEARCH_RE=[
+    const USER_SEARCH_RE=[
       /\b(202[4-9]|20[3-9]\d)\b/,
       /\b(today|right now|as of today|this week|this month|this year)\b/i,
       /\b(latest|newest|most recent|current version)\b/i,
@@ -543,14 +548,14 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
       /\b(breaking news|just happened|just announced|just released)\b/i,
     ];
 
-    function userQueryNeedsSearch(text){
+    function queryNeedsSearch(text){
       if(modeOn('web'))return true;
       if(modeOn('image')||!text)return false;
       if(!S.settings.webSearchAuto)return false;
       const t=text.trim();
       if(t.length<6)return false;
       if(/^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i.test(t))return false;
-      return ALWAYS_SEARCH_RE.some(r=>r.test(t));
+      return USER_SEARCH_RE.some(r=>r.test(t));
     }
 
     async function doSearch(q){
@@ -567,8 +572,8 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
       let c='\n\n--- WEB SEARCH RESULTS ---\n';
       c+='(Today: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+')\n\n';
       if(sd.answer)c+='DIRECT ANSWER: '+sd.answer+'\n\n';
-      (sd.results||[]).forEach((r,i)=>{c+='[' +(i+1)+'] '+r.title+'\nURL: '+r.url+'\n'+r.snippet+'\n\n';});
-      c+='--- USE THE ABOVE TO ANSWER. ---\n';
+      (sd.results||[]).forEach((r,i)=>{c+='['+(i+1)+'] '+r.title+'\nURL: '+r.url+'\n'+r.snippet+'\n\n';});
+      c+='--- END SEARCH RESULTS ---\n';
       return c;
     }
 
@@ -577,7 +582,7 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
     ══════════════════════════════════════ */
     let inited=false;
     function init(){
-      if(inited)return; inited=true;
+      if(inited)return;inited=true;
       try{loadStore();renderSB();showEmpty();setupScroll();setupInput();updateModeUI();}
       catch(e){console.error(e);}
       setTimeout(()=>{
@@ -709,11 +714,11 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
 
       const cma=msg.codeMode?'data-codemode="true"':'';
 
-      /* web badge ONLY when user toggled Search mode */
+      /* web badge only for user-toggled search */
       const badge=msg.userSearched
         ?`<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>`:'';
 
-      /* Think block — always shown for think models */
+      /* Think block */
       let thinkHtml='';
       if(msg.thinking&&msg.thinking.trim()){
         const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:'Thought';
@@ -723,11 +728,11 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d71e8" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
             <span class="ai-think-lbl">${esc(dur)}</span>
           </div>
-          <div class="ai-think-body"><div class="ai-think-content">${renderThinkContent(msg.thinking)}</div></div>
+          <div class="ai-think-body"><div class="ai-think-content">${esc(msg.thinking)}</div></div>
         </div>`;
       }
 
-      /* Sources ONLY when user toggled Search */
+      /* Sources only for user-toggled search */
       let sourcesHtml='';
       if(msg.userSearched&&msg.sources&&msg.sources.length){
         const items=msg.sources.map(s=>{
@@ -761,20 +766,6 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
           <div class="msg-acts" id="msg-${idx}-acts">${acts}</div>
         </div>
       </div></div></div>`;
-    }
-
-    /* Render thinking text — preserve internal search markers as visual pills */
-    function renderThinkContent(raw){
-      /* Split on the stored marker <<SEARCHED:query>> */
-      const parts=raw.split(/(<<SEARCHED:[^>]*>>)/g);
-      return parts.map(p=>{
-        const m=p.match(/^<<SEARCHED:(.*)>>$/);
-        if(m){
-          const q=esc(m[1]);
-          return`</div><div class="think-search-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Searched: ${q}</div><div class="ai-think-content" style="border-top:none;padding-top:4px">`;
-        }
-        return esc(p);
-      }).join('');
     }
 
     /* ══════════════════════════════════════
@@ -851,9 +842,9 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
         if(sb)sb.disabled=!inp.value.trim();return;
       }
 
-      /* User-toggled search — separate from think-internal search */
+      /* User-toggle/auto search — separate from think-internal */
       let userSearchData=null;
-      const userWantsSearch=userQueryNeedsSearch(raw);
+      const userWantsSearch=queryNeedsSearch(raw);
       if(userWantsSearch){
         showUserSearchInd();
         userSearchData=await doSearch(raw);
@@ -865,7 +856,6 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
       await generate(c,aiId,userSearchData,raw,userWantsSearch);
     }
 
-    /* User-search indicator — only for toggle/auto search, NOT think-internal */
     function showUserSearchInd(){
       const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;
       const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';
@@ -929,453 +919,373 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
     }
 
     /* ══════════════════════════════════════
-       CORE API CALL
+       RAW STREAMING API CALL
+       Returns an async generator that yields
+       { think: string } or { answer: string }
+       based on parsing <think> tags live.
     ══════════════════════════════════════ */
-    async function apiCall(msgs,extraCtx,modelKey,maxTok,onDelta){
-      const mDef=MODELS[modelKey]||MODELS['0'];
-      S.abort=new AbortController();
-      const res=await fetch('/api/chat.js',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          messages:msgs,
-          systemPrompt:extraCtx,
-          temperature:mDef.temp,
-          maxTokens:maxTok||2048,
-          model:modelKey,
-        }),
-        signal:S.abort.signal,
-      });
-      if(!res.ok)throw new Error('HTTP '+res.status);
+    async function* streamParsed(msgs, extraCtx, modelKey, maxTok) {
+      const mDef = MODELS[modelKey] || MODELS['0'];
+      S.abort = new AbortController();
 
-      let full='',fr=null;
-      if(res.body){
-        const reader=res.body.getReader();
-        const dec=new TextDecoder();
-        let buffer='';
-        while(true){
-          const{done,value}=await reader.read();
-          if(done)break;
-          buffer+=dec.decode(value,{stream:true});
-          const lines=buffer.split('\n');
-          buffer=lines.pop()??'';
-          for(const line of lines){
-            if(!line.startsWith('data: '))continue;
-            const data=line.slice(6).trim();
-            if(data==='[DONE]')continue;
-            try{
-              const d=JSON.parse(data);
-              const delta=d.choices?.[0]?.delta?.content||'';
-              if(delta){full+=delta;if(onDelta)onDelta(delta,full);}
-              if(d.choices?.[0]?.finish_reason)fr=d.choices[0].finish_reason;
-            }catch(e){}
+      let res;
+      try {
+        res = await fetch('/api/chat.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages:     msgs,
+            systemPrompt: extraCtx,
+            temperature:  mDef.temp,
+            maxTokens:    maxTok || 8000,
+            model:        modelKey,
+          }),
+          signal: S.abort.signal,
+        });
+      } catch (e) {
+        if (e.name !== 'AbortError') throw e;
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      /* Parse SSE stream character by character tracking <think> state */
+      let inThink   = false;   /* currently inside <think>...</think> */
+      let tagBuf    = '';      /* accumulating a potential tag */
+      let inTag     = false;   /* reading a < ... > sequence */
+      let rawBuffer = '';      /* SSE line buffer */
+      const dec     = new TextDecoder();
+      const reader  = res.body.getReader();
+
+      const processChar = function*(ch) {
+        if (ch === '<') {
+          inTag  = true;
+          tagBuf = '<';
+          return;
+        }
+        if (inTag) {
+          tagBuf += ch;
+          if (ch === '>') {
+            inTag = false;
+            const tag = tagBuf.toLowerCase();
+            tagBuf = '';
+            if (tag === '<think>') {
+              inThink = true;
+              return;
+            }
+            if (tag === '</think>') {
+              inThink = false;
+              return;
+            }
+            /* Not a think tag — emit as content */
+            if (inThink) yield { think: tag };
+            else          yield { answer: tag };
+          }
+          /* Still inside tag, keep buffering */
+          return;
+        }
+        /* Normal character */
+        if (inThink) yield { think: ch };
+        else          yield { answer: ch };
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          rawBuffer += dec.decode(value, { stream: true });
+          const lines = rawBuffer.split('\n');
+          rawBuffer   = lines.pop() ?? '';
+          for (const line of lines) {
+            const l = line.trim();
+            if (!l.startsWith('data: ')) continue;
+            const data = l.slice(6).trim();
+            if (data === '[DONE]') continue;
+            let delta = '';
+            try {
+              const d = JSON.parse(data);
+              delta = d.choices?.[0]?.delta?.content || '';
+            } catch (_) { continue; }
+            for (const ch of delta) {
+              yield* processChar(ch);
+            }
           }
         }
-      }else{
-        const d=await res.json();
-        full=d.choices?.[0]?.message?.content||'';
-        fr=d.choices?.[0]?.finish_reason;
-        if(onDelta&&full)onDelta(full,full);
+      } catch (e) {
+        if (e.name !== 'AbortError') throw e;
       }
-      return{full:full.trim(),finishReason:fr};
-    }
-
-    /* ══════════════════════════════════════
-       STREAM WORDS
-    ══════════════════════════════════════ */
-    async function streamWords(el,text,onChunk){
-      if(!text){el.innerHTML='';return;}
-      const parts=text.split(/(\s+)/);
-      let built='';
-      for(let i=0;i<parts.length;i++){
-        if(S.abort?.signal?.aborted)break;
-        built+=parts[i];
-        el.innerHTML=DOMPurify.sanitize(marked.parse(built))+'<span class="stream-cur"></span>';
-        if(onChunk)onChunk();
-        await sleep(parts[i].trim()?14:4);
-      }
-      el.innerHTML=DOMPurify.sanitize(marked.parse(built));
-    }
-    function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-
-    /* ══════════════════════════════════════
-       THINK-INTERNAL SEARCH
-       Completely separate from user search:
-       - No badge shown outside thinking block
-       - No sources shown
-       - Indicator rendered inside thcont only
-       - Uses same doSearch() but results stay
-         inside thinking context only
-    ══════════════════════════════════════ */
-    async function thinkInternalSearch(query, thContEl){
-      /* Show animated pill INSIDE the thinking content */
-      const pillId='tsp'+Date.now();
-      if(thContEl){
-        const pill=document.createElement('div');
-        pill.id=pillId;
-        pill.className='think-search-inline';
-        pill.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          Searching: ${esc(query.slice(0,50))}
-          <div class="think-search-inline-dots"><div class="think-search-inline-dot"></div><div class="think-search-inline-dot"></div><div class="think-search-inline-dot"></div></div>`;
-        thContEl.appendChild(pill);
-        if(S.settings.autoscroll)scrollBot();
-      }
-
-      const sd=await doSearch(query);
-
-      /* Replace pill with done indicator */
-      if(thContEl){
-        const pill=document.getElementById(pillId);
-        if(pill){
-          const done=document.createElement('div');
-          done.className='think-search-done';
-          done.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Found info: ${esc(query.slice(0,50))}`;
-          pill.replaceWith(done);
-        }
-        if(S.settings.autoscroll)scrollBot();
-      }
-
-      return sd;
     }
 
     /* ══════════════════════════════════════
        MAIN GENERATE
     ══════════════════════════════════════ */
-    async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode){
-      contMode=contMode||false;
-      S.busy=true;
+    async function generate(convo, aiId, userSearchData, userQuery, userWantsSearch, contMode) {
+      contMode = contMode || false;
+      S.busy   = true;
 
-      const txtEl=document.getElementById(aiId+'txt');
-      const thinkEl=document.getElementById(aiId+'think');
-      const thCont=document.getElementById(aiId+'thcont');
-      const thLbl=document.getElementById(aiId+'thlbl');
+      const txtEl   = document.getElementById(aiId+'txt');
+      const thinkEl = document.getElementById(aiId+'think');
+      const thCont  = document.getElementById(aiId+'thcont');
+      const thLbl   = document.getElementById(aiId+'thlbl');
 
-      const modelKey=S.model;
-      const mDef=MODELS[modelKey]||MODELS['0'];
-      const useThink=mDef.hasThink;
-      const baseMsgs=convo.msgs.map(m=>({role:m.role,content:m.content}));
+      const modelKey  = S.model;
+      const mDef      = MODELS[modelKey] || MODELS['0'];
+      const useThink  = mDef.hasThink;
+      const baseMsgs  = convo.msgs.map(m=>({role:m.role,content:m.content}));
 
-      let thinkText=null;       /* full accumulated think text (for storage) */
-      let answerText=null;
-      let finishReason=null;
-      let finalSources=userSearchData?.results||[];
-      let thinkDurStr=null;
+      let thinkText    = '';
+      let answerText   = '';
+      let finishReason = null;
+      let tStart       = Date.now();
+      let thinkDurStr  = null;
 
-      S.abort=new AbortController();
+      /* extra context (date + optional search) — never a fake think prompt */
+      let extraCtx = dtCtx();
+      if (modeOn('code')) extraCtx += '\n\n[CODE MODE: Provide working code only. Use fenced code blocks with correct language tags.]';
+      if (userSearchData && (userSearchData.results?.length || userSearchData.answer)) {
+        extraCtx += buildSearchCtx(userSearchData);
+      }
+      if (contMode) extraCtx += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-      try{
-        /* ═══════════════════════════════════
-           PATH A — THINK MODELS (00 / 000)
-        ═══════════════════════════════════ */
-        if(useThink){
-          const tStart=Date.now();
+      /* Track internal search state */
+      let internalSearchFired  = false;
+      let internalSearchData   = null;
+      let pendingSearchPill    = null;  /* DOM element shown in thCont */
 
-          /* Build think-phase extra context */
-          let thinkExtra=THINK_PHASE_PROMPT+dtCtx();
+      try {
+        if (useThink) {
+          /* ─────────────────────────────
+             THINK MODEL — parse natively
+          ───────────────────────────── */
+          tStart = Date.now();
 
-          /* If user explicitly searched, give that info upfront */
-          if(userSearchData&&(userSearchData.results?.length||userSearchData.answer)){
-            thinkExtra+=buildSearchCtx(userSearchData);
-          }
+          /* Stream and parse <think> tags in real time */
+          let thinkBuf  = '';   /* accumulate think chars for uncertainty check */
+          let answerBuf = '';
+          let phase     = 'think'; /* 'think' | 'answer' */
 
-          /* ── PHASE 1: STREAM REASONING ── */
-          /* We stream token by token, watching for <<SEARCH>> */
-          let rawThinkAccum='';       /* everything generated so far */
-          let thinkPhaseText='';      /* text portion before any <<SEARCH>> */
-          let searchTriggered=false;
-          let internalSearchData=null;
+          for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 8000)) {
+            if (S.abort?.signal?.aborted) break;
 
-          /* Display buffer — what we show in thcont */
-          /* We render text chunks live into thcont as a text node */
-          if(thCont)thCont.textContent='';
-
-          /* We need a streaming call that can be interrupted mid-stream */
-          /* Strategy: stream into rawThinkAccum, detect <<SEARCH>> in each chunk */
-          let thinkStreamDone=false;
-          let thinkStreamFull='';
-
-          try{
-            await apiCall(
-              baseMsgs,thinkExtra,modelKey,800,
-              (delta,full)=>{
-                rawThinkAccum=full;
-
-                /* Check if <<SEARCH>> appeared */
-                const searchIdx=full.indexOf('<<SEARCH>>');
-                if(searchIdx!==-1&&!searchTriggered){
-                  searchTriggered=true;
-                  /* Show only the text before <<SEARCH>> */
-                  thinkPhaseText=full.slice(0,searchIdx).trim();
-                  if(thCont)thCont.textContent=thinkPhaseText;
-                  /* Abort further streaming — we have what we need */
-                  if(S.abort)S.abort.abort();
-                }else if(!searchTriggered&&thCont){
-                  /* Normal streaming display */
-                  thCont.textContent=full;
-                  if(S.settings.autoscroll)scrollBot();
+            if (chunk.think !== undefined) {
+              /* ── THINK TOKEN ── */
+              thinkBuf += chunk.think;
+              thinkText += chunk.think;
+              /* Update DOM */
+              if (thCont) {
+                /* Only update the text node, not the pill */
+                let textNode = thCont._textNode;
+                if (!textNode) {
+                  textNode = document.createTextNode('');
+                  thCont.appendChild(textNode);
+                  thCont._textNode = textNode;
                 }
+                textNode.nodeValue = thinkText;
+                if (S.settings.autoscroll) scrollBot();
               }
-            );
-            thinkStreamFull=rawThinkAccum;
-          }catch(e){
-            if(e.name==='AbortError'&&searchTriggered){
-              /* Expected — we aborted because <<SEARCH>> appeared */
-              thinkStreamFull=thinkPhaseText;
-            }else if(e.name==='AbortError'){
-              throw e; /* User stopped */
-            }else{
-              thinkStreamFull=rawThinkAccum;
-            }
-          }
 
-          /* Reset abort controller for next phases */
-          S.abort=new AbortController();
+              /* ── UNCERTAINTY DETECTION (script logic, no prompts) ── */
+              if (!internalSearchFired && S.settings.webSearchAuto && !userSearchData) {
+                /* Check every ~80 chars of new think text */
+                if (thinkBuf.length > 80) {
+                  if (detectUncertainty(thinkText)) {
+                    internalSearchFired = true;
 
-          /* ── THINK-INTERNAL SEARCH (if triggered) ── */
-          let internalSearchCtx='';
-          let searchMarker='';
+                    /* Abort current stream — we'll restart with search ctx */
+                    if (S.abort) S.abort.abort();
 
-          if(searchTriggered&&!userSearchData){
-            const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
-            internalSearchData=await thinkInternalSearch(q,thCont);
-            if(internalSearchData){
-              internalSearchCtx=buildSearchCtx(internalSearchData);
-              searchMarker=`<<SEARCHED:${q.slice(0,60)}>>`;
-            }
-          }else if(searchTriggered&&userSearchData){
-            /* Already have search data */
-            internalSearchData=userSearchData;
-            internalSearchCtx=buildSearchCtx(userSearchData);
-          }
-
-          /* ── PHASE 1b: CONTINUE REASONING after search ── */
-          /* Now let AI continue thinking with the search results */
-          let postSearchThink='';
-          if(searchTriggered){
-            /* Brief pause — feels natural */
-            await sleep(300);
-
-            let continueThinkExtra=THINK_PHASE_PROMPT+dtCtx();
-            continueThinkExtra+='\n\n[You were thinking and paused to search. Here is what the search found. Continue your reasoning from where you left off, then conclude your thinking.]\n';
-            continueThinkExtra+='\n[Your thinking so far:]\n'+thinkPhaseText;
-            continueThinkExtra+=internalSearchCtx;
-
-            /* Add a "Continuing..." visual cue in thcont */
-            if(thCont){
-              const sep=document.createElement('div');
-              sep.style.cssText='color:#3a2a5a;font-size:11px;margin:4px 0;font-style:normal';
-              sep.textContent='— continuing —';
-              thCont.appendChild(sep);
-              if(S.settings.autoscroll)scrollBot();
-            }
-
-            try{
-              const r=await apiCall(
-                baseMsgs,continueThinkExtra,modelKey,600,
-                (delta,full)=>{
-                  postSearchThink=full;
-                  /* Append to thcont after the sep */
-                  if(thCont){
-                    /* Find or create the post-search text node */
-                    let postEl=document.getElementById(aiId+'thpost');
-                    if(!postEl){
-                      postEl=document.createElement('div');
-                      postEl.id=aiId+'thpost';
-                      postEl.style.cssText='white-space:pre-wrap;color:#6a5a9a;font-size:12px;line-height:1.7;font-style:italic;margin-top:2px';
-                      thCont.appendChild(postEl);
+                    /* Show searching pill inside think block */
+                    if (thCont) {
+                      pendingSearchPill = document.createElement('div');
+                      pendingSearchPill.className = 'think-srch-pill';
+                      pendingSearchPill.innerHTML =
+                        `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        Searching for more info
+                        <div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>`;
+                      thCont.appendChild(pendingSearchPill);
+                      if (S.settings.autoscroll) scrollBot();
                     }
-                    postEl.textContent=full;
-                    if(S.settings.autoscroll)scrollBot();
+
+                    /* Perform search */
+                    const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+                    internalSearchData = await doSearch(q);
+
+                    /* Replace pill with done indicator */
+                    if (pendingSearchPill && thCont) {
+                      const done = document.createElement('div');
+                      done.className = 'think-srch-done';
+                      done.innerHTML =
+                        `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Found info — continuing`;
+                      pendingSearchPill.replaceWith(done);
+                      pendingSearchPill = null;
+                    }
+
+                    /* Inject search results into context and restart stream */
+                    const searchCtx = internalSearchData ? buildSearchCtx(internalSearchData) : '';
+                    const newExtra  = extraCtx + searchCtx +
+                      '\n\n[You were thinking and paused to search. Here is what was found above. ' +
+                      'Continue your reasoning from where you left off. Your thinking so far:\n' +
+                      thinkText + ']';
+
+                    S.abort = new AbortController();
+
+                    /* Continue streaming with search context injected */
+                    for await (const chunk2 of streamParsed(baseMsgs, newExtra, modelKey, 8000)) {
+                      if (S.abort?.signal?.aborted) break;
+
+                      if (chunk2.think !== undefined) {
+                        thinkText += chunk2.think;
+                        if (thCont) {
+                          let textNode = thCont._textNode;
+                          if (!textNode) {
+                            textNode = document.createTextNode('');
+                            thCont.appendChild(textNode);
+                            thCont._textNode = textNode;
+                          }
+                          textNode.nodeValue = thinkText;
+                          if (S.settings.autoscroll) scrollBot();
+                        }
+                      } else if (chunk2.answer !== undefined) {
+                        /* Think done, answer starting */
+                        if (phase === 'think') {
+                          phase = 'answer';
+                          thinkDurStr = ((Date.now()-tStart)/1000).toFixed(1);
+                          if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
+                          if (thLbl) thLbl.textContent = `Thought for ${thinkDurStr}s`;
+                          if (txtEl) {
+                            txtEl.style.display='';
+                            const aState=modeOn('code')?'coding':'writing';
+                            const aLabel=modeOn('code')?'Writing Code':'Writing';
+                            txtEl.innerHTML=`<div class="activity-wrap" data-state="${aState}">
+                              <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                              <div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div></div>
+                            </div>`;
+                          }
+                        }
+                        answerText += chunk2.answer;
+                        answerBuf  += chunk2.answer;
+                        if (txtEl) {
+                          const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+                          txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
+                          if (S.settings.autoscroll) scrollBot();
+                        }
+                      }
+                    }
+                    break; /* exit outer loop — inner loop handled everything */
                   }
+                  thinkBuf = thinkBuf.slice(-80); /* keep tail for overlap detection */
                 }
-              );
-              postSearchThink=r.full;
-            }catch(e){
-              if(e.name==='AbortError')throw e;
-              postSearchThink='';
-            }
-            S.abort=new AbortController();
-          }
-
-          /* Compose final stored think text */
-          if(searchTriggered){
-            thinkText=(thinkPhaseText+(searchMarker?'\n'+searchMarker+'\n':'')+(postSearchThink?'\n'+postSearchThink:'')).trim()||null;
-          }else{
-            thinkText=thinkStreamFull.replace(/<<SEARCH>>/g,'').trim()||null;
-            if(thCont&&thinkText)thCont.textContent=thinkText;
-          }
-
-          const tEnd=Date.now();
-          thinkDurStr=((tEnd-tStart)/1000).toFixed(1);
-
-          /* Close thinking header */
-          if(thinkEl){thinkEl.classList.remove('streaming');thinkEl.classList.remove('open');}
-          if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;
-
-          await sleep(180);
-
-          /* ── PHASE 2: ANSWER ── */
-          if(txtEl){
-            txtEl.style.display='';
-            const aLabel=modeOn('code')?'Writing Code':'Writing';
-            const aState=modeOn('code')?'coding':'writing';
-            txtEl.innerHTML=`<div class="activity-wrap" data-state="${aState}">
-              <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-              <div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div></div>
-            </div>`;
-            if(S.settings.autoscroll)scrollBot();
-          }
-
-          let ansExtra=dtCtx();
-          ansExtra+='\n\n[FINAL ANSWER PHASE: Respond directly to the user. No reasoning. No internal notes. Polished, complete answer only.]';
-          if(modeOn('code'))ansExtra+=CODE_MODE_EXTRA;
-
-          /* Use whichever search data is available */
-          const effectiveSearch=internalSearchData||userSearchData;
-          if(effectiveSearch&&(effectiveSearch.results?.length||effectiveSearch.answer)){
-            ansExtra+=buildSearchCtx(effectiveSearch);
-          }
-          if(contMode)ansExtra+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
-
-          const ansMsgs=[...baseMsgs];
-          if(thinkText){
-            const lui=ansMsgs.map(m=>m.role).lastIndexOf('user');
-            if(lui!==-1){
-              ansMsgs.splice(lui,0,{
-                role:'system',
-                content:'[Internal reasoning — use only to inform your answer. Never reveal or repeat it.]\n\n'+thinkText.replace(/<<SEARCHED:[^>]*>>/g,''),
-              });
-            }
-          }
-
-          let rawAnswer='';
-          try{
-            const result=await apiCall(ansMsgs,ansExtra,modelKey,3072,null);
-            rawAnswer=result.full;finishReason=result.finishReason;
-          }catch(e){
-            if(e.name==='AbortError')throw e;
-            rawAnswer='';
-          }
-
-          answerText=rawAnswer;
-          if(txtEl){
-            const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-            txtEl.innerHTML='';
-            if(answerText){
-              await streamWords(txtEl,answerText,()=>{if(S.settings.autoscroll)scrollBot();});
-            }else{
-              txtEl.innerHTML=DOMPurify.sanitize(marked.parse('_(No response generated — try again)_'));
-            }
-          }
-
-          /* Update sources — only if user explicitly searched */
-          if(userSearchData)finalSources=userSearchData.results||[];
-          else finalSources=[];
-
-        /* ═══════════════════════════════════
-           PATH B — NORMAL MODEL (0)
-        ═══════════════════════════════════ */
-        }else{
-          let ansExtra=dtCtx();
-          ansExtra+='\n\n[Respond directly to the user. Polished, complete answer only.]';
-          if(modeOn('code'))ansExtra+=CODE_MODE_EXTRA;
-          if(userSearchData&&(userSearchData.results?.length||userSearchData.answer))ansExtra+=buildSearchCtx(userSearchData);
-          if(contMode)ansExtra+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
-
-          const{full,finishReason:fr}=await apiCall(
-            baseMsgs,ansExtra,modelKey,4096,
-            (delta,cur)=>{
-              if(txtEl){
-                const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-                txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';
               }
+
+            } else if (chunk.answer !== undefined) {
+              /* ── ANSWER TOKEN ── */
+              if (phase === 'think') {
+                phase = 'answer';
+                thinkDurStr = ((Date.now()-tStart)/1000).toFixed(1);
+                if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
+                if (thLbl) thLbl.textContent = `Thought for ${thinkDurStr}s`;
+                if (txtEl) {
+                  txtEl.style.display='';
+                  const aState=modeOn('code')?'coding':'writing';
+                  const aLabel=modeOn('code')?'Writing Code':'Writing';
+                  txtEl.innerHTML=`<div class="activity-wrap" data-state="${aState}">
+                    <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                    <div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div></div>
+                  </div>`;
+                }
+              }
+              answerText += chunk.answer;
+              answerBuf  += chunk.answer;
+              if (txtEl) {
+                const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+                txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
+                if (S.settings.autoscroll) scrollBot();
+              }
+            }
+          }
+
+          /* Finalise think display */
+          if (!thinkDurStr) thinkDurStr = ((Date.now()-tStart)/1000).toFixed(1);
+          if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
+          if (thLbl) thLbl.textContent = `Thought for ${thinkDurStr}s`;
+          if (txtEl) {
+            const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+            txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText||'_(No answer generated)_'));
+            txtEl.style.display='';
+          }
+
+        } else {
+          /* ─────────────────────────────
+             MODEL 0 — no think tags
+          ───────────────────────────── */
+          for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096)) {
+            if (S.abort?.signal?.aborted) break;
+            const txt = chunk.answer ?? chunk.think ?? '';
+            if (!txt) continue;
+            answerText += txt;
+            if (txtEl) {
+              const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+              txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
               const subEl=document.getElementById(aiId+'sub');
-              if(subEl&&cur.length>10){const snip=cur.replace(/[#*`_\[\]]/g,'').trim().slice(-60);if(snip)subEl.textContent=snip;}
+              if(subEl&&answerText.length>10){const snip=answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);if(snip)subEl.textContent=snip;}
               if(S.settings.autoscroll)scrollBot();
             }
-          );
-          finishReason=fr;answerText=full;
-          if(txtEl)txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));
+          }
 
-          /* Smart re-search for model 0 if uncertain */
-          if(answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')){
-            const looksUncertain=(
-              /i (don'?t|do not) (really |actually )?(know|have information)/i.test(answerText)||
-              /i('?m| am) not sure/i.test(answerText)||
-              /i (can'?t|cannot) (confirm|verify)/i.test(answerText)||
-              /my (knowledge|training).{0,30}(cut.?off|limit|outdated)/i.test(answerText)||
-              /i('?m| am) (unsure|uncertain)/i.test(answerText)
-            );
-            if(looksUncertain){
-              /* Note: this is still shown as user-search since it's model-0 */
+          /* Smart re-search for model 0 */
+          if (answerText && !userSearchData && S.settings.webSearchAuto && !modeOn('image')) {
+            if (detectUncertainty(answerText)) {
               showUserSearchInd();
               const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
               const sd=await doSearch(q);
               hideUserSearchInd();
-              if(sd){
-                userSearchData=sd;userWantsSearch=true;finalSources=sd.results||[];
-                let sys2=dtCtx()+buildSearchCtx(sd);
-                if(modeOn('code'))sys2+=CODE_MODE_EXTRA;
+              if (sd) {
+                userSearchData=sd; userWantsSearch=true;
+                const ctx2=extraCtx+buildSearchCtx(sd);
                 if(txtEl){txtEl.innerHTML=`<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div></div>`;}
+                answerText='';
                 S.abort=new AbortController();
-                const{full:full2,finishReason:fr2}=await apiCall(
-                  baseMsgs,sys2,modelKey,4096,
-                  (delta,cur)=>{
-                    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';}
-                    if(S.settings.autoscroll)scrollBot();
-                  }
-                );
-                finishReason=fr2;answerText=full2;
-                if(txtEl)txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));
+                for await (const chunk of streamParsed(baseMsgs, ctx2, modelKey, 4096)) {
+                  if(S.abort?.signal?.aborted)break;
+                  const txt=chunk.answer??chunk.think??'';if(!txt)continue;
+                  answerText+=txt;
+                  if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';if(S.settings.autoscroll)scrollBot();}
+                }
               }
             }
           }
-          if(userSearchData)finalSources=userSearchData.results||[];
-          else finalSources=[];
+
+          if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));}
         }
 
-      }catch(err){
+      } catch(err) {
         if(err.name!=='AbortError'){
           document.getElementById(aiId)?.remove();
           document.getElementById('stop-row')?.remove();
           showErr();S.busy=false;S.abort=null;
-          const inp=document.getElementById('user-input');
-          const sb=document.getElementById('send-btn');
+          const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
           if(sb)sb.disabled=!inp||!inp.value.trim();
           return;
         }
-        answerText=answerText||'';
+        /* User aborted — save whatever we have */
       }
 
       document.getElementById(aiId)?.remove();
       document.getElementById('stop-row')?.remove();
 
-      const savedAnswer=answerText||'';
-      if(!savedAnswer&&!thinkText){
-        convo.msgs.push({
-          role:'assistant',content:'_(No response — tap Retry)_',
-          ts:Date.now(),
-          userSearched:!!userWantsSearch,  /* only true if user toggled Search */
-          sources:finalSources,
-          codeMode:modeOn('code'),thinking:null,thinkDuration:null,
-          truncated:false,emptyRetry:true,modelKey,
-        });
+      /* Determine effective sources */
+      const effectiveSources = userWantsSearch ? (userSearchData?.results||[]) : [];
+
+      const savedAnswer = answerText.trim();
+      if(!savedAnswer&&!thinkText.trim()){
+        convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});
       }else{
-        convo.msgs.push({
-          role:'assistant',content:savedAnswer,
-          ts:Date.now(),
-          userSearched:!!userWantsSearch,  /* only true if user toggled Search */
-          sources:finalSources,
-          codeMode:modeOn('code'),thinking:thinkText,thinkDuration:thinkDurStr,
-          truncated:finishReason==='length',modelKey,
-        });
+        convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:thinkText.trim()||null,thinkDuration:thinkDurStr,truncated:false,modelKey});
       }
 
       renderMsgs();saveStore();
       S.busy=false;S.abort=null;
-      const inp=document.getElementById('user-input');
-      const sb=document.getElementById('send-btn');
+      const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
       if(sb)sb.disabled=!inp||!inp.value.trim();
       scrollBot();
     }
@@ -1401,39 +1311,34 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
       const txtEl=document.getElementById(`msg-${idx}-text`);if(!txtEl)return;
       S.busy=true;S.abort=new AbortController();
 
-      let contExtra=dtCtx();
-      contExtra+='\n\n[Respond directly to the user. Polished, complete answer only.]';
-      if(modeOn('code'))contExtra+=CODE_MODE_EXTRA;
-      if(msg.sources&&msg.sources.length)contExtra+=buildSearchCtx({results:msg.sources});
-      contExtra+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+      let ctx=dtCtx();
+      if(modeOn('code'))ctx+='\n\n[CODE MODE: Working code only. Fenced blocks.]';
+      if(msg.sources&&msg.sources.length)ctx+=buildSearchCtx({results:msg.sources});
+      ctx+='\n\n[Continue from where the response cut off. Do not repeat anything.]';
 
       const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
-      let full=msg.content,fr=null;
+      let full=msg.content;
       try{
-        const r=await apiCall(msgs,contExtra,msg.modelKey||S.model,4096,
-          (delta,cur)=>{
-            txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';
-            if(S.settings.autoscroll)scrollBot();
-          }
-        );
-        full=r.full;fr=r.finishReason;
+        for await(const chunk of streamParsed(msgs,ctx,msg.modelKey||S.model,4096)){
+          if(S.abort?.signal?.aborted)break;
+          const txt=chunk.answer??chunk.think??'';if(!txt)continue;
+          full+=txt;
+          txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
+          if(S.settings.autoscroll)scrollBot();
+        }
       }catch(e){}
       txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full));
-      msg.content=full;msg.truncated=fr==='length';msg.ts=Date.now();
-      const ad=msgRow?.querySelector('.msg-acts');
-      if(ad)ad.innerHTML=msg.truncated?`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`:'';
+      msg.content=full;msg.truncated=false;msg.ts=Date.now();
+      const ad=msgRow?.querySelector('.msg-acts');if(ad)ad.innerHTML='';
       attachCodeBtns();saveStore();
       S.busy=false;S.abort=null;
-      const inp=document.getElementById('user-input');
-      const sb=document.getElementById('send-btn');
-      if(sb)sb.disabled=!inp||!inp.value.trim();
-      scrollBot();
+      const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
+      if(sb)sb.disabled=!inp||!inp.value.trim();scrollBot();
     }
 
     async function genImage(convo,prompt){
       S.busy=true;
-      const aiId='img'+Date.now();
-      const ca=document.getElementById('chat-area');
+      const aiId='img'+Date.now();const ca=document.getElementById('chat-area');
       const row=document.createElement('div');row.className='msg-row ai';row.id=aiId;
       row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt">
         <div class="activity-wrap" data-state="imaging">
@@ -1506,7 +1411,7 @@ Do not write a final answer here. Do not greet the user. This is internal only.`
           <div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div>
         </div>
         <div class="sg"><div class="sg-lbl">Web Search</div>
-          <div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">AI searches when uncertain or query needs live data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div>
+          <div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">AI searches when uncertain during thinking</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div>
         </div>
         <div class="sg"><div class="sg-lbl">Data</div>
           <div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div>
