@@ -67,15 +67,15 @@ input,textarea{outline:none;border:none;background:none;}
 .activity-orb-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;animation:orbSpin 1.8s linear infinite}
 .activity-orb-dot{width:6px;height:6px;border-radius:50%;position:relative;z-index:1}
 .activity-wrap[data-state="thinking"] .activity-orb-ring{border-top-color:#a855f7;border-right-color:rgba(168,85,247,.4)}
-.activity-wrap[data-state="thinking"] .activity-orb-dot{background:#a855f7;box-shadow:0 0 10px rgba(168,85,247,.8)}
+.activity-wrap[data-state="thinking"] .activity-orb-dot{background:#a855f7}
 .activity-wrap[data-state="writing"] .activity-orb-ring{border-top-color:#ddd;border-right-color:rgba(221,221,221,.4)}
 .activity-wrap[data-state="writing"] .activity-orb-dot{background:#bbb}
 .activity-wrap[data-state="coding"] .activity-orb-ring{border-top-color:#4ade80;border-right-color:rgba(74,222,128,.4)}
-.activity-wrap[data-state="coding"] .activity-orb-dot{background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.7)}
+.activity-wrap[data-state="coding"] .activity-orb-dot{background:#4ade80}
 .activity-wrap[data-state="searching"] .activity-orb-ring{border-top-color:#4a9eff;border-right-color:rgba(74,158,255,.4)}
-.activity-wrap[data-state="searching"] .activity-orb-dot{background:#4a9eff;box-shadow:0 0 10px rgba(74,158,255,.7)}
+.activity-wrap[data-state="searching"] .activity-orb-dot{background:#4a9eff}
 .activity-wrap[data-state="imaging"] .activity-orb-ring{border-top-color:#fbbf24;border-right-color:rgba(251,191,36,.4)}
-.activity-wrap[data-state="imaging"] .activity-orb-dot{background:#fbbf24;box-shadow:0 0 10px rgba(251,191,36,.7)}
+.activity-wrap[data-state="imaging"] .activity-orb-dot{background:#fbbf24}
 @keyframes orbSpin{to{transform:rotate(360deg)}}
 .activity-right{display:flex;flex-direction:column;gap:3px;min-width:0}
 .activity-label{font-size:12px;font-weight:600;letter-spacing:.2px}
@@ -91,9 +91,9 @@ input,textarea{outline:none;border:none;background:none;}
 .ai-think{margin-bottom:10px;border:1px solid #1e1530;border-radius:12px;overflow:hidden;background:#080810}
 .ai-think-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#0d0b14;cursor:pointer;user-select:none}
 .ai-think-hdr:active{background:#120f1c}
-.ai-think-chev{transition:transform .25s ease;color:#7c3aed;flex-shrink:0}
+.ai-think-chev{transition:transform .25s ease;color:#c084fc;flex-shrink:0}
 .ai-think.open .ai-think-chev{transform:rotate(90deg)}
-.ai-think-lbl{font-size:12px;font-weight:600;color:#9d71e8;letter-spacing:.3px;flex:1}
+.ai-think-lbl{font-size:12px;font-weight:600;color:#c084fc;letter-spacing:.3px;flex:1}
 .ai-think.streaming .ai-think-lbl::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
 .ai-think-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
 .ai-think.open .ai-think-body{max-height:600px;overflow-y:auto}
@@ -178,7 +178,7 @@ input,textarea{outline:none;border:none;background:none;}
 .mp-desc{font-size:11px;color:#555;line-height:1.3}
 .mp-item.sel .mp-desc{color:#777}
 
-#image-notice{display:none;text-align:center;font-size:10.5px;color:#ffe066;text-shadow:0 0 10px rgba(255,224,50,.6);padding:6px 14px 0;line-height:1.5}
+#image-notice{display:none;text-align:center;font-size:10.5px;color:#ffe066;padding:6px 14px 0;line-height:1.5}
 #image-notice.show{display:block}
 .stream-cur{display:inline-block;width:2px;height:15px;background:#666;margin-left:2px;vertical-align:text-bottom;animation:blink .8s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
@@ -288,19 +288,22 @@ input,textarea{outline:none;border:none;background:none;}
     <button class="tb-btn" onclick="openSidebar()">
       <!-- pixel art hamburger -->
       <svg width="20" height="20" viewBox="0 0 10 10" fill="currentColor" shape-rendering="crispEdges">
-        <rect x="1" y="2" width="8" height="1"/><rect x="1" y="4" width="8" height="1"/><rect x="1" y="6" width="8" height="1"/>
+        <rect x="1" y="2" width="8" height="2"/><rect x="1" y="5" width="8" height="1"/><rect x="1" y="7" width="8" height="2"/>
       </svg>
     </button>
     <div class="tb-center"><div class="tb-title" id="tb-title"></div></div>
     <button class="tb-btn" onclick="newChat()">
-      <!-- pixel art pencil -->
-      <svg width="20" height="20" viewBox="0 0 10 10" fill="currentColor" shape-rendering="crispEdges">
-        <rect x="6" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/>
-        <rect x="6" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/>
-        <rect x="3" y="4" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/>
-        <rect x="3" y="6" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/>
-        <rect x="1" y="7" width="1" height="1"/><rect x="1" y="8" width="2" height="1"/>
-      </svg>
+        <!-- pixel art pencil -->
+        <svg width="20" height="20" viewBox="0 0 10 10" fill="currentColor" shape-rendering="crispEdges">
+          <rect x="6" y="0" width="2" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/>
+          <rect x="4" y="2" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/>
+          <rect x="3" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/>
+          <rect x="2" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/>
+          <rect x="1" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/>
+          <rect x="1" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/>
+          <rect x="1" y="7" width="2" height="1"/><rect x="3" y="7" width="1" height="1"/>
+          <rect x="1" y="8" width="3" height="1"/>
+        </svg>
     </button>
   </div>
 
@@ -309,8 +312,13 @@ input,textarea{outline:none;border:none;background:none;}
     <button id="scroll-btn" onclick="scrollBot(true)">
       <!-- pixel art arrow down -->
       <svg width="16" height="16" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
-        <rect x="3" y="1" width="2" height="4"/><rect x="2" y="4" width="4" height="1"/>
-        <rect x="1" y="5" width="6" height="1"/><rect x="2" y="6" width="4" height="1"/><rect x="3" y="7" width="2" height="1"/>
+        <rect x="3" y="1" width="2" height="1"/>
+        <rect x="3" y="2" width="2" height="1"/>
+        <rect x="3" y="3" width="2" height="1"/>
+        <rect x="2" y="4" width="4" height="1"/>
+        <rect x="1" y="5" width="6" height="1"/>
+        <rect x="2" y="6" width="4" height="1"/>
+        <rect x="3" y="7" width="2" height="1"/>
       </svg>
     </button>
   </div>
@@ -320,33 +328,36 @@ input,textarea{outline:none;border:none;background:none;}
       <div class="input-tools">
         <button class="mode-btn" id="web-btn" onclick="toggleMode('web')">
           <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
-            <rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="1"/>
-            <rect x="1" y="3" width="6" height="1"/><rect x="0" y="3" width="1" height="2"/><rect x="7" y="3" width="1" height="2"/>
-            <rect x="1" y="4" width="6" height="1"/><rect x="1" y="5" width="6" height="1"/>
-            <rect x="2" y="6" width="4" height="1"/><rect x="3" y="7" width="2" height="1"/>
-            <rect x="2" y="3" width="4" height="1" fill="transparent"/>
+            <rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/>
+            <rect x="1" y="2" width="6" height="1"/><rect x="0" y="3" width="8" height="1"/>
+            <rect x="1" y="4" width="6" height="1"/><rect x="2" y="5" width="4" height="1"/>
+            <rect x="3" y="6" width="2" height="1"/>
+            <rect x="0" y="3" width="1" height="2"/><rect x="7" y="3" width="1" height="2"/>
+            <rect x="3" y="0" width="2" height="7"/>
           </svg>
           Search
         </button>
         <button class="mode-btn" id="code-btn" onclick="toggleMode('code')">
           <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
-            <rect x="0" y="3" width="1" height="2"/><rect x="1" y="2" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/>
-            <rect x="2" y="1" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/>
-            <rect x="5" y="1" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/>
-            <rect x="6" y="2" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/>
-            <rect x="7" y="3" width="1" height="2"/>
+            <rect x="2" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/>
+            <rect x="0" y="3" width="1" height="2"/><rect x="1" y="5" width="1" height="1"/>
+            <rect x="2" y="6" width="1" height="1"/>
+            <rect x="5" y="1" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/>
+            <rect x="7" y="3" width="1" height="2"/><rect x="6" y="5" width="1" height="1"/>
+            <rect x="5" y="6" width="1" height="1"/>
+            <rect x="3" y="3" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/>
           </svg>
           Code
         </button>
         <button class="mode-btn" id="image-btn" onclick="toggleMode('image')">
           <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
-            <rect x="0" y="0" width="8" height="1"/><rect x="0" y="7" width="8" height="1"/>
-            <rect x="0" y="0" width="1" height="8"/><rect x="7" y="0" width="1" height="8"/>
-            <rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/>
-            <rect x="1" y="5" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+            <rect x="0" y="1" width="8" height="1"/><rect x="0" y="6" width="8" height="1"/>
+            <rect x="0" y="1" width="1" height="6"/><rect x="7" y="1" width="1" height="6"/>
+            <rect x="2" y="3" width="1" height="1"/>
+            <rect x="1" y="5" width="2" height="1"/><rect x="2" y="4" width="1" height="1"/>
             <rect x="3" y="3" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/>
-            <rect x="5" y="3" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/>
-            <rect x="5" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/>
+            <rect x="5" y="3" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/>
+            <rect x="3" y="5" width="4" height="1"/>
           </svg>
           Image
         </button>
@@ -357,8 +368,10 @@ input,textarea{outline:none;border:none;background:none;}
         <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
           <!-- pixel art arrow up -->
           <svg width="16" height="16" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
-            <rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/>
-            <rect x="1" y="2" width="6" height="1"/><rect x="2" y="3" width="4" height="1"/>
+            <rect x="3" y="0" width="2" height="1"/>
+            <rect x="2" y="1" width="4" height="1"/>
+            <rect x="1" y="2" width="6" height="1"/>
+            <rect x="2" y="3" width="4" height="1"/>
             <rect x="3" y="3" width="2" height="5"/>
           </svg>
         </button>
@@ -390,15 +403,17 @@ input,textarea{outline:none;border:none;background:none;}
   <div class="sb-head"><img class="sb-logo" src="icon.webp" alt=""/></div>
   <button class="sb-new" onclick="newChat();closeSidebar()">
     <svg width="14" height="14" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges">
-      <rect x="3" y="0" width="1" height="7"/><rect x="0" y="3" width="7" height="1"/>
+      <rect x="3" y="1" width="1" height="5"/><rect x="1" y="3" width="5" height="1"/>
     </svg>
     New conversation
   </button>
   <div class="sb-search">
     <svg width="14" height="14" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
-      <rect x="2" y="0" width="4" height="1"/><rect x="1" y="1" width="6" height="1"/><rect x="0" y="2" width="2" height="4"/>
-      <rect x="6" y="2" width="2" height="4"/><rect x="1" y="6" width="6" height="1"/><rect x="2" y="7" width="4" height="1"/>
-      <rect x="6" y="6" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/>
+      <rect x="2" y="0" width="3" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="3"/><rect x="6" y="2" width="1" height="3"/>
+      <rect x="1" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/>
+      <rect x="2" y="6" width="3" height="1"/>
+      <rect x="5" y="6" width="1" height="1"/><rect x="6" y="7" width="2" height="1"/>
     </svg>
     <input type="text" placeholder="Search chats" oninput="filterSB(this.value)"/>
   </div>
@@ -409,20 +424,23 @@ input,textarea{outline:none;border:none;background:none;}
       <svg width="18" height="18" viewBox="0 0 9 9" fill="currentColor" shape-rendering="crispEdges">
         <rect x="3" y="0" width="3" height="1"/><rect x="3" y="8" width="3" height="1"/>
         <rect x="0" y="3" width="1" height="3"/><rect x="8" y="3" width="1" height="3"/>
+        <rect x="1" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/>
+        <rect x="1" y="7" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/>
         <rect x="2" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/>
-        <rect x="1" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/>
         <rect x="2" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/>
+        <rect x="1" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/>
         <rect x="1" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/>
-        <rect x="3" y="3" width="3" height="3"/>
+        <rect x="2" y="3" width="5" height="3"/>
       </svg>
       Settings
     </button>
     <button class="sb-fbtn danger" onclick="clearAll()">
       <svg width="18" height="18" viewBox="0 0 9 9" fill="currentColor" shape-rendering="crispEdges">
-        <rect x="0" y="1" width="9" height="1"/><rect x="2" y="0" width="5" height="1"/>
-        <rect x="1" y="2" width="1" height="7"/><rect x="7" y="2" width="1" height="7"/>
+        <rect x="0" y="2" width="9" height="1"/>
+        <rect x="3" y="0" width="3" height="1"/><rect x="2" y="1" width="5" height="1"/>
+        <rect x="1" y="3" width="1" height="5"/><rect x="7" y="3" width="1" height="5"/>
         <rect x="2" y="8" width="5" height="1"/>
-        <rect x="3" y="3" width="1" height="4"/><rect x="5" y="3" width="1" height="4"/>
+        <rect x="3" y="4" width="1" height="3"/><rect x="5" y="4" width="1" height="3"/>
       </svg>
       Clear all
     </button>
@@ -495,11 +513,11 @@ const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. Better accuracy.','00
    All colors are ALWAYS bright — no dimming
 ══════════════════════════════════════ */
 const C={
-  grey:  {border:'#444',    text:'#aaa',   glow:'none',                              bg:'#1a1a1a', bgFocus:'#333',   send:'#fff',   sendTxt:'#000', sendDis:'#333',  sendDisTxt:'#888', modeBorder:'#333',  modeText:'#aaa',  modeBg:'#111'},
-  green: {border:'#4ade80', text:'#4ade80', glow:'0 0 14px rgba(74,222,128,.55)',    bg:'#0d2010', bgFocus:'#4ade80',send:'#4ade80',sendTxt:'#000', sendDis:'#1a3520',sendDisTxt:'#3a8a5a',modeBorder:'#4ade80',modeText:'#4ade80',modeBg:'#0a1a0e'},
-  blue:  {border:'#4a9eff', text:'#4a9eff', glow:'0 0 14px rgba(74,158,255,.55)',    bg:'#0a1a2e', bgFocus:'#4a9eff',send:'#4a9eff',sendTxt:'#000', sendDis:'#0a1a3a',sendDisTxt:'#2a5a8a',modeBorder:'#4a9eff',modeText:'#4a9eff',modeBg:'#060f1c'},
-  yellow:{border:'#fbbf24', text:'#fbbf24', glow:'0 0 14px rgba(251,191,36,.55)',    bg:'#1e1600', bgFocus:'#fbbf24',send:'#fbbf24',sendTxt:'#000', sendDis:'#2a1e00',sendDisTxt:'#8a7020',modeBorder:'#fbbf24',modeText:'#fbbf24',modeBg:'#130f00'},
-  red:   {border:'#ef4444', text:'#ef4444', glow:'0 0 14px rgba(239,68,68,.55)',     bg:'#1e0808', bgFocus:'#ef4444',send:'#ef4444',sendTxt:'#fff', sendDis:'#2a0a0a',sendDisTxt:'#8a3030',modeBorder:'#ef4444',modeText:'#ef4444',modeBg:'#100404'},
+  grey:  {border:'#444',    text:'#aaa',   glow:'none', bg:'#1a1a1a', bgFocus:'#333',   send:'#fff',   sendTxt:'#000', sendDis:'#333',  sendDisTxt:'#888', modeBorder:'#333',  modeText:'#aaa',  modeBg:'#111'},
+  green: {border:'#4ade80', text:'#4ade80', glow:'none', bg:'#0d2010', bgFocus:'#4ade80',send:'#4ade80',sendTxt:'#000', sendDis:'#1a3520',sendDisTxt:'#3a8a5a',modeBorder:'#4ade80',modeText:'#4ade80',modeBg:'#0a1a0e'},
+  blue:  {border:'#4a9eff', text:'#4a9eff', glow:'none', bg:'#0a1a2e', bgFocus:'#4a9eff',send:'#4a9eff',sendTxt:'#000', sendDis:'#0a1a3a',sendDisTxt:'#2a5a8a',modeBorder:'#4a9eff',modeText:'#4a9eff',modeBg:'#060f1c'},
+  yellow:{border:'#fbbf24', text:'#fbbf24', glow:'none', bg:'#1e1600', bgFocus:'#fbbf24',send:'#fbbf24',sendTxt:'#000', sendDis:'#2a1e00',sendDisTxt:'#8a7020',modeBorder:'#fbbf24',modeText:'#fbbf24',modeBg:'#130f00'},
+  red:   {border:'#ef4444', text:'#ef4444', glow:'none', bg:'#1e0808', bgFocus:'#ef4444',send:'#ef4444',sendTxt:'#fff', sendDis:'#2a0a0a',sendDisTxt:'#8a3030',modeBorder:'#ef4444',modeText:'#ef4444',modeBg:'#100404'},
 };
 
 function resolveColor(){
@@ -669,7 +687,7 @@ function buildMsg(msg,idx){
     const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:'Thought';
     thinkHtml=`<div class="ai-think" onclick="this.classList.toggle('open')">
       <div class="ai-think-hdr">
-        <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="#7c3aed" shape-rendering="crispEdges"><rect x="0" y="1" width="1" height="3"/><rect x="1" y="0" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="1" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/></svg>
+        <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl">${esc(dur)}</span>
       </div>
       <div class="ai-think-body"><div class="ai-think-content">${esc(sanitizeThinkText(msg.thinking))}</div></div>
@@ -737,7 +755,7 @@ function appendPending(id){
   if(m.hasThink){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
       <div class="ai-think open streaming" id="${id}think"><div class="ai-think-hdr" onclick="this.closest('.ai-think').classList.toggle('open')">
-        <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="#7c3aed" shape-rendering="crispEdges"><rect x="0" y="1" width="1" height="3"/><rect x="1" y="0" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="1" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/></svg>
+        <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl" id="${id}thlbl">Thinking</span></div>
         <div class="ai-think-body"><div class="ai-think-content" id="${id}thcont"></div></div></div>
       <div class="answer-waiting" id="${id}aw"><div class="answer-waiting-dots"><span></span><span></span><span></span></div><span class="answer-waiting-lbl">Answer on the way…</span></div>
