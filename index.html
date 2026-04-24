@@ -905,10 +905,17 @@
 
     /* ══════════════════════════════════════
        RAW SSE STREAM
+       ─────────────────────────────────────
+       Now also yields a SEPARATOR when it sees
+       reasoning_content -> content transition in
+       the SSE deltas, so the parser can close
+       the think block even if the server didn't.
+       Server still SHOULD emit </think>, but this
+       is a defensive fallback for upstreams that
+       expose reasoning_content separately.
     ══════════════════════════════════════ */
-    async function* streamRaw(msgs, extraCtx, modelKey, maxTok) {
+    async function* streamRaw(msgs, extraCtx, modelKey, maxTok, abortSignal) {
       const mDef = MODELS[modelKey] || MODELS['0'];
-      S.abort = new AbortController();
       let res;
       try {
         res = await fetch('/api/chat.js', {
@@ -921,7 +928,7 @@
             maxTokens:    maxTok || 8000,
             model:        modelKey,
           }),
-          signal: S.abort.signal,
+          signal: abortSignal,
         });
       } catch (e) {
         if (e.name !== 'AbortError') throw e;
@@ -932,6 +939,9 @@
       const reader = res.body.getReader();
       const dec    = new TextDecoder();
       let   buf    = '';
+      let   sawReasoningField = false;
+      let   sawContentField   = false;
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -945,9 +955,28 @@
             const raw = l.slice(6).trim();
             if (raw === '[DONE]') return;
             try {
-              const d     = JSON.parse(raw);
-              const delta = d.choices?.[0]?.delta?.content ?? d.message?.content ?? '';
-              if (delta) yield delta;
+              const d = JSON.parse(raw);
+              const reasoning = d.choices?.[0]?.delta?.reasoning_content
+                             ?? d.choices?.[0]?.delta?.reasoning;
+              const content   = d.choices?.[0]?.delta?.content
+                             ?? d.message?.content
+                             ?? '';
+
+              if (reasoning) {
+                if (!sawReasoningField) sawReasoningField = true;
+                /* Wrap reasoning_content as think text for the parser */
+                yield '<think>' + reasoning + '</think_partial>';
+                continue;
+              }
+              if (content) {
+                /* If we previously saw a reasoning field and now content
+                   arrives, force-close any open think block first. */
+                if (sawReasoningField && !sawContentField) {
+                  sawContentField = true;
+                  yield '</think>'; /* hard close */
+                }
+                yield content;
+              }
             } catch (_) {}
           }
         }
@@ -959,27 +988,63 @@
     /* ══════════════════════════════════════
        SLIDING WINDOW THINK PARSER
        ─────────────────────────────────────
-       Safely isolates the complete think block
-       from the final answer without mixing tokens.
+       Hardened state machine:
+       • Recognizes <think>, <thinking>,
+         <|begin_of_thought|> as openers.
+       • Recognizes </think>, </thinking>,
+         <|end_of_thought|> as closers.
+       • Once answer phase has started, any
+         further <think>... is treated as plain
+         text (model misbehavior fallback).
+       • Accepts an initial inThink so callers
+         can carry state across restarts.
+       • The ephemeral marker </think_partial>
+         (emitted by streamRaw to wrap a single
+         reasoning_content delta) is consumed
+         silently — its purpose is only to keep
+         that delta inside the think buffer
+         without ending the think phase.
     ══════════════════════════════════════ */
-    async function* streamParsed(msgs, extraCtx, modelKey, maxTok) {
-      let inThink = false;
+    const OPEN_TAGS  = ['<think>', '<thinking>', '<|begin_of_thought|>'];
+    const CLOSE_TAGS = ['</think>', '</thinking>', '<|end_of_thought|>'];
+    const PARTIAL_CLOSE = '</think_partial>';
+    const MAX_TAG_LEN = 22; /* longest tag we look for */
+
+    function findFirst(buffer, tags) {
+      let best = -1, bestTag = null;
+      for (const t of tags) {
+        const i = buffer.indexOf(t);
+        if (i !== -1 && (best === -1 || i < best)) { best = i; bestTag = t; }
+      }
+      return { idx: best, tag: bestTag };
+    }
+
+    async function* streamParsed(msgs, extraCtx, modelKey, maxTok, abortSignal, initialInThink = false) {
+      let inThink = !!initialInThink;
+      let answerStarted = false;
       let buffer = '';
 
-      for await (const delta of streamRaw(msgs, extraCtx, modelKey, maxTok)) {
+      for await (const delta of streamRaw(msgs, extraCtx, modelKey, maxTok, abortSignal)) {
         buffer += delta;
+
+        /* Drain partial-close markers (used to bracket reasoning_content
+           deltas without flipping the state machine). */
+        while (true) {
+          const pi = buffer.indexOf(PARTIAL_CLOSE);
+          if (pi === -1) break;
+          buffer = buffer.slice(0, pi) + buffer.slice(pi + PARTIAL_CLOSE.length);
+        }
 
         while (buffer.length > 0) {
           if (inThink) {
-            const endIdx = buffer.indexOf('</think>');
-            if (endIdx !== -1) {
-              const thinkPart = buffer.substring(0, endIdx);
-              if (thinkPart) yield { type: 'think', text: thinkPart };
+            const { idx, tag } = findFirst(buffer, CLOSE_TAGS);
+            if (idx !== -1) {
+              const part = buffer.substring(0, idx);
+              if (part) yield { type: 'think', text: part };
               inThink = false;
-              buffer = buffer.substring(endIdx + 8);
+              buffer = buffer.substring(idx + tag.length);
             } else {
-              // Yield everything except the last 7 chars (potential start of </think>)
-              const safeLen = Math.max(0, buffer.length - 7);
+              const safeLen = Math.max(0, buffer.length - MAX_TAG_LEN);
               if (safeLen > 0) {
                 yield { type: 'think', text: buffer.substring(0, safeLen) };
                 buffer = buffer.substring(safeLen);
@@ -987,17 +1052,34 @@
               break;
             }
           } else {
-            const startIdx = buffer.indexOf('<think>');
-            if (startIdx !== -1) {
-              const ansPart = buffer.substring(0, startIdx);
-              if (ansPart) yield { type: 'answer', text: ansPart };
-              inThink = true;
-              buffer = buffer.substring(startIdx + 7);
+            const { idx, tag } = findFirst(buffer, OPEN_TAGS);
+            if (idx !== -1) {
+              const ansPart = buffer.substring(0, idx);
+              if (ansPart) {
+                if (answerStarted) {
+                  yield { type: 'answer', text: ansPart };
+                } else {
+                  yield { type: 'answer', text: ansPart };
+                  if (ansPart.trim()) answerStarted = true;
+                }
+              }
+              if (answerStarted) {
+                /* Model tried to re-open think after answering — treat
+                   the literal tag as plain text and DON'T re-enter
+                   think mode. This prevents the SmartSearch retry
+                   loop from hiding the real reply. */
+                yield { type: 'answer', text: tag };
+                buffer = buffer.substring(idx + tag.length);
+              } else {
+                inThink = true;
+                buffer = buffer.substring(idx + tag.length);
+              }
             } else {
-              // Yield everything except the last 6 chars (potential start of <think>)
-              const safeLen = Math.max(0, buffer.length - 6);
+              const safeLen = Math.max(0, buffer.length - MAX_TAG_LEN);
               if (safeLen > 0) {
-                yield { type: 'answer', text: buffer.substring(0, safeLen) };
+                const txt = buffer.substring(0, safeLen);
+                yield { type: 'answer', text: txt };
+                if (txt.trim()) answerStarted = true;
                 buffer = buffer.substring(safeLen);
               }
               break;
@@ -1006,9 +1088,18 @@
         }
       }
 
-      // Flush any remaining buffer
+      /* Flush */
       if (buffer.length > 0) {
-        yield { type: inThink ? 'think' : 'answer', text: buffer };
+        if (inThink) {
+          /* Stream ended while still in <think>. If we never produced
+             any answer text, promote the trailing portion of the
+             think buffer to the answer so the user always sees
+             something — anything inside <think> from the LAST
+             "Final answer" / paragraph break onward. */
+          yield { type: 'think', text: buffer };
+        } else {
+          yield { type: 'answer', text: buffer };
+        }
       }
     }
 
@@ -1046,6 +1137,8 @@
       }
       if (contMode) extraCtx += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
+      S.abort = new AbortController();
+
       const enterAnswerPhase = () => {
         if (answerPhase) return;
         answerPhase = true;
@@ -1070,19 +1163,37 @@
         if (S.settings.autoscroll) scrollBot();
       };
 
+      const renderAnswer = () => {
+        if (!txtEl) return;
+        const aw = txtEl.querySelector('.activity-wrap');
+        if (aw) aw.remove();
+        txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
+        if (S.settings.autoscroll) scrollBot();
+      };
+
       try {
         if (useThink) {
           tStart = Date.now();
 
-          let whileSearchBreak = false;
+          let runWithSmartSearch = false;
+          let firstPass = true;
 
           while (true) {
-            whileSearchBreak = false;
+            runWithSmartSearch = false;
 
-            for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 8000)) {
-              if (S.abort?.signal?.aborted) break;
+            const ctxForThisRun = extraCtx;
+            for await (const chunk of streamParsed(baseMsgs, ctxForThisRun, modelKey, 8000, S.abort.signal, false)) {
+              if (S.abort?.signal?.aborted && !internalSearchFired) break;
 
               if (chunk.type === 'think') {
+                /* Once the answer has begun, never re-route content
+                   into the think bubble. This is the core fix. */
+                if (answerPhase) {
+                  answerText += chunk.text;
+                  renderAnswer();
+                  continue;
+                }
+
                 thinkText += chunk.text;
 
                 if (thCont) {
@@ -1094,65 +1205,78 @@
                   if (S.settings.autoscroll) scrollBot();
                 }
 
-                if (!internalSearchFired && S.settings.webSearchAuto && !userSearchData && thinkText.length > 80 && detectUncertainty(thinkText)) {
+                /* Only fire SmartSearch on the FIRST pass and only
+                   while still in the think phase. */
+                if (firstPass && !internalSearchFired && S.settings.webSearchAuto && !userSearchData
+                    && thinkText.length > 80 && detectUncertainty(thinkText)) {
                   internalSearchFired = true;
-                  whileSearchBreak = true;
+                  runWithSmartSearch = true;
                   if (S.abort) S.abort.abort();
-                  break; 
+                  break;
                 }
 
               } else if (chunk.type === 'answer') {
                 enterAnswerPhase();
                 answerText += chunk.text;
-                if (txtEl) {
-                  const aw = txtEl.querySelector('.activity-wrap');
-                  if (aw) aw.remove();
-                  txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
-                  if (S.settings.autoscroll) scrollBot();
-                }
+                renderAnswer();
               }
             }
 
-            if (whileSearchBreak) {
-                let pill = null;
-                if (thCont) {
-                  pill = document.createElement('div');
-                  pill.className = 'think-srch-pill';
-                  pill.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                    Searching for more info
-                    <div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>`;
-                  thCont.appendChild(pill);
-                  if (S.settings.autoscroll) scrollBot();
-                }
+            if (runWithSmartSearch) {
+              let pill = null;
+              if (thCont) {
+                pill = document.createElement('div');
+                pill.className = 'think-srch-pill';
+                pill.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  Searching for more info
+                  <div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>`;
+                thCont.appendChild(pill);
+                if (S.settings.autoscroll) scrollBot();
+              }
 
-                const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
-                internalSearchData = await doSearch(q);
+              const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+              internalSearchData = await doSearch(q);
 
-                if (pill && thCont) {
-                  const done = document.createElement('div');
-                  done.className = 'think-srch-done';
-                  done.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    Found info — continuing`;
-                  pill.replaceWith(done);
-                }
+              if (pill && thCont) {
+                const done = document.createElement('div');
+                done.className = 'think-srch-done';
+                done.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  Found info — continuing`;
+                pill.replaceWith(done);
+              }
 
-                extraCtx = extraCtx + (internalSearchData ? buildSearchCtx(internalSearchData) : '');
-                S.abort = new AbortController();
-                
-                thinkText += '\n\n[Search Complete. Rethinking...]\n\n';
-                if (thCont) thCont._tn = null; 
-                
-                continue; 
+              extraCtx = extraCtx
+                + (internalSearchData ? buildSearchCtx(internalSearchData) : '')
+                + '\n\n[Reasoning context above is from a prior partial run. The web search results have been added. Now produce ONLY the final answer to the user. Do NOT emit <think> tags. Do NOT repeat your reasoning.]';
+
+              S.abort = new AbortController();
+              userSearchData = internalSearchData; /* prevent re-trigger */
+              firstPass = false;
+
+              thinkText += '\n\n[Search complete — generating answer…]\n\n';
+              if (thCont) thCont._tn = null;
+
+              continue;
             } else {
-                break; 
+              break;
             }
           }
 
           if (!answerPhase) {
-            thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
-            if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
-            if (thLbl)   thLbl.textContent = `Thought for ${thinkDurStr}s`;
-            if (awEl)    awEl.remove();
+            /* Stream ended without ever producing an answer.
+               Promote the tail of thinkText (after the last
+               "**Final**" / blank-line / "Answer:" marker) to
+               the answer so the user always sees something. */
+            const promoted = promoteThinkTail(thinkText);
+            if (promoted) {
+              answerText = promoted;
+              enterAnswerPhase();
+            } else {
+              thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
+              if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
+              if (thLbl)   thLbl.textContent = `Thought for ${thinkDurStr}s`;
+              if (awEl)    awEl.remove();
+            }
           }
 
           if (txtEl) {
@@ -1168,7 +1292,7 @@
           /* ════════════════════════════
              MODEL 0 — no think tags
           ════════════════════════════ */
-          for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096)) {
+          for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096, S.abort.signal, false)) {
             if (S.abort?.signal?.aborted) break;
             const txt = chunk.text || '';
             if (!txt) continue;
@@ -1203,7 +1327,7 @@
                 }
                 answerText = '';
                 S.abort = new AbortController();
-                for await (const chunk of streamParsed(baseMsgs, ctx2, modelKey, 4096)) {
+                for await (const chunk of streamParsed(baseMsgs, ctx2, modelKey, 4096, S.abort.signal, false)) {
                   if (S.abort?.signal?.aborted) break;
                   const txt = chunk.text || '';if(!txt)continue;
                   answerText += txt;
@@ -1267,6 +1391,33 @@
       scrollBot();
     }
 
+    /* If the model never closed </think> but clearly wrote a final
+       answer inside, try to extract it. Looks for common reasoning
+       sign-offs and returns everything after the last one. */
+    function promoteThinkTail(thinkText) {
+      if (!thinkText) return '';
+      const t = thinkText.trim();
+      if (!t) return '';
+      const markers = [
+        /(?:^|\n)\s*(?:final answer|final response|answer|so the answer is|so my answer is|to summarize|in summary|here(?:'s| is) (?:the|my) answer)\s*[:\-—]\s*/i,
+        /\n\s*\n(?=[A-Z0-9])/g, /* fall back to last paragraph break */
+      ];
+      for (const re of markers) {
+        if (re.global) {
+          let last = -1, m;
+          while ((m = re.exec(t)) !== null) last = m.index + m[0].length;
+          if (last > 0 && last < t.length - 10) return t.slice(last).trim();
+        } else {
+          const m = t.match(re);
+          if (m && m.index !== undefined) {
+            const after = t.slice(m.index + m[0].length).trim();
+            if (after.length > 10) return after;
+          }
+        }
+      }
+      return '';
+    }
+
     /* ══════════════════════════════════════
        RETRY / CONTINUE / IMAGE / STOP
     ══════════════════════════════════════ */
@@ -1290,11 +1441,11 @@
       let ctx=dtCtx();
       if(modeOn('code'))ctx+='\n\n[CODE MODE: Working code only. Fenced code blocks.]';
       if(msg.sources&&msg.sources.length)ctx+=buildSearchCtx({results:msg.sources});
-      ctx+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+      ctx+='\n\n[Continue from where the response cut off. Do not repeat anything already said. Do not emit <think> tags.]';
       const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
       let full=msg.content;
       try{
-        for await(const chunk of streamParsed(msgs,ctx,msg.modelKey||S.model,4096)){
+        for await(const chunk of streamParsed(msgs,ctx,msg.modelKey||S.model,4096,S.abort.signal,false)){
           if(S.abort?.signal?.aborted)break;
           const txt=chunk.text||'';if(!txt)continue;
           if (chunk.type === 'answer') {
@@ -1346,7 +1497,8 @@
     function retryLast(){
       const c=curConvo();if(!c||S.busy)return;
       document.getElementById('err-row')?.remove();
-      const aiId='ai'+Date.now();appendPending(aiId);generate(c,aiId,null,'',false);
+      const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];
+      const aiId='ai'+Date.now();appendPending(aiId);generate(c,aiId,null,um?.content||'',false);
     }
 
     /* ══════════════════════════════════════
