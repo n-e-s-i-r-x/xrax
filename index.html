@@ -663,7 +663,7 @@ function renderSB(filter=''){
 }
 function filterSB(v){renderSB(v);}
 
-function uid(){return'c'+Date.now()+Math.random().toString(36).slice(2,7);}
+function uid(){return'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,9);}
 function newChat(){S.activeId=null;showEmpty();renderSB();setTitle('');const inp=document.getElementById('user-input');if(inp){inp.value='';autoGrow(inp);inp.focus();}const sb=document.getElementById('send-btn');if(sb){sb.disabled=true;applyColors();}}
 function switchConvo(id){if(!S.convos[id])return;S.activeId=id;renderMsgs();renderSB();setTitle(S.convos[id].title||'Chat');saveStore();closeSidebar();}
 function delConvo(id,e){if(e)e.stopPropagation();dlgConfirm('Delete conversation?','This cannot be undone.',()=>{delete S.convos[id];if(S.activeId===id){S.activeId=null;showEmpty();setTitle('');}renderSB();saveStore();},true);}
@@ -744,7 +744,7 @@ async function sendMsg(){
   if(modeOn('image')){await genImage(c,raw);S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
   let userSearchData=null;const userWantsSearch=queryNeedsSearch(raw);
   if(userWantsSearch){showUserSearchInd();userSearchData=await doSearch(raw);hideUserSearchInd();}
-  const aiId='ai'+Date.now();appendPending(aiId);await generate(c,aiId,userSearchData,raw,userWantsSearch);
+  const aiId='ai'+uid();appendPending(aiId);await generate(c,aiId,userSearchData,raw,userWantsSearch);
 }
 function showUserSearchInd(){const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div></div>`;ca.appendChild(el);scrollBot();}
 function hideUserSearchInd(){document.getElementById('srch-ind')?.remove();}
@@ -779,12 +779,15 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
-  let sawReasoningField=false,sawContentField=false;
+  let reasoningOpen=false,sawContentField=false;
   try{while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
-    for(const line of lines){const l=line.trim();if(!l.startsWith('data:'))continue;const raw=l.slice(6).trim();if(raw==='[DONE]')return;
+    for(const line of lines){const l=line.trim();if(!l.startsWith('data:'))continue;const raw=l.slice(5).trim();if(raw==='[DONE]')return;
       try{const d=JSON.parse(raw);const reasoning=d.choices?.[0]?.delta?.reasoning_content??d.choices?.[0]?.delta?.reasoning;const content=d.choices?.[0]?.delta?.content??d.message?.content??'';
-        if(reasoning){if(!sawReasoningField)sawReasoningField=true;yield'<think>'+reasoning+'</think_partial>';continue;}
-        if(content){if(sawReasoningField&&!sawContentField){sawContentField=true;yield'</think>';}yield content;}}catch(_){}
+        if(reasoning){
+          if(!reasoningOpen){yield'<think>';reasoningOpen=true;}
+          yield reasoning;continue;
+        }
+        if(content){if(reasoningOpen&&!sawContentField){sawContentField=true;yield'</think>';}yield content;}}catch(_){}
     }}}catch(e){if(e.name!=='AbortError')throw e;}
 }
 const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];const PARTIAL_CLOSE='</think_partial>';const MAX_TAG_LEN=22;
@@ -864,7 +867,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
 
 function promoteThinkTail(thinkText){if(!thinkText)return'';const t=thinkText.trim();if(!t)return'';const markers=[/(?:^|\n)\s*(?:final answer|final response|answer|so the answer is|so my answer is|to summarize|in summary|here(?:'s| is)(?: the| my) answer)\s*[:\-—]\s*/i,/\n\s*\n(?=[A-Z0-9])/g];for(const re of markers){if(re.global){let last=-1,m;while((m=re.exec(t))!==null)last=m.index+m[0].length;if(last>0&&last<t.length-10)return t.slice(last).trim();}else{const m=t.match(re);if(m&&m.index!==undefined){const after=t.slice(m.index+m[0].length).trim();if(after.length>10)return after;}}}return'';}
 
-async function retryEmpty(idx){const c=curConvo();if(!c||S.busy)return;const msg=c.msgs[idx];if(!msg||!msg.emptyRetry)return;c.msgs.splice(idx,1);renderMsgs();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];if(!um)return;const aiId='ai'+Date.now();appendPending(aiId);await generate(c,aiId,null,um.content,false);}
+async function retryEmpty(idx){const c=curConvo();if(!c||S.busy)return;const msg=c.msgs[idx];if(!msg||!msg.emptyRetry)return;c.msgs.splice(idx,1);renderMsgs();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];if(!um)return;const aiId='ai'+uid();appendPending(aiId);await generate(c,aiId,null,um.content,false);}
 
 async function continueMsg(idx){
   const c=curConvo();if(!c||S.busy)return;const msg=c.msgs[idx];if(!msg||msg.role!=='assistant')return;msg.truncated=false;
@@ -890,7 +893,7 @@ async function genImage(convo,prompt){
 
 function stopGen(){if(S.abort)S.abort.abort();}
 function showErr(msg){const ca=document.getElementById('chat-area');if(!ca)return;document.getElementById('err-row')?.remove();const r=document.createElement('div');r.className='err-row';r.id='err-row';const displayMsg=msg||'Failed to get a response';const isRateLimit=/rate.?limit|slow.?down|busy/i.test(displayMsg);r.innerHTML=`<div class="err-box"><span class="err-msg">${esc(displayMsg)}</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;ca.appendChild(r);scrollBot();if(isRateLimit){const retryDelay=8000;const countdown=r.querySelector('.err-msg');let secs=Math.round(retryDelay/1000);const iv=setInterval(()=>{secs--;if(countdown&&document.getElementById('err-row'))countdown.textContent=displayMsg+' Retrying in '+secs+'s…';if(secs<=0){clearInterval(iv);if(document.getElementById('err-row'))retryLast();}},1000);r._retryIv=iv;}}
-function retryLast(){const c=curConvo();if(!c||S.busy)return;const er=document.getElementById('err-row');if(er&&er._retryIv)clearInterval(er._retryIv);document.getElementById('err-row')?.remove();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];const aiId='ai'+Date.now();appendPending(aiId);generate(c,aiId,null,um?.content||'',false);}
+function retryLast(){const c=curConvo();if(!c||S.busy)return;const er=document.getElementById('err-row');if(er&&er._retryIv)clearInterval(er._retryIv);document.getElementById('err-row')?.remove();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];const aiId='ai'+uid();appendPending(aiId);generate(c,aiId,null,um?.content||'',false);}
 
 function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
 function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();sendMsg();}}
