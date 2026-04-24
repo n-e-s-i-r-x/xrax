@@ -87,16 +87,16 @@
       @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}100%{content:''}}
 
       /* think block */
-      .ai-think{margin-bottom:8px;border:1px solid #1a1426;border-radius:10px;overflow:hidden;background:#070710}
-      .ai-think-hdr{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0b0913;cursor:pointer;user-select:none}
-      .ai-think-hdr:active{background:#100d1a}
+      .ai-think{margin-bottom:10px;border:1px solid #1e1530;border-radius:12px;overflow:hidden;background:#080810}
+      .ai-think-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#0d0b14;cursor:pointer;user-select:none}
+      .ai-think-hdr:active{background:#120f1c}
       .ai-think-chev{transition:transform .25s ease;color:#7c3aed;flex-shrink:0}
       .ai-think.open .ai-think-chev{transform:rotate(90deg)}
-      .ai-think-lbl{font-size:10.5px;font-weight:600;color:#8b6bcf;letter-spacing:.3px;flex:1}
+      .ai-think-lbl{font-size:12px;font-weight:600;color:#9d71e8;letter-spacing:.3px;flex:1}
       .ai-think.streaming .ai-think-lbl::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
       .ai-think-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
-      .ai-think.open .ai-think-body{max-height:340px;overflow-y:auto}
-      .ai-think-content{padding:7px 10px 8px;font-size:10.5px;line-height:1.45;color:#6a5d8f;border-top:1px solid #1a1426;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;font-style:italic;opacity:.92}
+      .ai-think.open .ai-think-body{max-height:600px;overflow-y:auto}
+      .ai-think-content{padding:10px 12px 12px;font-size:12.5px;line-height:1.75;color:#7a6aaa;border-top:1px solid #1e1530;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap}
 
       /* internal search pill inside think */
       .think-srch-pill{display:flex;align-items:center;gap:7px;background:#060f1c;border:1px solid #0e2035;border-radius:8px;padding:6px 11px;margin:6px 0;font-size:11px;color:#4a9eff;font-style:normal;width:fit-content}
@@ -438,6 +438,35 @@
     };
 
     /* ══════════════════════════════════════
+       LEAK SANITIZER (client-side defense)
+       Mirrors the server filter so historical
+       conversations and any chunk that slips
+       through still render cleanly.
+    ══════════════════════════════════════ */
+    const LEAK_LINE_RE = [
+      /^\s*\[[A-Z][^\]]{2,120}\]\s*$/,
+      /---\s*WEB SEARCH RESULTS\s*---/i,
+      /---\s*END SEARCH RESULTS\s*---/i,
+      /\bDIRECT ANSWER\s*:/i,
+      /\[CODE MODE\b/i,
+      /\[Current date and time\]/i,
+      /\[Reasoning context above/i,
+      /\[Continue from where/i,
+      /\[Search complete/i,
+      /<context>|<\/context>/i,
+      /\bYou are (?:0|00|000)\b/,
+      /\bsystem prompt\b/i,
+      /\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i,
+    ];
+    function sanitizeThinkText(text) {
+      if (!text) return text;
+      return text.split('\n').map(line => {
+        for (const re of LEAK_LINE_RE) if (re.test(line)) return '…';
+        return line;
+      }).join('\n');
+    }
+
+        /* ══════════════════════════════════════
        UNCERTAINTY DETECTOR
     ══════════════════════════════════════ */
     const UNCERTAINTY_RE = [
@@ -453,18 +482,9 @@
       /\bthis is (definitely|clearly|obviously)\b/i,
     ];
     function detectUncertainty(text) {
-      if (!text || text.length < 80) return false;
-      const win = text.slice(-700);
-      /* Require an explicit "I don't know / can't verify / outdated" phrase. */
-      const STRONG = [
-        /\b(i (don'?t|do not) (know|have)|i'?m not sure|i am not sure)\b/i,
-        /\b(my (knowledge|training).{0,40}(cut.?off|outdated|limited|ends?))\b/i,
-        /\b(can'?t|cannot) (confirm|verify|access|find)\b.{0,40}\b(current|latest|recent|today|now|live|real.?time)\b/i,
-        /\b(don'?t|do not) have (access to )?(current|latest|recent|today|now|live|real.?time)\b/i,
-        /\b(this (might|may|could) (be )?(outdated|have changed|no longer be accurate))\b/i,
-        /\b(need to (search|look up|verify)) (for )?(current|latest|recent|live|real.?time)\b/i,
-      ];
-      if (!STRONG.some(r => r.test(win))) return false;
+      if (!text || text.length < 50) return false;
+      const win = text.slice(-600);
+      if (!UNCERTAINTY_RE.some(r => r.test(win))) return false;
       if (CERTAIN_RE.some(r => r.test(win))) return false;
       return true;
     }
@@ -529,9 +549,9 @@
     ══════════════════════════════════════ */
     function dtCtx(){
       const n=new Date();
-      return '\n\n[Current date and time]\nDate: '+
-        n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
-        '\nTime: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+      const d=n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+      const t=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+      return '\n\nFor reference, the current date is '+d+' and the local time is '+t+'.';
     }
 
     /* ══════════════════════════════════════
@@ -551,11 +571,13 @@
       /\b(write|create|make|generate|help me|give me|list|show)\b/i,
     ];
     function queryNeedsSearch(text){
-      /* Only search up-front when the user explicitly enables Web mode.
-         Otherwise SmartSearch fires later, only if the model shows
-         uncertainty / lack of knowledge. */
       if(modeOn('web')) return true;
-      return false;
+      if(modeOn('image') || !text) return false;
+      if(!S.settings.webSearchAuto) return false;
+      const t = text.trim();
+      if(t.length < 6) return false;
+      if(SEARCH_SKIP_RE.some(r => r.test(t))) return false;
+      return USER_SEARCH_RE.some(r => r.test(t));
     }
 
     async function doSearch(q){
@@ -568,11 +590,14 @@
     }
     function buildSearchCtx(sd){
       if(!sd)return'';
-      let c='\n\n--- WEB SEARCH RESULTS ---\n';
-      c+='(Today: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+')\n\n';
-      if(sd.answer)c+='DIRECT ANSWER: '+sd.answer+'\n\n';
-      (sd.results||[]).forEach((r,i)=>{c+='['+(i+1)+'] '+r.title+'\nURL: '+r.url+'\n'+r.snippet+'\n\n';});
-      c+='--- END SEARCH RESULTS ---\n';
+      let c='\n\nRelevant web information:\n';
+      if(sd.answer)c+='Summary: '+sd.answer+'\n';
+      (sd.results||[]).forEach((r)=>{
+        let host='';
+        try{host=new URL(r.url).hostname.replace('www.','');}catch(e){host='';}
+        const tag=host?' ('+host+')':'';
+        c+='- '+r.title+tag+': '+r.snippet+'\n';
+      });
       return c;
     }
 
@@ -721,7 +746,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d71e8" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
             <span class="ai-think-lbl">${esc(dur)}</span>
           </div>
-          <div class="ai-think-body"><div class="ai-think-content">${esc(msg.thinking)}</div></div>
+          <div class="ai-think-body"><div class="ai-think-content">${esc(sanitizeThinkText(msg.thinking))}</div></div>
         </div>`;
       }
       let sourcesHtml='';
@@ -930,7 +955,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages:     msgs,
-            systemPrompt: extraCtx,
+            context:      extraCtx,
             temperature:  mDef.temp,
             maxTokens:    maxTok || 8000,
             model:        modelKey,
@@ -1138,11 +1163,11 @@
       let internalSearchData  = null;
 
       let extraCtx = dtCtx();
-      if (modeOn('code')) extraCtx += '\n\n[CODE MODE: Working code only. Fenced code blocks with correct language tags.]';
+      if (modeOn('code')) extraCtx += '\n\nReply with working code in fenced blocks tagged with the correct language.';
       if (userSearchData && (userSearchData.results?.length || userSearchData.answer)) {
         extraCtx += buildSearchCtx(userSearchData);
       }
-      if (contMode) extraCtx += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+      if (contMode) extraCtx += '\n\nResume the previous response without repeating any prior text.';
 
       S.abort = new AbortController();
 
@@ -1208,14 +1233,14 @@
                     thCont._tn = document.createTextNode('');
                     thCont.appendChild(thCont._tn);
                   }
-                  thCont._tn.nodeValue = thinkText;
+                  thCont._tn.nodeValue = sanitizeThinkText(thinkText);
                   if (S.settings.autoscroll) scrollBot();
                 }
 
                 /* Only fire SmartSearch on the FIRST pass and only
                    while still in the think phase. */
                 if (firstPass && !internalSearchFired && S.settings.webSearchAuto && !userSearchData
-                    && thinkText.length > 150 && detectUncertainty(thinkText)) {
+                    && thinkText.length > 80 && detectUncertainty(thinkText)) {
                   internalSearchFired = true;
                   runWithSmartSearch = true;
                   if (S.abort) S.abort.abort();
@@ -1254,13 +1279,12 @@
 
               extraCtx = extraCtx
                 + (internalSearchData ? buildSearchCtx(internalSearchData) : '')
-                + '\n\n[Reasoning context above is from a prior partial run. The web search results have been added. Now produce ONLY the final answer to the user. Do NOT emit <think> tags. Do NOT repeat your reasoning.]';
+                + '\n\nUse the information above and reply with the final answer only.';
 
               S.abort = new AbortController();
               userSearchData = internalSearchData; /* prevent re-trigger */
               firstPass = false;
 
-              thinkText += '\n\n[Search complete — generating answer…]\n\n';
               if (thCont) thCont._tn = null;
 
               continue;
@@ -1297,68 +1321,54 @@
 
         } else {
           /* ════════════════════════════
-             MODEL 0 — answer-only path
-             - no <think> tags ever
-             - never produces a second visible response
-             - SmartSearch fires ONLY mid-stream if the model
-               clearly says it doesn't know, and we restart
-               the SAME message with web context (no double reply)
+             MODEL 0 — no think tags
           ════════════════════════════ */
-          let smartSearched = false;
-
-          const runOnce = async (ctxForRun) => {
-            answerText = '';
-            S.abort = new AbortController();
-            for await (const chunk of streamParsed(baseMsgs, ctxForRun, modelKey, 4096, S.abort.signal, false)) {
-              if (S.abort?.signal?.aborted) break;
-              /* For model 0 we treat any leaked think text as plain text */
-              const txt = chunk.text || '';
-              if (!txt) continue;
-              answerText += txt;
-              if (txtEl) {
-                const aw = txtEl.querySelector('.activity-wrap');
-                if (aw) aw.remove();
-                txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
-                const subEl = document.getElementById(aiId+'sub');
-                if (subEl && answerText.length > 10) {
-                  const snip = answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
-                  if (snip) subEl.textContent = snip;
-                }
-                if (S.settings.autoscroll) scrollBot();
-              }
-
-              /* Mid-stream SmartSearch: trigger ONLY on strong uncertainty.
-                 Then abort and restart the SAME message with web context.
-                 Result: still ONE visible answer. */
-              if (!smartSearched && !userSearchData && S.settings.webSearchAuto && !modeOn('image')
-                  && answerText.length > 80 && detectUncertainty(answerText)) {
-                smartSearched = true;
-                if (S.abort) { try { S.abort.abort(); } catch(_){} }
-                break;
-              }
-            }
-          };
-
-          await runOnce(extraCtx);
-
-          if (smartSearched) {
+          for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096, S.abort.signal, false)) {
+            if (S.abort?.signal?.aborted) break;
+            const txt = chunk.text || '';
+            if (!txt) continue;
+            answerText += txt;
             if (txtEl) {
-              txtEl.innerHTML = `<div class="activity-wrap" data-state="searching">
-                <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-                <div class="activity-right"><div class="activity-label anim-dots">Searching</div></div>
-              </div>`;
-            }
-            const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
-            const sd = await doSearch(q);
-            if (sd) {
-              userSearchData = sd; userWantsSearch = true;
-              if (txtEl) {
-                txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
-                  <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-                  <div class="activity-right"><div class="activity-label anim-dots">Writing</div></div>
-                </div>`;
+              const aw = txtEl.querySelector('.activity-wrap');
+              if (aw) aw.remove();
+              txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
+              const subEl = document.getElementById(aiId+'sub');
+              if (subEl && answerText.length > 10) {
+                const snip = answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
+                if (snip) subEl.textContent = snip;
               }
-              await runOnce(extraCtx + buildSearchCtx(sd));
+              if (S.settings.autoscroll) scrollBot();
+            }
+          }
+
+          if (answerText && !userSearchData && S.settings.webSearchAuto && !modeOn('image')) {
+            if (detectUncertainty(answerText)) {
+              showUserSearchInd();
+              const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+              const sd = await doSearch(q);
+              hideUserSearchInd();
+              if (sd) {
+                userSearchData = sd; userWantsSearch = true;
+                const ctx2 = extraCtx + buildSearchCtx(sd);
+                if (txtEl) {
+                  txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
+                    <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                    <div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div>
+                  </div>`;
+                }
+                answerText = '';
+                S.abort = new AbortController();
+                for await (const chunk of streamParsed(baseMsgs, ctx2, modelKey, 4096, S.abort.signal, false)) {
+                  if (S.abort?.signal?.aborted) break;
+                  const txt = chunk.text || '';if(!txt)continue;
+                  answerText += txt;
+                  if (txtEl) {
+                    const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+                    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
+                    if(S.settings.autoscroll)scrollBot();
+                  }
+                }
+              }
             }
           }
 
@@ -1398,8 +1408,8 @@
           role:'assistant', content:savedAnswer,
           ts:Date.now(), userSearched:!!userWantsSearch, sources:effectiveSources,
           codeMode:modeOn('code'),
-          thinking: useThink ? (thinkText.trim() || null) : null,
-          thinkDuration: useThink ? thinkDurStr : null,
+          thinking: sanitizeThinkText(thinkText).trim() || null,
+          thinkDuration: thinkDurStr,
           truncated:false, modelKey,
         });
       }
@@ -1460,9 +1470,9 @@
       const txtEl=document.getElementById(`msg-${idx}-text`);if(!txtEl)return;
       S.busy=true;S.abort=new AbortController();
       let ctx=dtCtx();
-      if(modeOn('code'))ctx+='\n\n[CODE MODE: Working code only. Fenced code blocks.]';
+      if(modeOn('code'))ctx+='\n\nReply with working code in fenced blocks tagged with the correct language.';
       if(msg.sources&&msg.sources.length)ctx+=buildSearchCtx({results:msg.sources});
-      ctx+='\n\n[Continue from where the response cut off. Do not repeat anything already said. Do not emit <think> tags.]';
+      ctx+='\n\nResume the previous response without repeating any prior text.';
       const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
       let full=msg.content;
       try{
