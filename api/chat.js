@@ -381,7 +381,7 @@ export default async function handler(req) {
           stream: true,
         };
         // Only send reasoning param for models that natively support it (e.g. DeepSeek-R1, QwQ)
-        if (hasReasoning) reqBody.reasoning = { max_tokens: 400 };
+        if (hasReasoning) reqBody.reasoning = { max_tokens: 100 };
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
