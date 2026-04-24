@@ -439,28 +439,31 @@
 
     /* ══════════════════════════════════════
        UNCERTAINTY DETECTOR
+       Only fires on strong, specific signals
+       that the model genuinely lacks info —
+       not on normal conversational hedges.
     ══════════════════════════════════════ */
     const UNCERTAINTY_RE = [
-      /\bi('?m| am) not (sure|certain|aware)\b/i,
-      /\bi (don'?t|do not) (know|have|recall|remember)\b/i,
-      /\bi (can'?t|cannot) (confirm|verify|recall|find)\b/i,
-      /\bmy (knowledge|training|data).{0,40}(cut.?off|limited|outdated|old)\b/i,
-      /\b(not certain|unclear to me|unsure about|no idea)\b/i,
-      /\b(need to (check|look up|search|verify))\b/i,
-      /\b(let me (search|look|check|find))\b/i,
-      /\b(don'?t have (access|info|data) (on|about|for))\b/i,
-      /\b(this (might|may|could) (be outdated|have changed))\b/i,
+      /\bmy (knowledge|training).{0,30}(cut.?off|outdated|limited)\b/i,
+      /\b(not (sure|certain)) (about|of|what|when|where|who|how|if) (the |a )?(current|latest|recent|today|now|live)\b/i,
+      /\b(don'?t|do not) have (access|information|data) (on|about|for) (the )?(current|latest|recent|today|now|live)\b/i,
+      /\b(need to (search|look up|verify)) (for )?(current|latest|recent|live|real.?time)\b/i,
+      /\b(can'?t|cannot) (confirm|verify|find) (the )?(current|latest|recent|today|now|live)\b/i,
+      /\b(this (might|may|could) (be )?(outdated|have changed|no longer be accurate))\b/i,
+      /\b(real.?time|live) (data|price|score|result|rate|stock)\b/i,
     ];
+    // If any of these match, it's NOT uncertain (model is confident)
     const CERTAIN_RE = [
       /\bi (know|am sure|am certain|am confident)\b/i,
       /\bthe answer is\b/i,
       /\bthis is (definitely|clearly|obviously)\b/i,
     ];
     function detectUncertainty(text) {
-      if (!text || text.length < 40) return false;
-      const win = text.slice(-500);
+      if (!text || text.length < 80) return false;
+      const win = text.slice(-600);
       if (!UNCERTAINTY_RE.some(r => r.test(win))) return false;
-      return !CERTAIN_RE.some(r => r.test(win));
+      if (CERTAIN_RE.some(r => r.test(win))) return false;
+      return true;
     }
 
     /* ══════════════════════════════════════
@@ -530,24 +533,38 @@
 
     /* ══════════════════════════════════════
        SEARCH
+       Only searches on explicit signals or
+       when the user forces it via the toggle.
+       Does NOT search for general knowledge
+       questions that don't need real-time data.
     ══════════════════════════════════════ */
-    const USER_SEARCH_RE=[
-      /\b(202[4-9]|20[3-9]\d)\b/,
-      /\b(today|right now|as of today|this week|this month|this year)\b/i,
-      /\b(latest|newest|most recent|current version)\b/i,
-      /\b(live (score|result|price|rate)|real.?time)\b/i,
-      /\b(stock price|crypto price|bitcoin|exchange rate|weather (in|today|now|forecast))\b/i,
-      /\b(breaking news|just happened|just announced|just released)\b/i,
+    const USER_SEARCH_RE = [
+      /\b(202[4-9]|20[3-9]\d)\b/,                                              // recent year ref
+      /\b(today|right now|as of today|this (week|month|year)|current(ly)?)\b/i, // time-sensitive
+      /\b(latest|newest|most recent|new release|just (released|launched|dropped))\b/i,
+      /\b(live (score|result|price|rate)|real.?time)\b/i,                       // live data
+      /\b(stock price|crypto price|bitcoin|eth |exchange rate)\b/i,             // financial
+      /\b(weather (in|today|now|forecast|tomorrow))\b/i,                        // weather
+      /\b(breaking news|just happened|just announced)\b/i,                      // news
+      /\b(who (is|won|leads?|runs?|heads?|became)) .{3,40}(now|today|current)\b/i, // current roles
+      /\b(what('?s| is) the (current|latest|today'?s?))\b/i,                   // explicit current
+    ];
+    // Do NOT search for these even if above matches
+    const SEARCH_SKIP_RE = [
+      /^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i,
+      /\b(how (do|to)|what is|explain|why|define|difference between|compare)\b/i,
+      /\b(write|create|make|generate|help me|give me|list|show)\b/i,
     ];
     function queryNeedsSearch(text){
-      if(modeOn('web'))return true;
-      if(modeOn('image')||!text)return false;
-      if(!S.settings.webSearchAuto)return false;
-      const t=text.trim();
-      if(t.length<6)return false;
-      if(/^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i.test(t))return false;
-      return USER_SEARCH_RE.some(r=>r.test(t));
+      if(modeOn('web')) return true;
+      if(modeOn('image') || !text) return false;
+      if(!S.settings.webSearchAuto) return false;
+      const t = text.trim();
+      if(t.length < 6) return false;
+      if(SEARCH_SKIP_RE.some(r => r.test(t))) return false;
+      return USER_SEARCH_RE.some(r => r.test(t));
     }
+
     async function doSearch(q){
       try{
         const r=await fetch('/api/search.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
@@ -847,10 +864,6 @@
 
     /* ══════════════════════════════════════
        PENDING ROW
-       For think models: shows think block open
-       + a subtle "preparing answer" indicator
-       below it. Answer area is hidden until
-       the first answer token arrives.
     ══════════════════════════════════════ */
     function appendPending(id){
       const ca=document.getElementById('chat-area');if(!ca)return;
@@ -872,12 +885,10 @@
                 <div class="ai-think-content" id="${id}thcont"></div>
               </div>
             </div>
-            <!-- answer waiting hint shown while thinking -->
             <div class="answer-waiting" id="${id}aw">
               <div class="answer-waiting-dots"><span></span><span></span><span></span></div>
               <span class="answer-waiting-lbl">Answer on the way…</span>
             </div>
-            <!-- actual answer area, hidden until first token -->
             <div class="ai-txt" id="${id}txt" style="display:none"></div>
           </div>
         </div></div>`;
@@ -907,15 +918,15 @@
     }
 
     /* ══════════════════════════════════════
-       STREAMING SSE PARSER
+       RAW SSE STREAM
     ══════════════════════════════════════ */
     async function* streamRaw(msgs, extraCtx, modelKey, maxTok) {
       const mDef = MODELS[modelKey] || MODELS['0'];
-      S.abort    = new AbortController();
+      S.abort = new AbortController();
       let res;
       try {
         res = await fetch('/api/chat.js', {
-          method:  'POST',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages:     msgs,
@@ -932,9 +943,9 @@
       }
       if (!res.ok) throw new Error('HTTP ' + res.status);
 
-      const reader  = res.body.getReader();
-      const dec     = new TextDecoder();
-      let   buf     = '';
+      const reader = res.body.getReader();
+      const dec    = new TextDecoder();
+      let   buf    = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -960,54 +971,81 @@
     }
 
     /* ══════════════════════════════════════
-       THINK TAG PARSER
-       Yields { type:'think'|'answer', text }
+       FIXED THINK TAG PARSER
+       ─────────────────────────────────────
+       Properly handles <think>…</think> tags
+       in the raw stream without corrupting
+       text or misrouting tokens.
+
+       Strategy: buffer characters only while
+       we might be inside an opening/closing
+       tag. Once we know it's a real tag, flip
+       the inThink flag. Otherwise flush the
+       buffered chars as text of the current type.
     ══════════════════════════════════════ */
     async function* streamParsed(msgs, extraCtx, modelKey, maxTok) {
-      let inThink  = false;
-      let tagBuf   = '';
-      let inTag    = false;
+      let inThink = false;
+      let tagBuf  = '';   // only used while we're speculatively reading a tag
 
       for await (const delta of streamRaw(msgs, extraCtx, modelKey, maxTok)) {
-        for (const ch of delta) {
-          if (ch === '<') {
-            inTag  = true;
-            tagBuf = '<';
-            continue;
-          }
-          if (inTag) {
+        let i = 0;
+        while (i < delta.length) {
+          const ch = delta[i++];
+
+          if (tagBuf.length > 0) {
+            // We're mid-way through a potential tag
             tagBuf += ch;
+
             if (ch === '>') {
-              inTag = false;
-              const tag = tagBuf.toLowerCase().replace(/\s/g,'');
+              // Tag is complete — check if it's one we care about
+              const tag = tagBuf.toLowerCase();
               tagBuf = '';
-              if (tag === '<think>') { inThink = true; continue; }
-              if (tag === '</think>') { inThink = false; continue; }
-              yield { type: inThink ? 'think' : 'answer', text: tagBuf || tag };
+              if (tag === '<think>') {
+                inThink = true;
+              } else if (tag === '</think>') {
+                inThink = false;
+              } else {
+                // Not a think tag — emit the buffered chars as-is
+                yield { type: inThink ? 'think' : 'answer', text: tag };
+              }
+              continue;
+            }
+
+            // Still building a tag; check if it's still a viable think tag prefix
+            const lo = tagBuf.toLowerCase();
+            const thinkTags = ['<think>', '</think>'];
+            const stillPossible = thinkTags.some(t => t.startsWith(lo));
+
+            if (!stillPossible || tagBuf.length > 10) {
+              // Not a think tag — flush buffer as text and continue
+              const flushed = tagBuf;
+              tagBuf = '';
+              yield { type: inThink ? 'think' : 'answer', text: flushed };
+              // Re-process current char (already added to tagBuf, now flushed) — no, it's included
             }
             continue;
           }
+
+          if (ch === '<') {
+            // Start of a potential tag
+            tagBuf = '<';
+            continue;
+          }
+
+          // Normal character
           yield { type: inThink ? 'think' : 'answer', text: ch };
         }
+      }
+
+      // Flush any remaining tag buffer as text
+      if (tagBuf.length > 0) {
+        yield { type: inThink ? 'think' : 'answer', text: tagBuf };
+        tagBuf = '';
       }
     }
 
     /* ══════════════════════════════════════
        MAIN GENERATE
-       ─────────────────────────────────────
-       THINK MODEL FLOW:
-         1. Stream tokens tagged think/answer
-         2. think tokens → thCont (think block, stays open, streams visibly)
-         3. On first answer token:
-              • collapse + finalise think block
-              • hide the "answer waiting" hint
-              • show txtEl, render answer tokens there
-         4. answer tokens → txtEl (live markdown)
-         5. Smart search can fire mid-think;
-            restarts stream with search ctx injected
-       ─────────────────────────────────────
-       MODEL 0 FLOW:
-         Direct streaming → txtEl, no think block
     ══════════════════════════════════════ */
     async function generate(convo, aiId, userSearchData, userQuery, userWantsSearch, contMode) {
       contMode = contMode || false;
@@ -1017,7 +1055,7 @@
       const thinkEl = document.getElementById(aiId+'think');
       const thCont  = document.getElementById(aiId+'thcont');
       const thLbl   = document.getElementById(aiId+'thlbl');
-      const awEl    = document.getElementById(aiId+'aw');   // "answer waiting" hint
+      const awEl    = document.getElementById(aiId+'aw');
 
       const modelKey = S.model;
       const mDef     = MODELS[modelKey] || MODELS['0'];
@@ -1028,13 +1066,11 @@
       let answerText  = '';
       let tStart      = Date.now();
       let thinkDurStr = null;
-      let answerPhase = false;   // true once first answer token received
+      let answerPhase = false;
 
-      /* Uncertainty / internal search state */
       let internalSearchFired = false;
       let internalSearchData  = null;
 
-      /* Build extra context */
       let extraCtx = dtCtx();
       if (modeOn('code')) extraCtx += '\n\n[CODE MODE: Working code only. Fenced code blocks with correct language tags.]';
       if (userSearchData && (userSearchData.results?.length || userSearchData.answer)) {
@@ -1042,23 +1078,19 @@
       }
       if (contMode) extraCtx += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-      /* ─── helper: transition from think phase to answer phase in the DOM ─── */
+      /* Transition from think → answer phase in the DOM */
       const enterAnswerPhase = () => {
         if (answerPhase) return;
         answerPhase = true;
 
-        /* 1. Finalise think block: stop streaming animation, collapse it */
         thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
         if (thinkEl) {
           thinkEl.classList.remove('streaming');
-          thinkEl.classList.remove('open');   // collapse so it's tucked away
+          thinkEl.classList.remove('open');
         }
         if (thLbl) thLbl.textContent = `Thought for ${thinkDurStr}s`;
-
-        /* 2. Remove the "answer waiting" hint */
         if (awEl) awEl.remove();
 
-        /* 3. Show the answer area with a brief writing indicator */
         if (txtEl) {
           txtEl.style.display = '';
           const aState = modeOn('code') ? 'coding' : 'writing';
@@ -1073,9 +1105,6 @@
 
       try {
         if (useThink) {
-          /* ════════════════════════════════
-             THINK MODEL
-          ════════════════════════════════ */
           tStart = Date.now();
 
           const runStream = async (ctx) => {
@@ -1083,11 +1112,10 @@
               if (S.abort?.signal?.aborted) break;
 
               if (chunk.type === 'think') {
-                /* ── Still in think phase ── */
                 thinkText += chunk.text;
 
                 if (thCont) {
-                  /* Use a text node for performance — avoids full innerHTML re-parse */
+                  // Use a single text node for live updating — fast and correct
                   if (!thCont._tn) {
                     thCont._tn = document.createTextNode('');
                     thCont.appendChild(thCont._tn);
@@ -1096,20 +1124,19 @@
                   if (S.settings.autoscroll) scrollBot();
                 }
 
-                /* ── UNCERTAINTY DETECTION — trigger internal search ── */
+                /* Uncertainty detection — only fire if model explicitly signals
+                   it lacks current/live info, not just generic hedging */
                 if (
                   !internalSearchFired &&
                   S.settings.webSearchAuto &&
                   !userSearchData &&
-                  thinkText.length > 60 &&
+                  thinkText.length > 120 &&
                   detectUncertainty(thinkText)
                 ) {
                   internalSearchFired = true;
 
-                  /* Abort current stream */
                   if (S.abort) S.abort.abort();
 
-                  /* Show animated search pill inside think content */
                   let pill = null;
                   if (thCont) {
                     pill = document.createElement('div');
@@ -1134,24 +1161,22 @@
                     pill.replaceWith(done);
                   }
 
-                  /* Restart stream with search ctx */
                   const newCtx = ctx + (internalSearchData ? buildSearchCtx(internalSearchData) : '');
                   S.abort = new AbortController();
+                  // Reset think text and restart fresh
+                  thinkText = '';
+                  if (thCont) { thCont.innerHTML = ''; thCont._tn = null; }
                   await runStream(newCtx);
                   return;
                 }
 
               } else if (chunk.type === 'answer') {
-                /* ── First answer token: transition UI from think → answer ── */
                 enterAnswerPhase();
 
                 answerText += chunk.text;
                 if (txtEl) {
-                  /* Remove the writing activity indicator on first real text */
                   const aw = txtEl.querySelector('.activity-wrap');
                   if (aw) aw.remove();
-
-                  /* Live markdown render + streaming cursor */
                   txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
                   if (S.settings.autoscroll) scrollBot();
                 }
@@ -1161,7 +1186,7 @@
 
           await runStream(extraCtx);
 
-          /* ── Finalize think block if answer never came (e.g. stopped early) ── */
+          /* Finalize think block if answer never came */
           if (!answerPhase) {
             thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
             if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
@@ -1169,23 +1194,20 @@
             if (awEl)    awEl.remove();
           }
 
-          /* ── Final render of answer area ── */
+          /* Final answer render */
           if (txtEl) {
             const aw = txtEl.querySelector('.activity-wrap');
             if (aw) aw.remove();
             txtEl.style.display = '';
-            if (!answerText) {
-              txtEl.innerHTML = DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));
-            } else {
-              txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText));
-            }
+            txtEl.innerHTML = answerText
+              ? DOMPurify.sanitize(marked.parse(answerText))
+              : DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));
           }
 
         } else {
-          /* ════════════════════════════════
+          /* ════════════════════════════
              MODEL 0 — no think tags
-             Direct streaming to txtEl
-          ════════════════════════════════ */
+          ════════════════════════════ */
           for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096)) {
             if (S.abort?.signal?.aborted) break;
             const txt = chunk.text || '';
@@ -1204,7 +1226,7 @@
             }
           }
 
-          /* Smart re-search for model 0 if response sounds uncertain */
+          /* Smart re-search for model 0 — only on strong uncertainty signals */
           if (answerText && !userSearchData && S.settings.webSearchAuto && !modeOn('image')) {
             if (detectUncertainty(answerText)) {
               showUserSearchInd();
@@ -1405,7 +1427,7 @@
           <div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div>
         </div>
         <div class="sg"><div class="sg-lbl">Web Search</div>
-          <div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">AI searches when uncertain during thinking</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div>
+          <div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Searches when AI lacks current/live info</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div>
         </div>
         <div class="sg"><div class="sg-lbl">Data</div>
           <div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div>
