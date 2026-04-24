@@ -87,16 +87,16 @@
       @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}100%{content:''}}
 
       /* think block */
-      .ai-think{margin-bottom:10px;border:1px solid #1e1530;border-radius:12px;overflow:hidden;background:#080810}
-      .ai-think-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#0d0b14;cursor:pointer;user-select:none}
-      .ai-think-hdr:active{background:#120f1c}
+      .ai-think{margin-bottom:8px;border:1px solid #1a1426;border-radius:10px;overflow:hidden;background:#070710}
+      .ai-think-hdr{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0b0913;cursor:pointer;user-select:none}
+      .ai-think-hdr:active{background:#100d1a}
       .ai-think-chev{transition:transform .25s ease;color:#7c3aed;flex-shrink:0}
       .ai-think.open .ai-think-chev{transform:rotate(90deg)}
-      .ai-think-lbl{font-size:12px;font-weight:600;color:#9d71e8;letter-spacing:.3px;flex:1}
+      .ai-think-lbl{font-size:10.5px;font-weight:600;color:#8b6bcf;letter-spacing:.3px;flex:1}
       .ai-think.streaming .ai-think-lbl::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
       .ai-think-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
-      .ai-think.open .ai-think-body{max-height:600px;overflow-y:auto}
-      .ai-think-content{padding:10px 12px 12px;font-size:12.5px;line-height:1.75;color:#7a6aaa;border-top:1px solid #1e1530;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap}
+      .ai-think.open .ai-think-body{max-height:340px;overflow-y:auto}
+      .ai-think-content{padding:7px 10px 8px;font-size:10.5px;line-height:1.45;color:#6a5d8f;border-top:1px solid #1a1426;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;font-style:italic;opacity:.92}
 
       /* internal search pill inside think */
       .think-srch-pill{display:flex;align-items:center;gap:7px;background:#060f1c;border:1px solid #0e2035;border-radius:8px;padding:6px 11px;margin:6px 0;font-size:11px;color:#4a9eff;font-style:normal;width:fit-content}
@@ -453,9 +453,18 @@
       /\bthis is (definitely|clearly|obviously)\b/i,
     ];
     function detectUncertainty(text) {
-      if (!text || text.length < 50) return false;
-      const win = text.slice(-600);
-      if (!UNCERTAINTY_RE.some(r => r.test(win))) return false;
+      if (!text || text.length < 80) return false;
+      const win = text.slice(-700);
+      /* Require an explicit "I don't know / can't verify / outdated" phrase. */
+      const STRONG = [
+        /\b(i (don'?t|do not) (know|have)|i'?m not sure|i am not sure)\b/i,
+        /\b(my (knowledge|training).{0,40}(cut.?off|outdated|limited|ends?))\b/i,
+        /\b(can'?t|cannot) (confirm|verify|access|find)\b.{0,40}\b(current|latest|recent|today|now|live|real.?time)\b/i,
+        /\b(don'?t|do not) have (access to )?(current|latest|recent|today|now|live|real.?time)\b/i,
+        /\b(this (might|may|could) (be )?(outdated|have changed|no longer be accurate))\b/i,
+        /\b(need to (search|look up|verify)) (for )?(current|latest|recent|live|real.?time)\b/i,
+      ];
+      if (!STRONG.some(r => r.test(win))) return false;
       if (CERTAIN_RE.some(r => r.test(win))) return false;
       return true;
     }
@@ -542,13 +551,11 @@
       /\b(write|create|make|generate|help me|give me|list|show)\b/i,
     ];
     function queryNeedsSearch(text){
+      /* Only search up-front when the user explicitly enables Web mode.
+         Otherwise SmartSearch fires later, only if the model shows
+         uncertainty / lack of knowledge. */
       if(modeOn('web')) return true;
-      if(modeOn('image') || !text) return false;
-      if(!S.settings.webSearchAuto) return false;
-      const t = text.trim();
-      if(t.length < 6) return false;
-      if(SEARCH_SKIP_RE.some(r => r.test(t))) return false;
-      return USER_SEARCH_RE.some(r => r.test(t));
+      return false;
     }
 
     async function doSearch(q){
@@ -1208,7 +1215,7 @@
                 /* Only fire SmartSearch on the FIRST pass and only
                    while still in the think phase. */
                 if (firstPass && !internalSearchFired && S.settings.webSearchAuto && !userSearchData
-                    && thinkText.length > 80 && detectUncertainty(thinkText)) {
+                    && thinkText.length > 150 && detectUncertainty(thinkText)) {
                   internalSearchFired = true;
                   runWithSmartSearch = true;
                   if (S.abort) S.abort.abort();
@@ -1290,54 +1297,68 @@
 
         } else {
           /* ════════════════════════════
-             MODEL 0 — no think tags
+             MODEL 0 — answer-only path
+             - no <think> tags ever
+             - never produces a second visible response
+             - SmartSearch fires ONLY mid-stream if the model
+               clearly says it doesn't know, and we restart
+               the SAME message with web context (no double reply)
           ════════════════════════════ */
-          for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096, S.abort.signal, false)) {
-            if (S.abort?.signal?.aborted) break;
-            const txt = chunk.text || '';
-            if (!txt) continue;
-            answerText += txt;
-            if (txtEl) {
-              const aw = txtEl.querySelector('.activity-wrap');
-              if (aw) aw.remove();
-              txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
-              const subEl = document.getElementById(aiId+'sub');
-              if (subEl && answerText.length > 10) {
-                const snip = answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
-                if (snip) subEl.textContent = snip;
-              }
-              if (S.settings.autoscroll) scrollBot();
-            }
-          }
+          let smartSearched = false;
 
-          if (answerText && !userSearchData && S.settings.webSearchAuto && !modeOn('image')) {
-            if (detectUncertainty(answerText)) {
-              showUserSearchInd();
-              const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
-              const sd = await doSearch(q);
-              hideUserSearchInd();
-              if (sd) {
-                userSearchData = sd; userWantsSearch = true;
-                const ctx2 = extraCtx + buildSearchCtx(sd);
-                if (txtEl) {
-                  txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
-                    <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-                    <div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div>
-                  </div>`;
+          const runOnce = async (ctxForRun) => {
+            answerText = '';
+            S.abort = new AbortController();
+            for await (const chunk of streamParsed(baseMsgs, ctxForRun, modelKey, 4096, S.abort.signal, false)) {
+              if (S.abort?.signal?.aborted) break;
+              /* For model 0 we treat any leaked think text as plain text */
+              const txt = chunk.text || '';
+              if (!txt) continue;
+              answerText += txt;
+              if (txtEl) {
+                const aw = txtEl.querySelector('.activity-wrap');
+                if (aw) aw.remove();
+                txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
+                const subEl = document.getElementById(aiId+'sub');
+                if (subEl && answerText.length > 10) {
+                  const snip = answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
+                  if (snip) subEl.textContent = snip;
                 }
-                answerText = '';
-                S.abort = new AbortController();
-                for await (const chunk of streamParsed(baseMsgs, ctx2, modelKey, 4096, S.abort.signal, false)) {
-                  if (S.abort?.signal?.aborted) break;
-                  const txt = chunk.text || '';if(!txt)continue;
-                  answerText += txt;
-                  if (txtEl) {
-                    const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-                    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
-                    if(S.settings.autoscroll)scrollBot();
-                  }
-                }
+                if (S.settings.autoscroll) scrollBot();
               }
+
+              /* Mid-stream SmartSearch: trigger ONLY on strong uncertainty.
+                 Then abort and restart the SAME message with web context.
+                 Result: still ONE visible answer. */
+              if (!smartSearched && !userSearchData && S.settings.webSearchAuto && !modeOn('image')
+                  && answerText.length > 80 && detectUncertainty(answerText)) {
+                smartSearched = true;
+                if (S.abort) { try { S.abort.abort(); } catch(_){} }
+                break;
+              }
+            }
+          };
+
+          await runOnce(extraCtx);
+
+          if (smartSearched) {
+            if (txtEl) {
+              txtEl.innerHTML = `<div class="activity-wrap" data-state="searching">
+                <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                <div class="activity-right"><div class="activity-label anim-dots">Searching</div></div>
+              </div>`;
+            }
+            const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
+            const sd = await doSearch(q);
+            if (sd) {
+              userSearchData = sd; userWantsSearch = true;
+              if (txtEl) {
+                txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
+                  <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
+                  <div class="activity-right"><div class="activity-label anim-dots">Writing</div></div>
+                </div>`;
+              }
+              await runOnce(extraCtx + buildSearchCtx(sd));
             }
           }
 
@@ -1377,8 +1398,8 @@
           role:'assistant', content:savedAnswer,
           ts:Date.now(), userSearched:!!userWantsSearch, sources:effectiveSources,
           codeMode:modeOn('code'),
-          thinking: thinkText.trim() || null,
-          thinkDuration: thinkDurStr,
+          thinking: useThink ? (thinkText.trim() || null) : null,
+          thinkDuration: useThink ? thinkDurStr : null,
           truncated:false, modelKey,
         });
       }
