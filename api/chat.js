@@ -342,8 +342,8 @@ export default async function handler(req) {
     messages,
     context: ctxField,
     systemPrompt: legacyCtx,
-    temperature = 0.6,
-    maxTokens   = 4000,
+    temperature = 0.1,
+    maxTokens   = 1200,
     model: modelKey = '0',
   } = body;
 
