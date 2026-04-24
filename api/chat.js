@@ -257,8 +257,9 @@ function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, i
 
   messages.push(...trimmedMsgs);
 
-  // Only inject <think> prefix for native reasoning models
-  if (isThinkModel && hasReasoning) {
+  // Inject <think> prefix assistant turn to force model into think block immediately.
+  // Works for both native reasoning models and prompted-think models.
+  if (isThinkModel) {
     messages.push({ role:'assistant', content:'<think>\n', prefix:true });
   }
   return messages;
@@ -300,7 +301,7 @@ if(!hasReasoning){
   messages.push({role:'assistant',content:'Understood. I will follow my instructions precisely.'});
 }
 messages.push(...trimmedMsgs);
-if(isThinkModel&&hasReasoning){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
+if(isThinkModel){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
 process.stdout.write(JSON.stringify(messages));`.trim();
 
     const cmd = await sandbox.runCommand('node', ['-e', scriptSrc]);
@@ -422,9 +423,15 @@ export default async function handler(req) {
           const text = data?.choices?.[0]?.message?.content ?? '';
           const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
           let combined = '';
-          if (isThinkModel && hasReasoning && reasoningRaw) {
-            const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
-            combined += `<think>\n${cleaned}\n</think>\n`;
+          if (isThinkModel) {
+            if (hasReasoning && reasoningRaw) {
+              const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
+              combined += `<think>\n${cleaned}\n</think>\n`;
+            } else if (!hasReasoning) {
+              // For prompted-think models the <think>...</think> is already in text
+              // but we still need to ensure it starts with <think>
+              if (!text.trimStart().startsWith('<think>')) combined += '<think>\n';
+            }
           }
           combined += text;
           send(sseContent(combined));
@@ -435,14 +442,15 @@ export default async function handler(req) {
         return;
       }
 
-      // Only pre-emit <think> for native reasoning models — prompted-think models write the tag themselves in content
-      if (isThinkModel && hasReasoning) send(sseContent('<think>\n'));
+      // Pre-emit <think> opening for all think models so the frontend parser
+      // starts in inThink mode from the first token.
+      if (isThinkModel) send(sseContent('<think>\n'));
 
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      // inReasoningPhase only applies to native reasoning models
-      let inReasoningPhase = isThinkModel && hasReasoning;
+      // inReasoningPhase tracks native reasoning_content delta for hasReasoning models
+      let inReasoningPhase = hasReasoning;
       let finishReason = null;
       let thinkLineBuf = '';
 
