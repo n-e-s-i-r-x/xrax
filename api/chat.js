@@ -7,11 +7,13 @@ export const config = { runtime: 'edge' };
                          sends `reasoning` param + handles reasoning_content delta
    hasReasoning: false → standard chat model — NO reasoning param sent, system prompt
                          is reinforced via a reminder turn for better compliance
+   hasPromptedThink: true → model is instructed to write <think>...</think> in content
+                            (use for non-native models where you still want a think block)
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   { id: 'nvidia/nemotron-3-nano-30b-a3b:free',                 hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'openai/gpt-oss-120b:free',    hasReasoning: false, hasPromptedThink: true  },
-  '000': { id: 'openai/gpt-oss-120b:free', hasReasoning: false, hasPromptedThink: true  },
+  '0':   { id: 'nvidia/nemotron-3-nano-30b-a3b:free',  hasReasoning: false, hasPromptedThink: false },
+  '00':  { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
+  '000': { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
 };
 
 /** Resolve model entry, falling back to '0' for unknown keys */
@@ -381,7 +383,7 @@ export default async function handler(req) {
           stream: true,
         };
         // Only send reasoning param for models that natively support it (e.g. DeepSeek-R1, QwQ)
-        if (hasReasoning) reqBody.reasoning = { max_tokens: 100 };
+        if (hasReasoning) reqBody.reasoning = { max_tokens: 400 };
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
@@ -420,7 +422,7 @@ export default async function handler(req) {
           const text = data?.choices?.[0]?.message?.content ?? '';
           const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
           let combined = '';
-          if (isThinkModel && reasoningRaw) {
+          if (isThinkModel && hasReasoning && reasoningRaw) {
             const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
             combined += `<think>\n${cleaned}\n</think>\n`;
           }
@@ -439,6 +441,7 @@ export default async function handler(req) {
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      // inReasoningPhase only applies to native reasoning models
       let inReasoningPhase = isThinkModel && hasReasoning;
       let finishReason = null;
       let thinkLineBuf = '';
@@ -470,19 +473,27 @@ export default async function handler(req) {
         const contentDelta = delta.content;
 
         if (!isThinkModel) {
+          // Plain model — stream content directly
           if (typeof contentDelta==='string' && contentDelta.length) send(sseContent(contentDelta));
           if (choice.finish_reason) finishReason = choice.finish_reason;
           return;
         }
 
-        if (typeof reasoningDelta==='string' && reasoningDelta.length) {
-          if (!inReasoningPhase) { send(sseContent('<think>\n')); inReasoningPhase=true; }
-          emitThink(reasoningDelta);
+        if (hasReasoning) {
+          // Native reasoning model — reasoning comes in reasoning_content delta
+          if (typeof reasoningDelta==='string' && reasoningDelta.length) {
+            if (!inReasoningPhase) { send(sseContent('<think>\n')); inReasoningPhase=true; }
+            emitThink(reasoningDelta);
+          }
+          if (typeof contentDelta==='string' && contentDelta.length) {
+            closeThinkIfOpen();
+            send(sseContent(contentDelta));
+          }
+        } else {
+          // Prompted-think model — <think>...</think> tags come inline in content, pass through as-is
+          if (typeof contentDelta==='string' && contentDelta.length) send(sseContent(contentDelta));
         }
-        if (typeof contentDelta==='string' && contentDelta.length) {
-          closeThinkIfOpen();
-          send(sseContent(contentDelta));
-        }
+
         if (choice.finish_reason) finishReason = choice.finish_reason;
       };
 
