@@ -107,6 +107,15 @@
       @keyframes tsd{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
       .think-srch-done{display:flex;align-items:center;gap:7px;background:#030d03;border:1px solid #0e2010;border-radius:8px;padding:6px 11px;margin:6px 0;font-size:11px;color:#4ade80;font-style:normal;width:fit-content}
 
+      /* answer waiting indicator — shown while thinking is still streaming */
+      .answer-waiting{display:flex;align-items:center;gap:8px;padding:6px 0 2px;opacity:.5}
+      .answer-waiting-dots{display:flex;gap:4px}
+      .answer-waiting-dots span{width:4px;height:4px;border-radius:50%;background:#555;animation:awDot 1.4s ease-in-out infinite}
+      .answer-waiting-dots span:nth-child(2){animation-delay:.2s}
+      .answer-waiting-dots span:nth-child(3){animation-delay:.4s}
+      @keyframes awDot{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
+      .answer-waiting-lbl{font-size:11px;color:#555;font-style:italic}
+
       /* code */
       .code-wrap{margin:10px 0;border-radius:10px;overflow:hidden;background:#0a0a0a;border:1px solid #1a1a1a}
       .code-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#111;border-bottom:1px solid #1a1a1a}
@@ -430,9 +439,6 @@
 
     /* ══════════════════════════════════════
        UNCERTAINTY DETECTOR
-       Pure script — runs on streamed think
-       text to decide when to auto-search.
-       No prompts involved.
     ══════════════════════════════════════ */
     const UNCERTAINTY_RE = [
       /\bi('?m| am) not (sure|certain|aware)\b/i,
@@ -841,6 +847,10 @@
 
     /* ══════════════════════════════════════
        PENDING ROW
+       For think models: shows think block open
+       + a subtle "preparing answer" indicator
+       below it. Answer area is hidden until
+       the first answer token arrives.
     ══════════════════════════════════════ */
     function appendPending(id){
       const ca=document.getElementById('chat-area');if(!ca)return;
@@ -849,7 +859,6 @@
       row.className='msg-row ai';row.id=id;
 
       if(m.hasThink){
-        /* Show thinking block open and streaming right away */
         row.innerHTML=`<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
@@ -863,6 +872,12 @@
                 <div class="ai-think-content" id="${id}thcont"></div>
               </div>
             </div>
+            <!-- answer waiting hint shown while thinking -->
+            <div class="answer-waiting" id="${id}aw">
+              <div class="answer-waiting-dots"><span></span><span></span><span></span></div>
+              <span class="answer-waiting-lbl">Answer on the way…</span>
+            </div>
+            <!-- actual answer area, hidden until first token -->
             <div class="ai-txt" id="${id}txt" style="display:none"></div>
           </div>
         </div></div>`;
@@ -893,9 +908,6 @@
 
     /* ══════════════════════════════════════
        STREAMING SSE PARSER
-       Async generator — yields raw delta
-       strings as they arrive from the API.
-       The caller handles <think> tag parsing.
     ══════════════════════════════════════ */
     async function* streamRaw(msgs, extraCtx, modelKey, maxTok) {
       const mDef = MODELS[modelKey] || MODELS['0'];
@@ -949,10 +961,7 @@
 
     /* ══════════════════════════════════════
        THINK TAG PARSER
-       Wraps streamRaw and splits output into
-       { type:'think'|'answer', text:string }
-       chunks by tracking <think>/</ think>
-       tags as they appear in the stream.
+       Yields { type:'think'|'answer', text }
     ══════════════════════════════════════ */
     async function* streamParsed(msgs, extraCtx, modelKey, maxTok) {
       let inThink  = false;
@@ -974,7 +983,6 @@
               tagBuf = '';
               if (tag === '<think>') { inThink = true; continue; }
               if (tag === '</think>') { inThink = false; continue; }
-              /* Not a think tag — emit the raw tag text as content */
               yield { type: inThink ? 'think' : 'answer', text: tagBuf || tag };
             }
             continue;
@@ -986,6 +994,20 @@
 
     /* ══════════════════════════════════════
        MAIN GENERATE
+       ─────────────────────────────────────
+       THINK MODEL FLOW:
+         1. Stream tokens tagged think/answer
+         2. think tokens → thCont (think block, stays open, streams visibly)
+         3. On first answer token:
+              • collapse + finalise think block
+              • hide the "answer waiting" hint
+              • show txtEl, render answer tokens there
+         4. answer tokens → txtEl (live markdown)
+         5. Smart search can fire mid-think;
+            restarts stream with search ctx injected
+       ─────────────────────────────────────
+       MODEL 0 FLOW:
+         Direct streaming → txtEl, no think block
     ══════════════════════════════════════ */
     async function generate(convo, aiId, userSearchData, userQuery, userWantsSearch, contMode) {
       contMode = contMode || false;
@@ -995,23 +1017,24 @@
       const thinkEl = document.getElementById(aiId+'think');
       const thCont  = document.getElementById(aiId+'thcont');
       const thLbl   = document.getElementById(aiId+'thlbl');
+      const awEl    = document.getElementById(aiId+'aw');   // "answer waiting" hint
 
       const modelKey = S.model;
       const mDef     = MODELS[modelKey] || MODELS['0'];
       const useThink = mDef.hasThink;
       const baseMsgs = convo.msgs.map(m=>({role:m.role,content:m.content}));
 
-      let thinkText  = '';
-      let answerText = '';
-      let tStart     = Date.now();
+      let thinkText   = '';
+      let answerText  = '';
+      let tStart      = Date.now();
       let thinkDurStr = null;
-      let phase       = 'think'; /* 'think' | 'answer' */
+      let answerPhase = false;   // true once first answer token received
 
       /* Uncertainty / internal search state */
       let internalSearchFired = false;
       let internalSearchData  = null;
 
-      /* Build extra context — only date/time and optional pre-fetched search */
+      /* Build extra context */
       let extraCtx = dtCtx();
       if (modeOn('code')) extraCtx += '\n\n[CODE MODE: Working code only. Fenced code blocks with correct language tags.]';
       if (userSearchData && (userSearchData.results?.length || userSearchData.answer)) {
@@ -1019,13 +1042,23 @@
       }
       if (contMode) extraCtx += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-      /* Helper — transition from think to answer phase in the UI */
-      const transitionToAnswer = () => {
-        if (phase === 'answer') return;
-        phase = 'answer';
+      /* ─── helper: transition from think phase to answer phase in the DOM ─── */
+      const enterAnswerPhase = () => {
+        if (answerPhase) return;
+        answerPhase = true;
+
+        /* 1. Finalise think block: stop streaming animation, collapse it */
         thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
-        if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
-        if (thLbl)   thLbl.textContent = `Thought for ${thinkDurStr}s`;
+        if (thinkEl) {
+          thinkEl.classList.remove('streaming');
+          thinkEl.classList.remove('open');   // collapse so it's tucked away
+        }
+        if (thLbl) thLbl.textContent = `Thought for ${thinkDurStr}s`;
+
+        /* 2. Remove the "answer waiting" hint */
+        if (awEl) awEl.remove();
+
+        /* 3. Show the answer area with a brief writing indicator */
         if (txtEl) {
           txtEl.style.display = '';
           const aState = modeOn('code') ? 'coding' : 'writing';
@@ -1041,14 +1074,7 @@
       try {
         if (useThink) {
           /* ════════════════════════════════
-             THINK MODEL FLOW
-             1. Stream — parse think vs answer tokens
-             2. If uncertainty detected mid-think:
-                - abort stream
-                - show search pill inside think block
-                - fetch search results
-                - restart stream with search ctx injected
-             3. Answer tokens render to txtEl
+             THINK MODEL
           ════════════════════════════════ */
           tStart = Date.now();
 
@@ -1057,21 +1083,20 @@
               if (S.abort?.signal?.aborted) break;
 
               if (chunk.type === 'think') {
+                /* ── Still in think phase ── */
                 thinkText += chunk.text;
 
-                /* Update think content DOM — use a text node for performance */
                 if (thCont) {
+                  /* Use a text node for performance — avoids full innerHTML re-parse */
                   if (!thCont._tn) {
                     thCont._tn = document.createTextNode('');
-                    thCont.insertBefore(thCont._tn, thCont.firstChild);
+                    thCont.appendChild(thCont._tn);
                   }
                   thCont._tn.nodeValue = thinkText;
                   if (S.settings.autoscroll) scrollBot();
                 }
 
-                /* ── UNCERTAINTY DETECTION ── */
-                /* Only fires once, only if user didn't already search,
-                   and only after enough think text has accumulated */
+                /* ── UNCERTAINTY DETECTION — trigger internal search ── */
                 if (
                   !internalSearchFired &&
                   S.settings.webSearchAuto &&
@@ -1081,10 +1106,10 @@
                 ) {
                   internalSearchFired = true;
 
-                  /* Abort the current stream */
+                  /* Abort current stream */
                   if (S.abort) S.abort.abort();
 
-                  /* Show search pill inside think block */
+                  /* Show animated search pill inside think content */
                   let pill = null;
                   if (thCont) {
                     pill = document.createElement('div');
@@ -1097,11 +1122,9 @@
                     if (S.settings.autoscroll) scrollBot();
                   }
 
-                  /* Do the search */
                   const q = userQuery || baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content || '';
                   internalSearchData = await doSearch(q);
 
-                  /* Replace pill with done state */
                   if (pill && thCont) {
                     const done = document.createElement('div');
                     done.className = 'think-srch-done';
@@ -1111,25 +1134,24 @@
                     pill.replaceWith(done);
                   }
 
-                  /* Restart stream with search results injected into context */
-                  const searchCtx = internalSearchData ? buildSearchCtx(internalSearchData) : '';
-                  const newCtx = ctx + searchCtx;
+                  /* Restart stream with search ctx */
+                  const newCtx = ctx + (internalSearchData ? buildSearchCtx(internalSearchData) : '');
                   S.abort = new AbortController();
-
-                  /* Recursive call — runs the rest of the conversation
-                     with search context now available */
                   await runStream(newCtx);
-                  return; /* don't continue outer loop */
+                  return;
                 }
 
               } else if (chunk.type === 'answer') {
-                /* Transition UI from think to answer on first answer token */
-                transitionToAnswer();
+                /* ── First answer token: transition UI from think → answer ── */
+                enterAnswerPhase();
 
                 answerText += chunk.text;
                 if (txtEl) {
+                  /* Remove the writing activity indicator on first real text */
                   const aw = txtEl.querySelector('.activity-wrap');
                   if (aw) aw.remove();
+
+                  /* Live markdown render + streaming cursor */
                   txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText)) + '<span class="stream-cur"></span>';
                   if (S.settings.autoscroll) scrollBot();
                 }
@@ -1139,27 +1161,30 @@
 
           await runStream(extraCtx);
 
-          /* Finalise think display */
-          if (!thinkDurStr) {
+          /* ── Finalize think block if answer never came (e.g. stopped early) ── */
+          if (!answerPhase) {
             thinkDurStr = ((Date.now() - tStart) / 1000).toFixed(1);
+            if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
+            if (thLbl)   thLbl.textContent = `Thought for ${thinkDurStr}s`;
+            if (awEl)    awEl.remove();
           }
-          if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
-          if (thLbl)   thLbl.textContent = `Thought for ${thinkDurStr}s`;
+
+          /* ── Final render of answer area ── */
           if (txtEl) {
             const aw = txtEl.querySelector('.activity-wrap');
             if (aw) aw.remove();
+            txtEl.style.display = '';
             if (!answerText) {
               txtEl.innerHTML = DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));
             } else {
               txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText));
             }
-            txtEl.style.display = '';
           }
 
         } else {
           /* ════════════════════════════════
              MODEL 0 — no think tags
-             Direct streaming answer
+             Direct streaming to txtEl
           ════════════════════════════════ */
           for await (const chunk of streamParsed(baseMsgs, extraCtx, modelKey, 4096)) {
             if (S.abort?.signal?.aborted) break;
@@ -1227,7 +1252,6 @@
           if(sb)sb.disabled=!inp||!inp.value.trim();
           return;
         }
-        /* User-stopped — save whatever accumulated */
       }
 
       document.getElementById(aiId)?.remove();
