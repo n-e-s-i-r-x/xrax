@@ -4,9 +4,9 @@ export const config = { runtime: 'edge' };
    MODEL MAP
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   'tencent/hy3-preview:free',
-  '00':  'tencent/hy3-preview:free',
-  '000': 'meta-llama/llama-3.3-70b-instruct:free',
+  '0':   'google/gemma-3-27b-it:free',
+  '00':  'nvidia/nemotron-3-nano-30b-a3b:free',
+  '000': 'nvidia/nemotron-3-super-120b-a12b:free',
 };
 
 /* ══════════════════════════════════════
