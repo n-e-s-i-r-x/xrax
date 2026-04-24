@@ -59,32 +59,34 @@
       .ai-txt blockquote{border-left:3px solid #2a2a2a;padding:4px 12px;color:#888;margin:8px 0}
       .ai-txt code:not(pre code){background:#1a1a1a;border-radius:4px;padding:2px 6px;font-family:"M",Menlo,monospace;font-size:13px;color:#ddd}
 
+      /* ── Activity orbs ── */
       .activity-wrap{display:flex;align-items:center;gap:10px;padding:4px 0 6px}
       .activity-orb{width:28px;height:28px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center}
       .activity-orb-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;animation:orbSpin 1.8s linear infinite}
       .activity-orb-dot{width:6px;height:6px;border-radius:50%;position:relative;z-index:1}
-      .activity-wrap[data-state="thinking"] .activity-orb-ring{border-top-color:#a855f7;border-right-color:rgba(168,85,247,.3)}
-      .activity-wrap[data-state="thinking"] .activity-orb-dot{background:#a855f7;box-shadow:0 0 8px rgba(168,85,247,.6)}
-      .activity-wrap[data-state="writing"]  .activity-orb-ring{border-top-color:#ddd;border-right-color:rgba(221,221,221,.3)}
-      .activity-wrap[data-state="writing"]  .activity-orb-dot{background:#999}
-      .activity-wrap[data-state="coding"]   .activity-orb-ring{border-top-color:#4ade80;border-right-color:rgba(74,222,128,.3)}
-      .activity-wrap[data-state="coding"]   .activity-orb-dot{background:#4ade80;box-shadow:0 0 8px rgba(74,222,128,.5)}
+      .activity-wrap[data-state="thinking"]  .activity-orb-ring{border-top-color:#a855f7;border-right-color:rgba(168,85,247,.3)}
+      .activity-wrap[data-state="thinking"]  .activity-orb-dot{background:#a855f7;box-shadow:0 0 8px rgba(168,85,247,.6)}
+      .activity-wrap[data-state="writing"]   .activity-orb-ring{border-top-color:#ddd;border-right-color:rgba(221,221,221,.3)}
+      .activity-wrap[data-state="writing"]   .activity-orb-dot{background:#999}
+      .activity-wrap[data-state="coding"]    .activity-orb-ring{border-top-color:#4ade80;border-right-color:rgba(74,222,128,.3)}
+      .activity-wrap[data-state="coding"]    .activity-orb-dot{background:#4ade80;box-shadow:0 0 8px rgba(74,222,128,.5)}
       .activity-wrap[data-state="searching"] .activity-orb-ring{border-top-color:#4a9eff;border-right-color:rgba(74,158,255,.3)}
       .activity-wrap[data-state="searching"] .activity-orb-dot{background:#4a9eff;box-shadow:0 0 8px rgba(74,158,255,.5)}
-      .activity-wrap[data-state="imaging"]  .activity-orb-ring{border-top-color:#fbbf24;border-right-color:rgba(251,191,36,.3)}
-      .activity-wrap[data-state="imaging"]  .activity-orb-dot{background:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.5)}
+      .activity-wrap[data-state="imaging"]   .activity-orb-ring{border-top-color:#fbbf24;border-right-color:rgba(251,191,36,.3)}
+      .activity-wrap[data-state="imaging"]   .activity-orb-dot{background:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.5)}
       @keyframes orbSpin{to{transform:rotate(360deg)}}
       .activity-right{display:flex;flex-direction:column;gap:3px;min-width:0}
       .activity-label{font-size:12px;font-weight:600;letter-spacing:.2px}
-      .activity-wrap[data-state="thinking"] .activity-label{color:#a855f7}
-      .activity-wrap[data-state="writing"]  .activity-label{color:#999}
-      .activity-wrap[data-state="coding"]   .activity-label{color:#4ade80}
+      .activity-wrap[data-state="thinking"]  .activity-label{color:#a855f7}
+      .activity-wrap[data-state="writing"]   .activity-label{color:#999}
+      .activity-wrap[data-state="coding"]    .activity-label{color:#4ade80}
       .activity-wrap[data-state="searching"] .activity-label{color:#4a9eff}
-      .activity-wrap[data-state="imaging"]  .activity-label{color:#fbbf24}
+      .activity-wrap[data-state="imaging"]   .activity-label{color:#fbbf24}
       .activity-sub{font-size:11px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;font-style:italic}
       .anim-dots::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
       @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}100%{content:''}}
 
+      /* ── Think block ── */
       .ai-think{margin-bottom:10px;border:1px solid #1e1530;border-radius:12px;overflow:hidden;background:#080810}
       .ai-think-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#0d0b14;cursor:pointer;user-select:none}
       .ai-think-hdr:active{background:#120f1c}
@@ -93,15 +95,21 @@
       .ai-think-lbl{font-size:12px;font-weight:600;color:#9d71e8;letter-spacing:.3px;flex:1}
       .ai-think.streaming .ai-think-lbl::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
       .ai-think-body{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}
-      .ai-think.open .ai-think-body{max-height:500px;overflow-y:auto}
-      .ai-think-content{padding:10px 12px 12px;font-size:12px;line-height:1.65;color:#6a5a9a;border-top:1px solid #1e1530;word-wrap:break-word;overflow-wrap:break-word;font-family:"M",Menlo,monospace;font-style:italic;white-space:pre-wrap}
+      .ai-think.open .ai-think-body{max-height:600px;overflow-y:auto}
+      .ai-think-content{padding:10px 12px 12px;font-size:12px;line-height:1.7;color:#6a5a9a;border-top:1px solid #1e1530;word-wrap:break-word;overflow-wrap:break-word;font-family:"M",Menlo,monospace;font-style:italic;white-space:pre-wrap}
 
-      .think-search-pill{display:inline-flex;align-items:center;gap:6px;background:#0a1628;border:1px solid #1a3050;border-radius:99px;padding:4px 12px;margin:4px 0;font-size:11px;color:#4a9eff;font-style:normal;font-family:"M",sans-serif;white-space:nowrap}
-      .think-search-dot{width:4px;height:4px;border-radius:50%;background:#4a9eff;animation:sPulse 1.2s ease-in-out infinite;flex-shrink:0}
-      .think-search-dot:nth-child(2){animation-delay:.15s}
-      .think-search-dot:nth-child(3){animation-delay:.3s}
-      @keyframes sPulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+      /* ── Internal search pill — inside thinking block only ── */
+      .think-search-inline{display:flex;align-items:center;gap:8px;margin:6px 0;padding:5px 10px;background:#0a1422;border:1px solid #152035;border-radius:8px;font-size:11px;color:#4a9eff;font-style:normal;font-family:"M",sans-serif}
+      .think-search-inline svg{flex-shrink:0;opacity:.8}
+      .think-search-inline-dots{display:flex;gap:3px;align-items:center;margin-left:2px}
+      .think-search-inline-dot{width:3px;height:3px;border-radius:50%;background:#4a9eff;animation:sDot 1.2s ease-in-out infinite;flex-shrink:0}
+      .think-search-inline-dot:nth-child(2){animation-delay:.2s}
+      .think-search-inline-dot:nth-child(3){animation-delay:.4s}
+      @keyframes sDot{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+      .think-search-done{display:flex;align-items:center;gap:7px;margin:6px 0;padding:5px 10px;background:#0a1a0a;border:1px solid #152515;border-radius:8px;font-size:11px;color:#4ade80;font-style:normal;font-family:"M",sans-serif}
+      .think-search-done svg{flex-shrink:0}
 
+      /* ── Code blocks ── */
       .code-wrap{margin:10px 0;border-radius:10px;overflow:hidden;background:#0a0a0a;border:1px solid #1a1a1a}
       .code-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#111;border-bottom:1px solid #1a1a1a}
       .code-lang{font-size:11px;color:#666}
@@ -117,8 +125,11 @@
       .ma-btn{padding:5px 10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:6px;color:#888;font-size:11px;display:flex;align-items:center;gap:4px;transition:background .15s,transform .1s}
       .ma-btn:active{background:#1a1a1a;transform:scale(.94)}
       .msg-ts{font-size:10px;color:#444;margin-top:4px}
+
+      /* web badge — only shown when user toggled Search */
       .web-badge{display:inline-flex;align-items:center;gap:5px;background:#0a1628;border:1px solid #1a3050;border-radius:6px;padding:3px 8px;font-size:11px;color:#4a9eff;margin-bottom:8px}
 
+      /* sources — only shown when user toggled Search */
       .sources-wrap{margin-top:10px;border-top:1px solid #141414;padding-top:8px}
       .sources-toggle{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#444;cursor:pointer;user-select:none;padding:2px 0 6px;background:none;border:none;transition:color .15s}
       .sources-toggle:active{color:#888}
@@ -132,6 +143,7 @@
       .source-name{font-size:12px;color:#4a9eff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;text-decoration:underline}
       .source-url{font-size:10px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 
+      /* input */
       #input-area{flex-shrink:0;padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:#000;border-top:1px solid #141414}
       .input-box{background:#0a0a0a;border:1px solid #1e1e1e;border-radius:18px;display:flex;flex-direction:column;transition:border-color .2s;overflow:hidden}
       .input-box:focus-within{border-color:#333}
@@ -430,23 +442,22 @@
     };
 
     /* ══════════════════════════════════════
-       FRONTEND PROMPTS
-       (phase routing helpers only — the real
-        per-model identity lives in chat.js)
+       FRONTEND PHASE PROMPTS
+       These are EXTRA context sent alongside
+       the base identity prompt in chat.js
     ══════════════════════════════════════ */
 
-    /* Thinking phase — reasoning engine prompt */
+    /* Thinking phase — reasoning only, no answer */
     const THINK_PHASE_PROMPT =
-`You are the internal reasoning engine for 0v AI.
-Think step by step through the user message. Write raw reasoning only.
-No final answer. No greetings. No markdown headers. Plain text only.
-Be concise but thorough.
+`You are now in your internal reasoning phase. Think step by step.
+Write your raw thought process naturally as if thinking out loud.
+Be thorough but concise. Plain text only, no markdown headers.
 
-CRITICAL: If you do not know something, are uncertain, or the question needs current or live information, write exactly <<SEARCH>> on its own line. This triggers a live web search.
+If you realize mid-thought that you need current or live information you do not have, write exactly the token <<SEARCH>> on its own line, then STOP generating immediately. Do not write anything after <<SEARCH>>.
 
-Do not reveal that you are reasoning. This is internal only.`;
+Do not write a final answer here. Do not greet the user. This is internal only.`;
 
-    /* Code mode extra instruction appended to answer phase */
+    /* Code mode extra */
     const CODE_MODE_EXTRA =
 `\n\n[CODE MODE: Provide working code only. Use fenced code blocks with correct language tags. Be concise.]`;
 
@@ -457,10 +468,7 @@ Do not reveal that you are reasoning. This is internal only.`;
       convos:{}, activeId:null, busy:false, abort:null,
       model:'0',
       modes:new Set(),
-      settings:{
-        timestamps:false, autoscroll:true,
-        save:true, webSearchAuto:true,
-      },
+      settings:{ timestamps:false, autoscroll:true, save:true, webSearchAuto:true },
     };
 
     /* ══════════════════════════════════════
@@ -468,72 +476,65 @@ Do not reveal that you are reasoning. This is internal only.`;
     ══════════════════════════════════════ */
     function openModelPicker(e) {
       e.stopPropagation();
-      const popup = document.getElementById('mp-popup');
-      const ov    = document.getElementById('mp-overlay');
-      const btn   = document.getElementById('model-btn');
-      const rect  = btn.getBoundingClientRect();
-      const popW  = 230;
-      let left    = rect.left;
-      let bottom  = window.innerHeight - rect.top + 8;
-      if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
-      if (left < 8) left = 8;
-      popup.style.left   = left + 'px';
-      popup.style.bottom = bottom + 'px';
-      popup.style.top    = 'auto';
-      ov.classList.add('open');
-      popup.classList.add('open');
+      const popup=document.getElementById('mp-popup'), ov=document.getElementById('mp-overlay');
+      const btn=document.getElementById('model-btn'), rect=btn.getBoundingClientRect();
+      const popW=230;
+      let left=rect.left, bottom=window.innerHeight-rect.top+8;
+      if(left+popW>window.innerWidth-8)left=window.innerWidth-popW-8;
+      if(left<8)left=8;
+      popup.style.left=left+'px'; popup.style.bottom=bottom+'px'; popup.style.top='auto';
+      ov.classList.add('open'); popup.classList.add('open');
     }
-    function closeModelPicker() {
+    function closeModelPicker(){
       document.getElementById('mp-popup').classList.remove('open');
       document.getElementById('mp-overlay').classList.remove('open');
     }
-    function selectModel(key) {
+    function selectModel(key){
       closeModelPicker();
-      const m = MODELS[key]; if (!m) return;
-      S.model = key;
-      document.getElementById('model-btn').textContent = m.label;
-      document.getElementById('user-input').placeholder = m.placeholder;
-      ['0','00','000'].forEach(k => {
-        document.getElementById('mp-item-' + k)?.classList.toggle('sel', k === key);
-      });
+      const m=MODELS[key]; if(!m)return;
+      S.model=key;
+      document.getElementById('model-btn').textContent=m.label;
+      document.getElementById('user-input').placeholder=m.placeholder;
+      ['0','00','000'].forEach(k=>document.getElementById('mp-item-'+k)?.classList.toggle('sel',k===key));
     }
 
     /* ══════════════════════════════════════
        MODES
     ══════════════════════════════════════ */
-    function toggleMode(m) {
-      if (S.modes.has(m)) S.modes.delete(m); else S.modes.add(m);
+    function toggleMode(m){
+      if(S.modes.has(m))S.modes.delete(m); else S.modes.add(m);
       updateModeUI();
-      document.body.classList.toggle('code-mode', S.modes.has('code'));
-      document.getElementById('image-notice')?.classList.toggle('show', S.modes.has('image'));
+      document.body.classList.toggle('code-mode',S.modes.has('code'));
+      document.getElementById('image-notice')?.classList.toggle('show',S.modes.has('image'));
     }
-    function updateModeUI() {
-      const cm = { code:'green', image:'amber' };
-      ['web','code','image'].forEach(m => {
-        const btn = document.getElementById(m + '-btn'); if (!btn) return;
-        btn.classList.toggle('active', S.modes.has(m));
+    function updateModeUI(){
+      const cm={code:'green',image:'amber'};
+      ['web','code','image'].forEach(m=>{
+        const btn=document.getElementById(m+'-btn'); if(!btn)return;
+        btn.classList.toggle('active',S.modes.has(m));
         btn.classList.remove('green','amber');
-        if (S.modes.has(m) && cm[m]) btn.classList.add(cm[m]);
+        if(S.modes.has(m)&&cm[m])btn.classList.add(cm[m]);
       });
     }
-    function modeOn(m) { return S.modes.has(m); }
+    function modeOn(m){return S.modes.has(m);}
 
     /* ══════════════════════════════════════
-       DATE / TIME CONTEXT
+       DATE / TIME
     ══════════════════════════════════════ */
-    function dtCtx() {
-      const n = new Date();
-      return (
-        '\n\n[Current date and time — always accurate]\n' +
-        'Date: ' + n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '\n' +
-        'Time: ' + n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})
-      );
+    function dtCtx(){
+      const n=new Date();
+      return '\n\n[Current date and time]\nDate: '+
+        n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
+        '\nTime: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
     }
 
     /* ══════════════════════════════════════
-       WEB SEARCH
+       SEARCH HELPERS
+       doSearch — shared by both toggle-search
+       and internal think-search. They are
+       completely separate call sites.
     ══════════════════════════════════════ */
-    const ALWAYS_SEARCH_RE = [
+    const ALWAYS_SEARCH_RE=[
       /\b(202[4-9]|20[3-9]\d)\b/,
       /\b(today|right now|as of today|this week|this month|this year)\b/i,
       /\b(latest|newest|most recent|current version)\b/i,
@@ -541,125 +542,98 @@ Do not reveal that you are reasoning. This is internal only.`;
       /\b(stock price|crypto price|bitcoin|exchange rate|weather (in|today|now|forecast))\b/i,
       /\b(breaking news|just happened|just announced|just released)\b/i,
     ];
-    const THINK_SEARCH_RE = [
-      /<<SEARCH>>/,
-      /i (don'?t|do not) (know|have|have information about|have data on)/i,
-      /i('?m| am) not sure (about|of|what|who|when|where|how)/i,
-      /i('?m| am) (unsure|uncertain|unaware)/i,
-      /i (can'?t|cannot) (confirm|verify|recall|remember)/i,
-      /my (knowledge|training|data).{0,30}(cut.?off|limited|outdated|old)/i,
-      /not (certain|sure) (if|whether|about)/i,
-      /(never heard of|unfamiliar with|don'?t recognize)/i,
-      /need(s)? to (search|look up|check)/i,
-    ];
 
-    function userQueryNeedsSearch(text) {
-      if (modeOn('web')) return true;
-      if (modeOn('image') || !text) return false;
-      if (!S.settings.webSearchAuto) return false;
-      const t = text.trim();
-      if (t.length < 6) return false;
-      if (/^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i.test(t)) return false;
-      return ALWAYS_SEARCH_RE.some(r => r.test(t));
+    function userQueryNeedsSearch(text){
+      if(modeOn('web'))return true;
+      if(modeOn('image')||!text)return false;
+      if(!S.settings.webSearchAuto)return false;
+      const t=text.trim();
+      if(t.length<6)return false;
+      if(/^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i.test(t))return false;
+      return ALWAYS_SEARCH_RE.some(r=>r.test(t));
     }
-    function thinkTextNeedsSearch(thinkText) {
-      if (!thinkText) return false;
-      return THINK_SEARCH_RE.some(r => r.test(thinkText));
+
+    async function doSearch(q){
+      try{
+        const r=await fetch('/api/search.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+        if(!r.ok)return null;
+        const d=await r.json();
+        return(d.results?.length||d.answer)?d:null;
+      }catch(e){return null;}
     }
-    async function doSearch(q) {
-      try {
-        const r = await fetch('/api/search.js', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({query:q}),
-        });
-        if (!r.ok) return null;
-        const d = await r.json();
-        return (d.results?.length || d.answer) ? d : null;
-      } catch(e) { return null; }
-    }
-    function buildSearchCtx(sd) {
-      if (!sd) return '';
-      let c = '\n\n--- WEB SEARCH RESULTS ---\n';
-      c += '(Today: ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) + ')\n\n';
-      if (sd.answer) c += 'DIRECT ANSWER: ' + sd.answer + '\n\n';
-      (sd.results||[]).forEach((r,i) => {
-        c += '[' + (i+1) + '] ' + r.title + '\nURL: ' + r.url + '\n' + r.snippet + '\n\n';
-      });
-      c += '--- USE THE ABOVE TO ANSWER. ---\n';
+
+    function buildSearchCtx(sd){
+      if(!sd)return'';
+      let c='\n\n--- WEB SEARCH RESULTS ---\n';
+      c+='(Today: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+')\n\n';
+      if(sd.answer)c+='DIRECT ANSWER: '+sd.answer+'\n\n';
+      (sd.results||[]).forEach((r,i)=>{c+='[' +(i+1)+'] '+r.title+'\nURL: '+r.url+'\n'+r.snippet+'\n\n';});
+      c+='--- USE THE ABOVE TO ANSWER. ---\n';
       return c;
     }
 
     /* ══════════════════════════════════════
        INIT
     ══════════════════════════════════════ */
-    let inited = false;
-    function init() {
-      if (inited) return; inited = true;
-      try { loadStore(); renderSB(); showEmpty(); setupScroll(); setupInput(); updateModeUI(); }
-      catch(e) { console.error(e); }
-      setTimeout(() => {
+    let inited=false;
+    function init(){
+      if(inited)return; inited=true;
+      try{loadStore();renderSB();showEmpty();setupScroll();setupInput();updateModeUI();}
+      catch(e){console.error(e);}
+      setTimeout(()=>{
         document.getElementById('intro')?.classList.add('hide');
         document.getElementById('app')?.classList.add('ready');
-        setTimeout(() => {
-          const i = document.getElementById('intro');
-          if (i) i.style.display = 'none';
-        }, 1000);
-      }, 2600);
+        setTimeout(()=>{const i=document.getElementById('intro');if(i)i.style.display='none';},1000);
+      },2600);
     }
-    document.addEventListener('DOMContentLoaded', init);
-    if (document.readyState !== 'loading') init();
+    document.addEventListener('DOMContentLoaded',init);
+    if(document.readyState!=='loading')init();
 
-    function setupScroll() {
-      const ca = document.getElementById('chat-area'); if (!ca) return;
-      ca.addEventListener('scroll', () => {
-        const far = ca.scrollHeight - ca.scrollTop - ca.clientHeight > 120;
-        document.getElementById('scroll-btn')?.classList.toggle('show', far);
+    function setupScroll(){
+      const ca=document.getElementById('chat-area');if(!ca)return;
+      ca.addEventListener('scroll',()=>{
+        const far=ca.scrollHeight-ca.scrollTop-ca.clientHeight>120;
+        document.getElementById('scroll-btn')?.classList.toggle('show',far);
       });
     }
-    function setupInput() {
-      const inp = document.getElementById('user-input'); if (!inp) return;
-      inp.addEventListener('input', () => {
-        const btn = document.getElementById('send-btn');
-        if (btn) btn.disabled = !inp.value.trim() || S.busy;
+    function setupInput(){
+      const inp=document.getElementById('user-input');if(!inp)return;
+      inp.addEventListener('input',()=>{
+        const btn=document.getElementById('send-btn');
+        if(btn)btn.disabled=!inp.value.trim()||S.busy;
       });
     }
 
     /* ══════════════════════════════════════
        STORAGE
     ══════════════════════════════════════ */
-    function saveStore() {
-      if (!S.settings.save) return;
-      try {
-        localStorage.setItem('vg_convos',   JSON.stringify(S.convos));
-        localStorage.setItem('vg_settings', JSON.stringify(S.settings));
-      } catch(e) {}
+    function saveStore(){
+      if(!S.settings.save)return;
+      try{
+        localStorage.setItem('vg_convos',JSON.stringify(S.convos));
+        localStorage.setItem('vg_settings',JSON.stringify(S.settings));
+      }catch(e){}
     }
-    function loadStore() {
-      try {
-        const c = localStorage.getItem('vg_convos');   if (c) S.convos   = JSON.parse(c) || {};
-        const s = localStorage.getItem('vg_settings'); if (s) S.settings = {...S.settings, ...JSON.parse(s)};
-      } catch(e) { S.convos = {}; }
+    function loadStore(){
+      try{
+        const c=localStorage.getItem('vg_convos');if(c)S.convos=JSON.parse(c)||{};
+        const s=localStorage.getItem('vg_settings');if(s)S.settings={...S.settings,...JSON.parse(s)};
+      }catch(e){S.convos={};}
     }
 
     /* ══════════════════════════════════════
        SIDEBAR
     ══════════════════════════════════════ */
-    function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebar-ov').classList.add('show'); }
-    function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-ov').classList.remove('show'); }
-    function renderSB(filter='') {
-      const ct = document.getElementById('chat-list'); if (!ct) return;
-      const ids = Object.keys(S.convos).sort((a,b) => (S.convos[b].ts||0) - (S.convos[a].ts||0));
-      const list = filter
-        ? ids.filter(id => (S.convos[id].title||'').toLowerCase().includes(filter.toLowerCase()))
-        : ids;
-      if (!list.length) {
-        ct.innerHTML = `<div class="empty-list">${filter ? 'No matches' : 'No conversations yet'}</div>`;
-        return;
-      }
-      ct.innerHTML = list.map(id => {
-        const c = S.convos[id], act = id === S.activeId ? 'active' : '';
-        return `<div class="chat-item ${act}" onclick="switchConvo('${id}')">
+    function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-ov').classList.add('show');}
+    function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-ov').classList.remove('show');}
+    function renderSB(filter=''){
+      const ct=document.getElementById('chat-list');if(!ct)return;
+      const ids=Object.keys(S.convos).sort((a,b)=>(S.convos[b].ts||0)-(S.convos[a].ts||0));
+      const list=filter?ids.filter(id=>(S.convos[id].title||'').toLowerCase().includes(filter.toLowerCase())):ids;
+      if(!list.length){ct.innerHTML=`<div class="empty-list">${filter?'No matches':'No conversations yet'}</div>`;return;}
+      ct.innerHTML=list.map(id=>{
+        const c=S.convos[id],act=id===S.activeId?'active':'';
+        return`<div class="chat-item ${act}" onclick="switchConvo('${id}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span class="chat-item-txt">${esc(c.title||'Untitled')}</span>
           <button class="chat-del" onclick="delConvo('${id}',event)">
@@ -668,104 +642,102 @@ Do not reveal that you are reasoning. This is internal only.`;
         </div>`;
       }).join('');
     }
-    function filterSB(v) { renderSB(v); }
+    function filterSB(v){renderSB(v);}
 
     /* ══════════════════════════════════════
        CONVOS
     ══════════════════════════════════════ */
-    function uid() { return 'c' + Date.now() + Math.random().toString(36).slice(2,7); }
-    function newChat() {
-      S.activeId = null; showEmpty(); renderSB(); setTitle('');
-      const inp = document.getElementById('user-input');
-      if (inp) { inp.value = ''; autoGrow(inp); inp.focus(); }
-      const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
+    function uid(){return'c'+Date.now()+Math.random().toString(36).slice(2,7);}
+    function newChat(){
+      S.activeId=null;showEmpty();renderSB();setTitle('');
+      const inp=document.getElementById('user-input');if(inp){inp.value='';autoGrow(inp);inp.focus();}
+      const sb=document.getElementById('send-btn');if(sb)sb.disabled=true;
     }
-    function switchConvo(id) {
-      if (!S.convos[id]) return; S.activeId = id;
-      renderMsgs(); renderSB(); setTitle(S.convos[id].title || 'Chat'); saveStore(); closeSidebar();
+    function switchConvo(id){
+      if(!S.convos[id])return;S.activeId=id;
+      renderMsgs();renderSB();setTitle(S.convos[id].title||'Chat');saveStore();closeSidebar();
     }
-    function delConvo(id, e) {
-      if (e) e.stopPropagation();
-      dlgConfirm('Delete conversation?', 'This cannot be undone.', () => {
+    function delConvo(id,e){
+      if(e)e.stopPropagation();
+      dlgConfirm('Delete conversation?','This cannot be undone.',()=>{
         delete S.convos[id];
-        if (S.activeId === id) { S.activeId = null; showEmpty(); setTitle(''); }
-        renderSB(); saveStore();
-      }, true);
+        if(S.activeId===id){S.activeId=null;showEmpty();setTitle('');}
+        renderSB();saveStore();
+      },true);
     }
-    function clearAll() {
-      dlgConfirm('Clear everything?', 'All conversations will be deleted.', () => {
-        S.convos = {}; S.activeId = null; showEmpty(); renderSB(); setTitle(''); saveStore(); closeSidebar();
-      }, true);
+    function clearAll(){
+      dlgConfirm('Clear everything?','All conversations will be deleted.',()=>{
+        S.convos={};S.activeId=null;showEmpty();renderSB();setTitle('');saveStore();closeSidebar();
+      },true);
     }
-    function ensureConvo() {
-      if (!S.activeId || !S.convos[S.activeId]) {
-        const id = uid();
-        S.convos[id] = { id, title:'', msgs:[], ts:Date.now() };
-        S.activeId = id;
+    function ensureConvo(){
+      if(!S.activeId||!S.convos[S.activeId]){
+        const id=uid();S.convos[id]={id,title:'',msgs:[],ts:Date.now()};S.activeId=id;
       }
       return S.convos[S.activeId];
     }
-    function curConvo() { return S.activeId && S.convos[S.activeId] ? S.convos[S.activeId] : null; }
-    function setTitle(t) { const el = document.getElementById('tb-title'); if (el) el.textContent = t; }
-    function mkTitle(raw) { const t = raw.trim().replace(/\s+/g,' '); return t.length > 40 ? t.slice(0,40) + '...' : t; }
+    function curConvo(){return S.activeId&&S.convos[S.activeId]?S.convos[S.activeId]:null;}
+    function setTitle(t){const el=document.getElementById('tb-title');if(el)el.textContent=t;}
+    function mkTitle(raw){const t=raw.trim().replace(/\s+/g,' ');return t.length>40?t.slice(0,40)+'...':t;}
 
     /* ══════════════════════════════════════
-       RENDER MESSAGES
+       RENDER
     ══════════════════════════════════════ */
-    function showEmpty() {
-      const ca = document.getElementById('chat-area'); if (!ca) return;
-      ca.innerHTML = `<div id="empty-state">
+    function showEmpty(){
+      const ca=document.getElementById('chat-area');if(!ca)return;
+      ca.innerHTML=`<div id="empty-state">
         <img id="empty-logo" src="icon.webp" alt=""/>
         <div id="empty-h">How can I help?</div>
         <div id="empty-s">Ask me anything. I can write, explain, code, and more.</div>
       </div>`;
     }
-    function renderMsgs() {
-      const c = curConvo(); const ca = document.getElementById('chat-area'); if (!ca) return;
-      if (!c || !c.msgs.length) { showEmpty(); return; }
-      ca.innerHTML = c.msgs.map((m,i) => buildMsg(m,i)).join('');
-      attachCodeBtns(); scrollBot();
+    function renderMsgs(){
+      const c=curConvo();const ca=document.getElementById('chat-area');if(!ca)return;
+      if(!c||!c.msgs.length){showEmpty();return;}
+      ca.innerHTML=c.msgs.map((m,i)=>buildMsg(m,i)).join('');
+      attachCodeBtns();scrollBot();
     }
-    function toggleSources(el) { el.closest('.sources-wrap')?.classList.toggle('open'); }
+    function toggleSources(el){el.closest('.sources-wrap')?.classList.toggle('open');}
 
-    function buildMsg(msg, idx) {
-      const ts = S.settings.timestamps && msg.ts
-        ? `<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>` : '';
+    function buildMsg(msg,idx){
+      const ts=S.settings.timestamps&&msg.ts
+        ?`<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>`:'';
 
-      if (msg.role === 'user') {
-        return `<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`;
+      if(msg.role==='user'){
+        return`<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`;
       }
 
-      const cma   = msg.codeMode ? 'data-codemode="true"' : '';
-      const badge = msg.searched
-        ? `<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>` : '';
+      const cma=msg.codeMode?'data-codemode="true"':'';
 
-      let thinkHtml = '';
-      if (msg.thinking && msg.thinking.trim()) {
-        const dur = msg.thinkDuration ? `Thought for ${msg.thinkDuration}s` : 'Thought';
-        thinkHtml = `<div class="ai-think" onclick="this.classList.toggle('open')">
+      /* web badge ONLY when user toggled Search mode */
+      const badge=msg.userSearched
+        ?`<div class="web-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Searched the web</div>`:'';
+
+      /* Think block — always shown for think models */
+      let thinkHtml='';
+      if(msg.thinking&&msg.thinking.trim()){
+        const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:'Thought';
+        thinkHtml=`<div class="ai-think" onclick="this.classList.toggle('open')">
           <div class="ai-think-hdr">
             <svg class="ai-think-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d71e8" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
             <span class="ai-think-lbl">${esc(dur)}</span>
           </div>
-          <div class="ai-think-body"><div class="ai-think-content">${esc(msg.thinking)}</div></div>
+          <div class="ai-think-body"><div class="ai-think-content">${renderThinkContent(msg.thinking)}</div></div>
         </div>`;
       }
 
-      let sourcesHtml = '';
-      if (msg.sources && msg.sources.length) {
-        const items = msg.sources.map(s => {
-          let h = ''; try { h = new URL(s.url).hostname.replace('www.',''); } catch(e) { h = s.url; }
-          return `<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">
+      /* Sources ONLY when user toggled Search */
+      let sourcesHtml='';
+      if(msg.userSearched&&msg.sources&&msg.sources.length){
+        const items=msg.sources.map(s=>{
+          let h='';try{h=new URL(s.url).hostname.replace('www.','');}catch(e){h=s.url;}
+          return`<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">
             <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(h)}&sz=32" alt="" onerror="this.style.display='none'"/>
-            <div class="source-text">
-              <span class="source-name">${esc(s.title||h)}</span>
-              <span class="source-url">${esc(h)}</span>
-            </div>
+            <div class="source-text"><span class="source-name">${esc(s.title||h)}</span><span class="source-url">${esc(h)}</span></div>
           </a>`;
         }).join('');
-        sourcesHtml = `<div class="sources-wrap">
+        sourcesHtml=`<div class="sources-wrap">
           <button class="sources-toggle" onclick="toggleSources(this)">
             <svg class="sources-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             Sources (${msg.sources.length})
@@ -774,14 +746,13 @@ Do not reveal that you are reasoning. This is internal only.`;
         </div>`;
       }
 
-      const html   = DOMPurify.sanitize(marked.parse(msg.content||''));
-      let imgHtml  = '';
-      if (msg.imageUrl) imgHtml = `<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
-      let acts = '';
-      if (msg.truncated) acts = `<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`;
-      if (msg.emptyRetry) acts = `<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
+      const html=DOMPurify.sanitize(marked.parse(msg.content||''));
+      let imgHtml='';if(msg.imageUrl)imgHtml=`<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
+      let acts='';
+      if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`;
+      if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
 
-      return `<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content">
+      return`<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content">
         <img class="ai-av" src="icon.webp" alt=""/>
         <div class="ai-body">
           ${badge}${thinkHtml}
@@ -792,145 +763,131 @@ Do not reveal that you are reasoning. This is internal only.`;
       </div></div></div>`;
     }
 
+    /* Render thinking text — preserve internal search markers as visual pills */
+    function renderThinkContent(raw){
+      /* Split on the stored marker <<SEARCHED:query>> */
+      const parts=raw.split(/(<<SEARCHED:[^>]*>>)/g);
+      return parts.map(p=>{
+        const m=p.match(/^<<SEARCHED:(.*)>>$/);
+        if(m){
+          const q=esc(m[1]);
+          return`</div><div class="think-search-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Searched: ${q}</div><div class="ai-think-content" style="border-top:none;padding-top:4px">`;
+        }
+        return esc(p);
+      }).join('');
+    }
+
     /* ══════════════════════════════════════
        CODE BUTTONS
     ══════════════════════════════════════ */
-    function attachCodeBtns() {
-      document.querySelectorAll('.ai-txt pre').forEach(pre => {
-        if (pre.closest('.code-wrap')) return;
-        const code = pre.querySelector('code');
-        const lang = (code?.className||'').replace('language-','') || 'code';
-        const isCM = pre.closest('.msg-row')?.dataset.codemode === 'true';
-        const wrap = document.createElement('div'); wrap.className = 'code-wrap';
-        const hdr  = document.createElement('div'); hdr.className  = 'code-hdr';
-        let extra = '';
-        if (isCM) extra = `
+    function attachCodeBtns(){
+      document.querySelectorAll('.ai-txt pre').forEach(pre=>{
+        if(pre.closest('.code-wrap'))return;
+        const code=pre.querySelector('code');
+        const lang=(code?.className||'').replace('language-','')||'code';
+        const isCM=pre.closest('.msg-row')?.dataset.codemode==='true';
+        const wrap=document.createElement('div');wrap.className='code-wrap';
+        const hdr=document.createElement('div');hdr.className='code-hdr';
+        let extra='';
+        if(isCM)extra=`
           <button class="view-btn" data-lang="${esc(lang)}" onclick="viewCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
-          <button class="dl-btn"   data-lang="${esc(lang)}" onclick="downloadCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
-        hdr.innerHTML = `<span class="code-lang">${esc(lang)}</span>
-          <div class="code-hdr-btns">${extra}
-            <button class="copy-code" onclick="cpyCode(this)">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy
-            </button>
-          </div>`;
-        pre.parentNode.insertBefore(wrap, pre); wrap.appendChild(hdr); wrap.appendChild(pre);
+          <button class="dl-btn" data-lang="${esc(lang)}" onclick="downloadCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save</button>`;
+        hdr.innerHTML=`<span class="code-lang">${esc(lang)}</span><div class="code-hdr-btns">${extra}<button class="copy-code" onclick="cpyCode(this)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button></div>`;
+        pre.parentNode.insertBefore(wrap,pre);wrap.appendChild(hdr);wrap.appendChild(pre);
       });
     }
-    function cpyCode(btn) {
-      const code = btn.closest('.code-wrap').querySelector('code').innerText;
-      copyText(code, () => {
-        const orig = btn.innerHTML;
-        btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Copied`;
-        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+    function cpyCode(btn){
+      const code=btn.closest('.code-wrap').querySelector('code').innerText;
+      copyText(code,()=>{
+        const orig=btn.innerHTML;
+        btn.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Copied`;
+        setTimeout(()=>{btn.innerHTML=orig;},1800);
       });
     }
-
-    const EXT = {
-      html:'html', htm:'html', css:'css', scss:'scss',
-      javascript:'js', js:'js', jsx:'jsx',
-      typescript:'ts', ts:'ts', tsx:'tsx',
-      python:'py', py:'py', java:'java',
-      c:'c', cpp:'cpp', csharp:'cs', cs:'cs',
-      go:'go', rust:'rs', rs:'rs', ruby:'rb', rb:'rb',
-      php:'php', swift:'swift', kotlin:'kt', kt:'kt',
-      sql:'sql', json:'json', xml:'xml',
-      yaml:'yml', yml:'yml', markdown:'md', md:'md',
-      bash:'sh', sh:'sh', shell:'sh',
-      vue:'vue', svelte:'svelte', dart:'dart', lua:'lua',
-    };
-    function downloadCode(btn) {
-      const codeEl  = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
-      const rawLang = (btn.dataset.lang||'code').toLowerCase().replace(/^language-/,'');
-      const ext     = EXT[rawLang] || rawLang || 'txt';
-      const mimeMap = { html:'text/html', css:'text/css', js:'application/javascript', json:'application/json', svg:'image/svg+xml' };
-      const mime    = mimeMap[ext] || 'text/plain';
-      const blob    = new Blob([codeEl.innerText], { type: mime + ';charset=utf-8' });
-      const url     = URL.createObjectURL(blob);
-      const a       = document.createElement('a'); a.href = url; a.download = `code.${ext}`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    const EXT={html:'html',htm:'html',css:'css',scss:'scss',javascript:'js',js:'js',jsx:'jsx',typescript:'ts',ts:'ts',tsx:'tsx',python:'py',py:'py',java:'java',c:'c',cpp:'cpp',csharp:'cs',cs:'cs',go:'go',rust:'rs',rs:'rs',ruby:'rb',rb:'rb',php:'php',swift:'swift',kotlin:'kt',kt:'kt',sql:'sql',json:'json',xml:'xml',yaml:'yml',yml:'yml',markdown:'md',md:'md',bash:'sh',sh:'sh',shell:'sh',vue:'vue',svelte:'svelte',dart:'dart',lua:'lua'};
+    function downloadCode(btn){
+      const codeEl=btn.closest('.code-wrap').querySelector('code');if(!codeEl)return;
+      const rawLang=(btn.dataset.lang||'code').toLowerCase().replace(/^language-/,'');
+      const ext=EXT[rawLang]||rawLang||'txt';
+      const mimeMap={html:'text/html',css:'text/css',js:'application/javascript',json:'application/json',svg:'image/svg+xml'};
+      const mime=mimeMap[ext]||'text/plain';
+      const blob=new Blob([codeEl.innerText],{type:mime+';charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download=`code.${ext}`;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     }
-    function viewCode(btn) {
-      const codeEl = btn.closest('.code-wrap').querySelector('code'); if (!codeEl) return;
-      const code   = codeEl.innerText;
-      const lang   = (btn.dataset.lang||'code').toLowerCase().replace('language-','');
-      let html = '';
-      if (lang==='html'||lang==='htm') {
-        html = code;
-      } else if (lang==='css'||lang==='scss') {
-        html = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;padding:20px}${code}</style></head><body><h1>Heading</h1><p>Paragraph.</p><button>Button</button></body></html>`;
-      } else if (['javascript','js','jsx','typescript','ts','tsx'].includes(lang)) {
-        html = `<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px}.error{color:#ff6b6b}</style></head><body><div id="o"></div><script>const _o=document.getElementById('o');console.log=(...a)=>{_o.innerHTML+='<pre>'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>'};try{${code}}catch(e){_o.innerHTML+='<pre class="error">'+e.message+'</pre>'}<\/script></body></html>`;
-      } else if (lang==='json') {
-        try { html = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(JSON.stringify(JSON.parse(code),null,2))}</body></html>`; }
-        catch(e) { html = `<body style="background:#111;color:#f66;padding:20px">Invalid JSON</body>`; }
-      } else if (lang==='svg') {
-        html = `<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;
-      } else {
-        html = `<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`;
-      }
-      document.getElementById('view-title').textContent = `View · ${lang}`;
-      document.getElementById('view-frame').srcdoc = html;
+    function viewCode(btn){
+      const codeEl=btn.closest('.code-wrap').querySelector('code');if(!codeEl)return;
+      const code=codeEl.innerText;const lang=(btn.dataset.lang||'code').toLowerCase().replace('language-','');
+      let html='';
+      if(lang==='html'||lang==='htm'){html=code;}
+      else if(lang==='css'||lang==='scss'){html=`<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;padding:20px}${code}</style></head><body><h1>Heading</h1><p>Paragraph.</p><button>Button</button></body></html>`;}
+      else if(['javascript','js','jsx','typescript','ts','tsx'].includes(lang)){html=`<!DOCTYPE html><html><head><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:20px}pre{background:#1a1a1a;padding:12px;border-radius:8px}.error{color:#ff6b6b}</style></head><body><div id="o"></div><script>const _o=document.getElementById('o');console.log=(...a)=>{_o.innerHTML+='<pre>'+a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'</pre>'};try{${code}}catch(e){_o.innerHTML+='<pre class="error">'+e.message+'</pre>'}<\/script></body></html>`;}
+      else if(lang==='json'){try{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(JSON.stringify(JSON.parse(code),null,2))}</body></html>`;}catch(e){html=`<body style="background:#111;color:#f66;padding:20px">Invalid JSON</body>`;}}
+      else if(lang==='svg'){html=`<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;}
+      else{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(code)}</body></html>`;}
+      document.getElementById('view-title').textContent=`View · ${lang}`;
+      document.getElementById('view-frame').srcdoc=html;
       document.getElementById('view-ov').classList.add('show');
     }
-    function closeView() {
-      document.getElementById('view-frame').srcdoc = '';
-      document.getElementById('view-ov').classList.remove('show');
-    }
+    function closeView(){document.getElementById('view-frame').srcdoc='';document.getElementById('view-ov').classList.remove('show');}
 
     /* ══════════════════════════════════════
        SEND
     ══════════════════════════════════════ */
-    async function sendMsg() {
-      const inp = document.getElementById('user-input'); if (!inp) return;
-      const raw = inp.value.trim(); if (!raw || S.busy) return;
-      const c   = ensureConvo();
-      c.msgs.push({ role:'user', content:raw, ts:Date.now() });
-      if (c.msgs.length === 1) { c.title = mkTitle(raw); setTitle(c.title); }
-      c.ts = Date.now();
-      inp.value = ''; autoGrow(inp);
-      const sb = document.getElementById('send-btn'); if (sb) sb.disabled = true;
-      renderMsgs(); renderSB();
+    async function sendMsg(){
+      const inp=document.getElementById('user-input');if(!inp)return;
+      const raw=inp.value.trim();if(!raw||S.busy)return;
+      const c=ensureConvo();
+      c.msgs.push({role:'user',content:raw,ts:Date.now()});
+      if(c.msgs.length===1){c.title=mkTitle(raw);setTitle(c.title);}
+      c.ts=Date.now();
+      inp.value='';autoGrow(inp);
+      const sb=document.getElementById('send-btn');if(sb)sb.disabled=true;
+      renderMsgs();renderSB();
 
-      if (modeOn('image')) {
-        await genImage(c, raw); S.busy = false;
-        if (sb) sb.disabled = !inp.value.trim(); return;
+      if(modeOn('image')){
+        await genImage(c,raw);S.busy=false;
+        if(sb)sb.disabled=!inp.value.trim();return;
       }
 
-      let searchData = null;
-      if (userQueryNeedsSearch(raw)) {
-        showSearchInd();
-        searchData = await doSearch(raw);
-        hideSearchInd();
+      /* User-toggled search — separate from think-internal search */
+      let userSearchData=null;
+      const userWantsSearch=userQueryNeedsSearch(raw);
+      if(userWantsSearch){
+        showUserSearchInd();
+        userSearchData=await doSearch(raw);
+        hideUserSearchInd();
       }
 
-      const aiId = 'ai' + Date.now();
+      const aiId='ai'+Date.now();
       appendPending(aiId);
-      await generate(c, aiId, searchData, raw);
+      await generate(c,aiId,userSearchData,raw,userWantsSearch);
     }
 
-    function showSearchInd() {
-      const ca = document.getElementById('chat-area');
-      if (!ca || document.getElementById('srch-ind')) return;
-      const el = document.createElement('div'); el.id = 'srch-ind'; el.style.cssText = 'padding:4px 14px;margin:4px 0';
-      el.innerHTML = `<div class="activity-wrap" data-state="searching" style="padding:6px 0">
+    /* User-search indicator — only for toggle/auto search, NOT think-internal */
+    function showUserSearchInd(){
+      const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;
+      const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';
+      el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0">
         <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
         <div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div>
       </div>`;
-      ca.appendChild(el); scrollBot();
+      ca.appendChild(el);scrollBot();
     }
-    function hideSearchInd() { document.getElementById('srch-ind')?.remove(); }
+    function hideUserSearchInd(){document.getElementById('srch-ind')?.remove();}
 
     /* ══════════════════════════════════════
        PENDING ROW
     ══════════════════════════════════════ */
-    function appendPending(id) {
-      const ca = document.getElementById('chat-area'); if (!ca) return;
-      const m  = MODELS[S.model] || MODELS['0'];
-      const row = document.createElement('div');
-      row.className = 'msg-row ai'; row.id = id;
+    function appendPending(id){
+      const ca=document.getElementById('chat-area');if(!ca)return;
+      const m=MODELS[S.model]||MODELS['0'];
+      const row=document.createElement('div');
+      row.className='msg-row ai';row.id=id;
 
-      if (m.hasThink) {
-        row.innerHTML = `<div class="msg-in"><div class="msg-content">
+      if(m.hasThink){
+        row.innerHTML=`<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             <div class="ai-think open streaming" id="${id}think">
@@ -939,15 +896,17 @@ Do not reveal that you are reasoning. This is internal only.`;
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9d71e8" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
                 <span class="ai-think-lbl" id="${id}thlbl">Thinking</span>
               </div>
-              <div class="ai-think-body"><div class="ai-think-content" id="${id}thcont"></div></div>
+              <div class="ai-think-body">
+                <div class="ai-think-content" id="${id}thcont"></div>
+              </div>
             </div>
             <div class="ai-txt" id="${id}txt" style="display:none"></div>
           </div>
         </div></div>`;
-      } else {
-        const aState = modeOn('code') ? 'coding' : 'writing';
-        const aLabel = modeOn('code') ? 'Writing Code' : 'Typing';
-        row.innerHTML = `<div class="msg-in"><div class="msg-content">
+      }else{
+        const aState=modeOn('code')?'coding':'writing';
+        const aLabel=modeOn('code')?'Writing Code':'Typing';
+        row.innerHTML=`<div class="msg-in"><div class="msg-content">
           <img class="ai-av" src="icon.webp" alt=""/>
           <div class="ai-body">
             <div class="ai-txt" id="${id}txt">
@@ -964,481 +923,584 @@ Do not reveal that you are reasoning. This is internal only.`;
       }
 
       ca.appendChild(row);
-      const sr = document.createElement('div'); sr.id = 'stop-row';
-      sr.innerHTML = `<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
-      ca.appendChild(sr); scrollBot();
+      const sr=document.createElement('div');sr.id='stop-row';
+      sr.innerHTML=`<button class="stop-btn" onclick="stopGen()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
+      ca.appendChild(sr);scrollBot();
     }
 
     /* ══════════════════════════════════════
        CORE API CALL
     ══════════════════════════════════════ */
-    async function apiCall(msgs, extraCtx, modelKey, maxTok, onDelta) {
-      const mDef = MODELS[modelKey] || MODELS['0'];
-      S.abort = new AbortController();
-      const res = await fetch('/api/chat.js', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages:     msgs,
-          systemPrompt: extraCtx,   /* extra context only — base prompt lives in chat.js */
-          temperature:  mDef.temp,
-          maxTokens:    maxTok || 2048,
-          model:        modelKey,
+    async function apiCall(msgs,extraCtx,modelKey,maxTok,onDelta){
+      const mDef=MODELS[modelKey]||MODELS['0'];
+      S.abort=new AbortController();
+      const res=await fetch('/api/chat.js',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          messages:msgs,
+          systemPrompt:extraCtx,
+          temperature:mDef.temp,
+          maxTokens:maxTok||2048,
+          model:modelKey,
         }),
-        signal: S.abort.signal,
+        signal:S.abort.signal,
       });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if(!res.ok)throw new Error('HTTP '+res.status);
 
-      let full = '', fr = null;
-      if (res.body) {
-        const reader  = res.body.getReader();
-        const dec     = new TextDecoder();
-        let   buffer  = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += dec.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') continue;
-            try {
-              const d     = JSON.parse(data);
-              const delta = d.choices?.[0]?.delta?.content || '';
-              if (delta) { full += delta; if (onDelta) onDelta(delta, full); }
-              if (d.choices?.[0]?.finish_reason) fr = d.choices[0].finish_reason;
-            } catch(e) {}
+      let full='',fr=null;
+      if(res.body){
+        const reader=res.body.getReader();
+        const dec=new TextDecoder();
+        let buffer='';
+        while(true){
+          const{done,value}=await reader.read();
+          if(done)break;
+          buffer+=dec.decode(value,{stream:true});
+          const lines=buffer.split('\n');
+          buffer=lines.pop()??'';
+          for(const line of lines){
+            if(!line.startsWith('data: '))continue;
+            const data=line.slice(6).trim();
+            if(data==='[DONE]')continue;
+            try{
+              const d=JSON.parse(data);
+              const delta=d.choices?.[0]?.delta?.content||'';
+              if(delta){full+=delta;if(onDelta)onDelta(delta,full);}
+              if(d.choices?.[0]?.finish_reason)fr=d.choices[0].finish_reason;
+            }catch(e){}
           }
         }
-      } else {
-        const d = await res.json();
-        full    = d.choices?.[0]?.message?.content || '';
-        fr      = d.choices?.[0]?.finish_reason;
-        if (onDelta && full) onDelta(full, full);
+      }else{
+        const d=await res.json();
+        full=d.choices?.[0]?.message?.content||'';
+        fr=d.choices?.[0]?.finish_reason;
+        if(onDelta&&full)onDelta(full,full);
       }
-      return { full: full.trim(), finishReason: fr };
+      return{full:full.trim(),finishReason:fr};
     }
 
     /* ══════════════════════════════════════
        STREAM WORDS
     ══════════════════════════════════════ */
-    async function streamWords(el, text, onChunk) {
-      if (!text) { el.innerHTML = ''; return; }
-      const parts = text.split(/(\s+)/);
-      let built = '';
-      for (let i = 0; i < parts.length; i++) {
-        if (S.abort?.signal?.aborted) break;
-        built += parts[i];
-        el.innerHTML = DOMPurify.sanitize(marked.parse(built)) + '<span class="stream-cur"></span>';
-        if (onChunk) onChunk();
-        await sleep(parts[i].trim() ? 14 : 4);
+    async function streamWords(el,text,onChunk){
+      if(!text){el.innerHTML='';return;}
+      const parts=text.split(/(\s+)/);
+      let built='';
+      for(let i=0;i<parts.length;i++){
+        if(S.abort?.signal?.aborted)break;
+        built+=parts[i];
+        el.innerHTML=DOMPurify.sanitize(marked.parse(built))+'<span class="stream-cur"></span>';
+        if(onChunk)onChunk();
+        await sleep(parts[i].trim()?14:4);
       }
-      el.innerHTML = DOMPurify.sanitize(marked.parse(built));
+      el.innerHTML=DOMPurify.sanitize(marked.parse(built));
     }
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+    /* ══════════════════════════════════════
+       THINK-INTERNAL SEARCH
+       Completely separate from user search:
+       - No badge shown outside thinking block
+       - No sources shown
+       - Indicator rendered inside thcont only
+       - Uses same doSearch() but results stay
+         inside thinking context only
+    ══════════════════════════════════════ */
+    async function thinkInternalSearch(query, thContEl){
+      /* Show animated pill INSIDE the thinking content */
+      const pillId='tsp'+Date.now();
+      if(thContEl){
+        const pill=document.createElement('div');
+        pill.id=pillId;
+        pill.className='think-search-inline';
+        pill.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Searching: ${esc(query.slice(0,50))}
+          <div class="think-search-inline-dots"><div class="think-search-inline-dot"></div><div class="think-search-inline-dot"></div><div class="think-search-inline-dot"></div></div>`;
+        thContEl.appendChild(pill);
+        if(S.settings.autoscroll)scrollBot();
+      }
+
+      const sd=await doSearch(query);
+
+      /* Replace pill with done indicator */
+      if(thContEl){
+        const pill=document.getElementById(pillId);
+        if(pill){
+          const done=document.createElement('div');
+          done.className='think-search-done';
+          done.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Found info: ${esc(query.slice(0,50))}`;
+          pill.replaceWith(done);
+        }
+        if(S.settings.autoscroll)scrollBot();
+      }
+
+      return sd;
+    }
 
     /* ══════════════════════════════════════
        MAIN GENERATE
     ══════════════════════════════════════ */
-    async function generate(convo, aiId, searchData, userQuery, contMode) {
-      contMode = contMode || false;
-      S.busy   = true;
+    async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode){
+      contMode=contMode||false;
+      S.busy=true;
 
-      const txtEl   = document.getElementById(aiId + 'txt');
-      const thinkEl = document.getElementById(aiId + 'think');
-      const thCont  = document.getElementById(aiId + 'thcont');
-      const thLbl   = document.getElementById(aiId + 'thlbl');
+      const txtEl=document.getElementById(aiId+'txt');
+      const thinkEl=document.getElementById(aiId+'think');
+      const thCont=document.getElementById(aiId+'thcont');
+      const thLbl=document.getElementById(aiId+'thlbl');
 
-      const modelKey = S.model;
-      const mDef     = MODELS[modelKey] || MODELS['0'];
-      const useThink = mDef.hasThink;
-      const baseMsgs = convo.msgs.map(m => ({ role:m.role, content:m.content }));
+      const modelKey=S.model;
+      const mDef=MODELS[modelKey]||MODELS['0'];
+      const useThink=mDef.hasThink;
+      const baseMsgs=convo.msgs.map(m=>({role:m.role,content:m.content}));
 
-      let thinkText    = null;
-      let answerText   = null;
-      let finishReason = null;
-      let usedSearch   = !!searchData;
-      let finalSources = searchData?.results || [];
-      let thinkDurStr  = null;
+      let thinkText=null;       /* full accumulated think text (for storage) */
+      let answerText=null;
+      let finishReason=null;
+      let finalSources=userSearchData?.results||[];
+      let thinkDurStr=null;
 
-      S.abort = new AbortController();
+      S.abort=new AbortController();
 
-      try {
+      try{
+        /* ═══════════════════════════════════
+           PATH A — THINK MODELS (00 / 000)
+        ═══════════════════════════════════ */
+        if(useThink){
+          const tStart=Date.now();
 
-        /* ─────────────────────────────────────
-           PATH A: THINK MODELS (00 / 000)
-        ───────────────────────────────────── */
-        if (useThink) {
+          /* Build think-phase extra context */
+          let thinkExtra=THINK_PHASE_PROMPT+dtCtx();
 
-          /* PHASE 1: REASONING
-             We send THINK_PHASE_PROMPT as the extra context.
-             The model's own base identity prompt is applied by chat.js. */
-          const tStart = Date.now();
-          let thinkExtra = THINK_PHASE_PROMPT + dtCtx();
-          if (searchData && (searchData.results?.length || searchData.answer)) {
-            thinkExtra += buildSearchCtx(searchData);
+          /* If user explicitly searched, give that info upfront */
+          if(userSearchData&&(userSearchData.results?.length||userSearchData.answer)){
+            thinkExtra+=buildSearchCtx(userSearchData);
           }
-          if (thCont) thCont.textContent = '';
 
-          let rawThink = '';
-          try {
-            const result = await apiCall(
-              baseMsgs, thinkExtra, modelKey, 700,
-              (delta, full) => {
-                rawThink = full;
-                if (thCont) {
-                  thCont.textContent = full.replace(/<<SEARCH>>/g,'').trimStart();
-                  if (S.settings.autoscroll) scrollBot();
+          /* ── PHASE 1: STREAM REASONING ── */
+          /* We stream token by token, watching for <<SEARCH>> */
+          let rawThinkAccum='';       /* everything generated so far */
+          let thinkPhaseText='';      /* text portion before any <<SEARCH>> */
+          let searchTriggered=false;
+          let internalSearchData=null;
+
+          /* Display buffer — what we show in thcont */
+          /* We render text chunks live into thcont as a text node */
+          if(thCont)thCont.textContent='';
+
+          /* We need a streaming call that can be interrupted mid-stream */
+          /* Strategy: stream into rawThinkAccum, detect <<SEARCH>> in each chunk */
+          let thinkStreamDone=false;
+          let thinkStreamFull='';
+
+          try{
+            await apiCall(
+              baseMsgs,thinkExtra,modelKey,800,
+              (delta,full)=>{
+                rawThinkAccum=full;
+
+                /* Check if <<SEARCH>> appeared */
+                const searchIdx=full.indexOf('<<SEARCH>>');
+                if(searchIdx!==-1&&!searchTriggered){
+                  searchTriggered=true;
+                  /* Show only the text before <<SEARCH>> */
+                  thinkPhaseText=full.slice(0,searchIdx).trim();
+                  if(thCont)thCont.textContent=thinkPhaseText;
+                  /* Abort further streaming — we have what we need */
+                  if(S.abort)S.abort.abort();
+                }else if(!searchTriggered&&thCont){
+                  /* Normal streaming display */
+                  thCont.textContent=full;
+                  if(S.settings.autoscroll)scrollBot();
                 }
               }
             );
-            rawThink = result.full;
-          } catch(e) {
-            if (e.name === 'AbortError') throw e;
-            rawThink = '';
-          }
-
-          thinkText   = rawThink.replace(/<<SEARCH>>/g,'').trim() || null;
-          const tEnd  = Date.now();
-          thinkDurStr = ((tEnd - tStart) / 1000).toFixed(1);
-
-          /* Trigger web search if reasoning signals uncertainty */
-          if (!searchData && thinkTextNeedsSearch(rawThink)) {
-            if (thCont) {
-              const pill = document.createElement('div');
-              pill.style.cssText = 'margin-top:6px';
-              pill.innerHTML = `<div class="think-search-pill"><div class="think-search-dot"></div><div class="think-search-dot"></div><div class="think-search-dot"></div>Searching the web</div>`;
-              thCont.appendChild(pill);
-              if (S.settings.autoscroll) scrollBot();
+            thinkStreamFull=rawThinkAccum;
+          }catch(e){
+            if(e.name==='AbortError'&&searchTriggered){
+              /* Expected — we aborted because <<SEARCH>> appeared */
+              thinkStreamFull=thinkPhaseText;
+            }else if(e.name==='AbortError'){
+              throw e; /* User stopped */
+            }else{
+              thinkStreamFull=rawThinkAccum;
             }
-            const q  = userQuery || baseMsgs.filter(m => m.role==='user').slice(-1)[0]?.content || '';
-            const sd = await doSearch(q);
-            const pill = thCont?.querySelector('.think-search-pill');
-            if (pill) pill.parentElement?.remove();
-            if (sd) { searchData = sd; usedSearch = true; finalSources = sd.results || []; }
           }
 
-          if (thinkEl) { thinkEl.classList.remove('streaming'); thinkEl.classList.remove('open'); }
-          if (thLbl)   thLbl.textContent = `Thought for ${thinkDurStr}s`;
-          if (thCont && thinkText) thCont.textContent = thinkText;
+          /* Reset abort controller for next phases */
+          S.abort=new AbortController();
 
-          await sleep(200);
+          /* ── THINK-INTERNAL SEARCH (if triggered) ── */
+          let internalSearchCtx='';
+          let searchMarker='';
 
-          /* PHASE 2: ANSWER */
-          if (txtEl) {
-            txtEl.style.display = '';
-            const aLabel = modeOn('code') ? 'Writing Code' : 'Writing';
-            const aState = modeOn('code') ? 'coding' : 'writing';
-            txtEl.innerHTML = `<div class="activity-wrap" data-state="${aState}">
+          if(searchTriggered&&!userSearchData){
+            const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
+            internalSearchData=await thinkInternalSearch(q,thCont);
+            if(internalSearchData){
+              internalSearchCtx=buildSearchCtx(internalSearchData);
+              searchMarker=`<<SEARCHED:${q.slice(0,60)}>>`;
+            }
+          }else if(searchTriggered&&userSearchData){
+            /* Already have search data */
+            internalSearchData=userSearchData;
+            internalSearchCtx=buildSearchCtx(userSearchData);
+          }
+
+          /* ── PHASE 1b: CONTINUE REASONING after search ── */
+          /* Now let AI continue thinking with the search results */
+          let postSearchThink='';
+          if(searchTriggered){
+            /* Brief pause — feels natural */
+            await sleep(300);
+
+            let continueThinkExtra=THINK_PHASE_PROMPT+dtCtx();
+            continueThinkExtra+='\n\n[You were thinking and paused to search. Here is what the search found. Continue your reasoning from where you left off, then conclude your thinking.]\n';
+            continueThinkExtra+='\n[Your thinking so far:]\n'+thinkPhaseText;
+            continueThinkExtra+=internalSearchCtx;
+
+            /* Add a "Continuing..." visual cue in thcont */
+            if(thCont){
+              const sep=document.createElement('div');
+              sep.style.cssText='color:#3a2a5a;font-size:11px;margin:4px 0;font-style:normal';
+              sep.textContent='— continuing —';
+              thCont.appendChild(sep);
+              if(S.settings.autoscroll)scrollBot();
+            }
+
+            try{
+              const r=await apiCall(
+                baseMsgs,continueThinkExtra,modelKey,600,
+                (delta,full)=>{
+                  postSearchThink=full;
+                  /* Append to thcont after the sep */
+                  if(thCont){
+                    /* Find or create the post-search text node */
+                    let postEl=document.getElementById(aiId+'thpost');
+                    if(!postEl){
+                      postEl=document.createElement('div');
+                      postEl.id=aiId+'thpost';
+                      postEl.style.cssText='white-space:pre-wrap;color:#6a5a9a;font-size:12px;line-height:1.7;font-style:italic;margin-top:2px';
+                      thCont.appendChild(postEl);
+                    }
+                    postEl.textContent=full;
+                    if(S.settings.autoscroll)scrollBot();
+                  }
+                }
+              );
+              postSearchThink=r.full;
+            }catch(e){
+              if(e.name==='AbortError')throw e;
+              postSearchThink='';
+            }
+            S.abort=new AbortController();
+          }
+
+          /* Compose final stored think text */
+          if(searchTriggered){
+            thinkText=(thinkPhaseText+(searchMarker?'\n'+searchMarker+'\n':'')+(postSearchThink?'\n'+postSearchThink:'')).trim()||null;
+          }else{
+            thinkText=thinkStreamFull.replace(/<<SEARCH>>/g,'').trim()||null;
+            if(thCont&&thinkText)thCont.textContent=thinkText;
+          }
+
+          const tEnd=Date.now();
+          thinkDurStr=((tEnd-tStart)/1000).toFixed(1);
+
+          /* Close thinking header */
+          if(thinkEl){thinkEl.classList.remove('streaming');thinkEl.classList.remove('open');}
+          if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;
+
+          await sleep(180);
+
+          /* ── PHASE 2: ANSWER ── */
+          if(txtEl){
+            txtEl.style.display='';
+            const aLabel=modeOn('code')?'Writing Code':'Writing';
+            const aState=modeOn('code')?'coding':'writing';
+            txtEl.innerHTML=`<div class="activity-wrap" data-state="${aState}">
               <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
               <div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div></div>
             </div>`;
-            if (S.settings.autoscroll) scrollBot();
+            if(S.settings.autoscroll)scrollBot();
           }
 
-          let ansExtra = dtCtx();
-          ansExtra += '\n\n[FINAL ANSWER PHASE: Respond directly to the user. No reasoning. No internal notes. Polished, complete answer only.]';
-          if (modeOn('code'))  ansExtra += CODE_MODE_EXTRA;
-          if (searchData && (searchData.results?.length || searchData.answer)) ansExtra += buildSearchCtx(searchData);
-          if (contMode)        ansExtra += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+          let ansExtra=dtCtx();
+          ansExtra+='\n\n[FINAL ANSWER PHASE: Respond directly to the user. No reasoning. No internal notes. Polished, complete answer only.]';
+          if(modeOn('code'))ansExtra+=CODE_MODE_EXTRA;
 
-          const ansMsgs = [...baseMsgs];
-          if (thinkText) {
-            const lui = ansMsgs.map(m => m.role).lastIndexOf('user');
-            if (lui !== -1) {
-              ansMsgs.splice(lui, 0, {
-                role: 'system',
-                content: '[Internal reasoning — use only to inform your answer. Never reveal or repeat it to the user.]\n\n' + thinkText,
+          /* Use whichever search data is available */
+          const effectiveSearch=internalSearchData||userSearchData;
+          if(effectiveSearch&&(effectiveSearch.results?.length||effectiveSearch.answer)){
+            ansExtra+=buildSearchCtx(effectiveSearch);
+          }
+          if(contMode)ansExtra+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+
+          const ansMsgs=[...baseMsgs];
+          if(thinkText){
+            const lui=ansMsgs.map(m=>m.role).lastIndexOf('user');
+            if(lui!==-1){
+              ansMsgs.splice(lui,0,{
+                role:'system',
+                content:'[Internal reasoning — use only to inform your answer. Never reveal or repeat it.]\n\n'+thinkText.replace(/<<SEARCHED:[^>]*>>/g,''),
               });
             }
           }
 
-          let rawAnswer = '';
-          try {
-            const result = await apiCall(ansMsgs, ansExtra, modelKey, 3072, null);
-            rawAnswer    = result.full;
-            finishReason = result.finishReason;
-          } catch(e) {
-            if (e.name === 'AbortError') throw e;
-            rawAnswer = '';
+          let rawAnswer='';
+          try{
+            const result=await apiCall(ansMsgs,ansExtra,modelKey,3072,null);
+            rawAnswer=result.full;finishReason=result.finishReason;
+          }catch(e){
+            if(e.name==='AbortError')throw e;
+            rawAnswer='';
           }
 
-          answerText = rawAnswer;
-          if (txtEl) {
-            const aw = txtEl.querySelector('.activity-wrap'); if (aw) aw.remove();
-            txtEl.innerHTML = '';
-            if (answerText) {
-              await streamWords(txtEl, answerText, () => { if (S.settings.autoscroll) scrollBot(); });
-            } else {
-              txtEl.innerHTML = DOMPurify.sanitize(marked.parse('_(No response generated — try again)_'));
+          answerText=rawAnswer;
+          if(txtEl){
+            const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+            txtEl.innerHTML='';
+            if(answerText){
+              await streamWords(txtEl,answerText,()=>{if(S.settings.autoscroll)scrollBot();});
+            }else{
+              txtEl.innerHTML=DOMPurify.sanitize(marked.parse('_(No response generated — try again)_'));
             }
           }
 
-        /* ─────────────────────────────────────
-           PATH B: NORMAL MODEL (0)
-        ───────────────────────────────────── */
-        } else {
+          /* Update sources — only if user explicitly searched */
+          if(userSearchData)finalSources=userSearchData.results||[];
+          else finalSources=[];
 
-          let ansExtra = dtCtx();
-          ansExtra += '\n\n[Respond directly to the user. Polished, complete answer only.]';
-          if (modeOn('code'))  ansExtra += CODE_MODE_EXTRA;
-          if (searchData && (searchData.results?.length || searchData.answer)) ansExtra += buildSearchCtx(searchData);
-          if (contMode)        ansExtra += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+        /* ═══════════════════════════════════
+           PATH B — NORMAL MODEL (0)
+        ═══════════════════════════════════ */
+        }else{
+          let ansExtra=dtCtx();
+          ansExtra+='\n\n[Respond directly to the user. Polished, complete answer only.]';
+          if(modeOn('code'))ansExtra+=CODE_MODE_EXTRA;
+          if(userSearchData&&(userSearchData.results?.length||userSearchData.answer))ansExtra+=buildSearchCtx(userSearchData);
+          if(contMode)ansExtra+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-          const { full, finishReason: fr } = await apiCall(
-            baseMsgs, ansExtra, modelKey, 4096,
-            (delta, cur) => {
-              if (txtEl) {
-                const aw = txtEl.querySelector('.activity-wrap'); if (aw) aw.remove();
-                txtEl.innerHTML = DOMPurify.sanitize(marked.parse(cur)) + '<span class="stream-cur"></span>';
+          const{full,finishReason:fr}=await apiCall(
+            baseMsgs,ansExtra,modelKey,4096,
+            (delta,cur)=>{
+              if(txtEl){
+                const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+                txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';
               }
-              const subEl = document.getElementById(aiId + 'sub');
-              if (subEl && cur.length > 10) {
-                const snip = cur.replace(/[#*`_\[\]]/g,'').trim().slice(-60);
-                if (snip) subEl.textContent = snip;
-              }
-              if (S.settings.autoscroll) scrollBot();
+              const subEl=document.getElementById(aiId+'sub');
+              if(subEl&&cur.length>10){const snip=cur.replace(/[#*`_\[\]]/g,'').trim().slice(-60);if(snip)subEl.textContent=snip;}
+              if(S.settings.autoscroll)scrollBot();
             }
           );
-          finishReason = fr;
-          answerText   = full;
-          if (txtEl) txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText || ''));
+          finishReason=fr;answerText=full;
+          if(txtEl)txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));
 
-          /* Smart re-search if model sounds uncertain */
-          if (answerText && !usedSearch && S.settings.webSearchAuto) {
-            const looksUncertain = (
-              /i (don'?t|do not) (really |actually )?(know|have information)/i.test(answerText) ||
-              /i('?m| am) not sure/i.test(answerText) ||
-              /i (can'?t|cannot) (confirm|verify)/i.test(answerText) ||
-              /my (knowledge|training).{0,30}(cut.?off|limit|outdated)/i.test(answerText) ||
+          /* Smart re-search for model 0 if uncertain */
+          if(answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')){
+            const looksUncertain=(
+              /i (don'?t|do not) (really |actually )?(know|have information)/i.test(answerText)||
+              /i('?m| am) not sure/i.test(answerText)||
+              /i (can'?t|cannot) (confirm|verify)/i.test(answerText)||
+              /my (knowledge|training).{0,30}(cut.?off|limit|outdated)/i.test(answerText)||
               /i('?m| am) (unsure|uncertain)/i.test(answerText)
             );
-            if (looksUncertain) {
-              showSearchInd();
-              const q  = userQuery || baseMsgs.filter(m => m.role==='user').slice(-1)[0]?.content || '';
-              const sd = await doSearch(q);
-              hideSearchInd();
-              if (sd) {
-                searchData = sd; usedSearch = true; finalSources = sd.results || [];
-                let sys2 = dtCtx() + buildSearchCtx(sd);
-                if (modeOn('code')) sys2 += CODE_MODE_EXTRA;
-                if (txtEl) {
-                  txtEl.innerHTML = `<div class="activity-wrap" data-state="writing">
-                    <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-                    <div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div>
-                  </div>`;
-                }
-                S.abort = new AbortController();
-                const { full:full2, finishReason:fr2 } = await apiCall(
-                  baseMsgs, sys2, modelKey, 4096,
-                  (delta, cur) => {
-                    if (txtEl) {
-                      const aw = txtEl.querySelector('.activity-wrap'); if (aw) aw.remove();
-                      txtEl.innerHTML = DOMPurify.sanitize(marked.parse(cur)) + '<span class="stream-cur"></span>';
-                    }
-                    if (S.settings.autoscroll) scrollBot();
+            if(looksUncertain){
+              /* Note: this is still shown as user-search since it's model-0 */
+              showUserSearchInd();
+              const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
+              const sd=await doSearch(q);
+              hideUserSearchInd();
+              if(sd){
+                userSearchData=sd;userWantsSearch=true;finalSources=sd.results||[];
+                let sys2=dtCtx()+buildSearchCtx(sd);
+                if(modeOn('code'))sys2+=CODE_MODE_EXTRA;
+                if(txtEl){txtEl.innerHTML=`<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div></div>`;}
+                S.abort=new AbortController();
+                const{full:full2,finishReason:fr2}=await apiCall(
+                  baseMsgs,sys2,modelKey,4096,
+                  (delta,cur)=>{
+                    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';}
+                    if(S.settings.autoscroll)scrollBot();
                   }
                 );
-                finishReason = fr2; answerText = full2;
-                if (txtEl) txtEl.innerHTML = DOMPurify.sanitize(marked.parse(answerText || ''));
+                finishReason=fr2;answerText=full2;
+                if(txtEl)txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));
               }
             }
           }
+          if(userSearchData)finalSources=userSearchData.results||[];
+          else finalSources=[];
         }
 
-      } catch(err) {
-        if (err.name !== 'AbortError') {
+      }catch(err){
+        if(err.name!=='AbortError'){
           document.getElementById(aiId)?.remove();
           document.getElementById('stop-row')?.remove();
-          showErr();
-          S.busy = false; S.abort = null;
-          const inp = document.getElementById('user-input');
-          const sb  = document.getElementById('send-btn');
-          if (sb) sb.disabled = !inp || !inp.value.trim();
+          showErr();S.busy=false;S.abort=null;
+          const inp=document.getElementById('user-input');
+          const sb=document.getElementById('send-btn');
+          if(sb)sb.disabled=!inp||!inp.value.trim();
           return;
         }
-        answerText = answerText || '';
+        answerText=answerText||'';
       }
 
       document.getElementById(aiId)?.remove();
       document.getElementById('stop-row')?.remove();
 
-      const savedAnswer = answerText || '';
-      if (!savedAnswer && !thinkText) {
+      const savedAnswer=answerText||'';
+      if(!savedAnswer&&!thinkText){
         convo.msgs.push({
-          role:'assistant', content:'_(No response — tap Retry)_',
-          ts:Date.now(), searched:usedSearch, sources:finalSources,
-          codeMode:modeOn('code'), thinking:null, thinkDuration:null,
-          truncated:false, emptyRetry:true, modelKey,
+          role:'assistant',content:'_(No response — tap Retry)_',
+          ts:Date.now(),
+          userSearched:!!userWantsSearch,  /* only true if user toggled Search */
+          sources:finalSources,
+          codeMode:modeOn('code'),thinking:null,thinkDuration:null,
+          truncated:false,emptyRetry:true,modelKey,
         });
-      } else {
+      }else{
         convo.msgs.push({
-          role:'assistant', content:savedAnswer,
-          ts:Date.now(), searched:usedSearch, sources:finalSources,
-          codeMode:modeOn('code'), thinking:thinkText, thinkDuration:thinkDurStr,
-          truncated:finishReason==='length', modelKey,
+          role:'assistant',content:savedAnswer,
+          ts:Date.now(),
+          userSearched:!!userWantsSearch,  /* only true if user toggled Search */
+          sources:finalSources,
+          codeMode:modeOn('code'),thinking:thinkText,thinkDuration:thinkDurStr,
+          truncated:finishReason==='length',modelKey,
         });
       }
 
-      renderMsgs(); saveStore();
-      S.busy = false; S.abort = null;
-      const inp = document.getElementById('user-input');
-      const sb  = document.getElementById('send-btn');
-      if (sb) sb.disabled = !inp || !inp.value.trim();
+      renderMsgs();saveStore();
+      S.busy=false;S.abort=null;
+      const inp=document.getElementById('user-input');
+      const sb=document.getElementById('send-btn');
+      if(sb)sb.disabled=!inp||!inp.value.trim();
       scrollBot();
     }
 
     /* ══════════════════════════════════════
        RETRY / CONTINUE / IMAGE / STOP
     ══════════════════════════════════════ */
-    async function retryEmpty(idx) {
-      const c = curConvo(); if (!c || S.busy) return;
-      const msg = c.msgs[idx]; if (!msg || !msg.emptyRetry) return;
-      c.msgs.splice(idx, 1); renderMsgs();
-      const um = c.msgs.filter(m => m.role==='user').slice(-1)[0]; if (!um) return;
-      const aiId = 'ai' + Date.now(); appendPending(aiId);
-      await generate(c, aiId, null, um.content);
+    async function retryEmpty(idx){
+      const c=curConvo();if(!c||S.busy)return;
+      const msg=c.msgs[idx];if(!msg||!msg.emptyRetry)return;
+      c.msgs.splice(idx,1);renderMsgs();
+      const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];if(!um)return;
+      const aiId='ai'+Date.now();appendPending(aiId);
+      await generate(c,aiId,null,um.content,false);
     }
 
-    async function continueMsg(idx) {
-      const c = curConvo(); if (!c || S.busy) return;
-      const msg = c.msgs[idx]; if (!msg || msg.role !== 'assistant') return;
-      msg.truncated = false;
-      const msgRow = document.querySelector(`.msg-row.ai[data-msg-index="${idx}"]`);
-      if (msgRow) {
-        const ad = msgRow.querySelector('.msg-acts');
-        if (ad) ad.innerHTML = `<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;
-      }
-      const txtEl = document.getElementById(`msg-${idx}-text`); if (!txtEl) return;
-      S.busy = true; S.abort = new AbortController();
+    async function continueMsg(idx){
+      const c=curConvo();if(!c||S.busy)return;
+      const msg=c.msgs[idx];if(!msg||msg.role!=='assistant')return;
+      msg.truncated=false;
+      const msgRow=document.querySelector(`.msg-row.ai[data-msg-index="${idx}"]`);
+      if(msgRow){const ad=msgRow.querySelector('.msg-acts');if(ad)ad.innerHTML=`<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`;}
+      const txtEl=document.getElementById(`msg-${idx}-text`);if(!txtEl)return;
+      S.busy=true;S.abort=new AbortController();
 
-      let contExtra = dtCtx();
-      contExtra += '\n\n[Respond directly to the user. Polished, complete answer only.]';
-      if (modeOn('code')) contExtra += CODE_MODE_EXTRA;
-      if (msg.sources && msg.sources.length) contExtra += buildSearchCtx({ results:msg.sources });
-      contExtra += '\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
+      let contExtra=dtCtx();
+      contExtra+='\n\n[Respond directly to the user. Polished, complete answer only.]';
+      if(modeOn('code'))contExtra+=CODE_MODE_EXTRA;
+      if(msg.sources&&msg.sources.length)contExtra+=buildSearchCtx({results:msg.sources});
+      contExtra+='\n\n[Continue from where the response cut off. Do not repeat anything already said.]';
 
-      const msgs = c.msgs.slice(0, idx+1).map(m => ({ role:m.role, content:m.content }));
-      let full = msg.content, fr = null;
-      try {
-        const r = await apiCall(msgs, contExtra, msg.modelKey || S.model, 4096,
-          (delta, cur) => {
-            txtEl.innerHTML = DOMPurify.sanitize(marked.parse(cur)) + '<span class="stream-cur"></span>';
-            if (S.settings.autoscroll) scrollBot();
+      const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
+      let full=msg.content,fr=null;
+      try{
+        const r=await apiCall(msgs,contExtra,msg.modelKey||S.model,4096,
+          (delta,cur)=>{
+            txtEl.innerHTML=DOMPurify.sanitize(marked.parse(cur))+'<span class="stream-cur"></span>';
+            if(S.settings.autoscroll)scrollBot();
           }
         );
-        full = r.full; fr = r.finishReason;
-      } catch(e) {}
-
-      txtEl.innerHTML = DOMPurify.sanitize(marked.parse(full));
-      msg.content   = full; msg.truncated = fr === 'length'; msg.ts = Date.now();
-      const ad = msgRow?.querySelector('.msg-acts');
-      if (ad) ad.innerHTML = msg.truncated
-        ? `<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`
-        : '';
-      attachCodeBtns(); saveStore();
-      S.busy = false; S.abort = null;
-      const inp = document.getElementById('user-input');
-      const sb  = document.getElementById('send-btn');
-      if (sb) sb.disabled = !inp || !inp.value.trim();
+        full=r.full;fr=r.finishReason;
+      }catch(e){}
+      txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full));
+      msg.content=full;msg.truncated=fr==='length';msg.ts=Date.now();
+      const ad=msgRow?.querySelector('.msg-acts');
+      if(ad)ad.innerHTML=msg.truncated?`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>Continue</button>`:'';
+      attachCodeBtns();saveStore();
+      S.busy=false;S.abort=null;
+      const inp=document.getElementById('user-input');
+      const sb=document.getElementById('send-btn');
+      if(sb)sb.disabled=!inp||!inp.value.trim();
       scrollBot();
     }
 
-    async function genImage(convo, prompt) {
-      S.busy = true;
-      const aiId = 'img' + Date.now();
-      const ca   = document.getElementById('chat-area');
-      const row  = document.createElement('div'); row.className = 'msg-row ai'; row.id = aiId;
-      row.innerHTML = `<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt">
+    async function genImage(convo,prompt){
+      S.busy=true;
+      const aiId='img'+Date.now();
+      const ca=document.getElementById('chat-area');
+      const row=document.createElement('div');row.className='msg-row ai';row.id=aiId;
+      row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt">
         <div class="activity-wrap" data-state="imaging">
           <div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div>
-          <div class="activity-right">
-            <div class="activity-label anim-dots">Generating Image</div>
-            <div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div>
-          </div>
+          <div class="activity-right"><div class="activity-label anim-dots">Generating Image</div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div>
         </div>
       </div></div></div></div>`;
-      ca.appendChild(row); scrollBot();
-      try {
-        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&model=flux&nologo=true`;
-        await new Promise((res, rej) => {
-          const img = new Image();
-          img.onload  = res;
-          img.onerror = rej;
-          img.src     = url;
-          setTimeout(() => rej(new Error('Timeout')), 35000);
-        });
-        convo.msgs.push({ role:'assistant', content:`Generated image for: *"${prompt}"*`, imageUrl:url, ts:Date.now(), truncated:false, modelKey:S.model });
-      } catch(err) {
-        convo.msgs.push({ role:'assistant', content:`Couldn't generate that image. ${err.message||'Try again.'}`, ts:Date.now(), truncated:false, modelKey:S.model });
+      ca.appendChild(row);scrollBot();
+      try{
+        const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&model=flux&nologo=true`;
+        await new Promise((res,rej)=>{const img=new Image();img.onload=res;img.onerror=rej;img.src=url;setTimeout(()=>rej(new Error('Timeout')),35000);});
+        convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:url,ts:Date.now(),truncated:false,modelKey:S.model});
+      }catch(err){
+        convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model});
       }
-      document.getElementById(aiId)?.remove(); renderMsgs(); saveStore(); S.busy = false;
+      document.getElementById(aiId)?.remove();renderMsgs();saveStore();S.busy=false;
     }
 
-    function stopGen() { if (S.abort) S.abort.abort(); }
+    function stopGen(){if(S.abort)S.abort.abort();}
 
-    function showErr() {
-      const ca = document.getElementById('chat-area'); if (!ca) return;
+    function showErr(){
+      const ca=document.getElementById('chat-area');if(!ca)return;
       document.getElementById('err-row')?.remove();
-      const r = document.createElement('div'); r.className = 'err-row'; r.id = 'err-row';
-      r.innerHTML = `<div class="err-box">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span class="err-msg">Failed to get a response</span>
-        <button class="retry-btn" onclick="retryLast()">Retry</button>
-      </div>`;
-      ca.appendChild(r); scrollBot();
+      const r=document.createElement('div');r.className='err-row';r.id='err-row';
+      r.innerHTML=`<div class="err-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#e06060;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="err-msg">Failed to get a response</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;
+      ca.appendChild(r);scrollBot();
     }
-    function retryLast() {
-      const c = curConvo(); if (!c || S.busy) return;
+    function retryLast(){
+      const c=curConvo();if(!c||S.busy)return;
       document.getElementById('err-row')?.remove();
-      const aiId = 'ai' + Date.now(); appendPending(aiId); generate(c, aiId, null, '', false);
+      const aiId='ai'+Date.now();appendPending(aiId);generate(c,aiId,null,'',false);
     }
 
     /* ══════════════════════════════════════
        INPUT / SCROLL
     ══════════════════════════════════════ */
-    function autoGrow(el) { if (!el) return; el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
-    function onKey(e) { if (e.key==='Enter' && !e.shiftKey && !isMobile()) { e.preventDefault(); sendMsg(); } }
-    function isMobile() { return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || 'ontouchstart' in window; }
-    function scrollBot(smooth=false) { const ca=document.getElementById('chat-area'); if(!ca)return; ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'}); }
+    function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
+    function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();sendMsg();}}
+    function isMobile(){return/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||'ontouchstart'in window;}
+    function scrollBot(smooth=false){const ca=document.getElementById('chat-area');if(!ca)return;ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'});}
 
     /* ══════════════════════════════════════
        DIALOG
     ══════════════════════════════════════ */
-    function showDialog(opts) {
-      document.getElementById('dialog-title').textContent = opts.title || '';
-      document.getElementById('dialog-msg').textContent   = opts.msg   || '';
-      const iw  = document.getElementById('dialog-input-wrap');
-      const inp = document.getElementById('dialog-input');
-      if (opts.input) { iw.style.display='block'; inp.value=opts.inputVal||''; inp.placeholder=opts.input; }
-      else            { iw.style.display='none'; }
-      const bts = document.getElementById('dialog-btns'); bts.innerHTML = '';
-      if (opts.cancel !== false) {
-        const cb = document.createElement('button');
-        cb.className = 'dlg-btn cancel'; cb.textContent = opts.cancelText || 'Cancel';
-        cb.onclick = closeDialog; bts.appendChild(cb);
-      }
-      const ok = document.createElement('button');
-      ok.className = 'dlg-btn ' + (opts.danger ? 'danger' : 'confirm');
-      ok.textContent = opts.confirmText || 'OK';
-      ok.onclick = () => { const v = inp ? inp.value : ''; closeDialog(); if (opts.onConfirm) opts.onConfirm(v); };
-      bts.appendChild(ok);
+    function showDialog(opts){
+      document.getElementById('dialog-title').textContent=opts.title||'';
+      document.getElementById('dialog-msg').textContent=opts.msg||'';
+      const iw=document.getElementById('dialog-input-wrap'),inp=document.getElementById('dialog-input');
+      if(opts.input){iw.style.display='block';inp.value=opts.inputVal||'';inp.placeholder=opts.input;}else{iw.style.display='none';}
+      const bts=document.getElementById('dialog-btns');bts.innerHTML='';
+      if(opts.cancel!==false){const cb=document.createElement('button');cb.className='dlg-btn cancel';cb.textContent=opts.cancelText||'Cancel';cb.onclick=closeDialog;bts.appendChild(cb);}
+      const ok=document.createElement('button');ok.className='dlg-btn '+(opts.danger?'danger':'confirm');ok.textContent=opts.confirmText||'OK';
+      ok.onclick=()=>{const v=inp?inp.value:'';closeDialog();if(opts.onConfirm)opts.onConfirm(v);};bts.appendChild(ok);
       document.getElementById('dialog-ov').classList.add('show');
-      if (opts.input) { setTimeout(() => inp?.focus(), 100); if (inp) inp.onkeydown = e => { if (e.key==='Enter') ok.click(); }; }
+      if(opts.input){setTimeout(()=>inp?.focus(),100);if(inp)inp.onkeydown=e=>{if(e.key==='Enter')ok.click();};}
     }
-    function closeDialog() { document.getElementById('dialog-ov').classList.remove('show'); }
-    function dlgConfirm(t, m, onY, d) { showDialog({ title:t, msg:m, onConfirm:onY, danger:d, confirmText:d?'Delete':'Confirm' }); }
+    function closeDialog(){document.getElementById('dialog-ov').classList.remove('show');}
+    function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,confirmText:d?'Delete':'Confirm'});}
 
     /* ══════════════════════════════════════
        SETTINGS
     ══════════════════════════════════════ */
-    function openSettings()  { closeSidebar(); renderSettings(); document.getElementById('settings-ov').classList.add('show'); }
-    function closeSettings() { document.getElementById('settings-ov').classList.remove('show'); }
-    function renderSettings() {
-      const body = document.getElementById('sheet-body'); if (!body) return;
-      body.innerHTML = `
+    function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
+    function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
+    function renderSettings(){
+      const body=document.getElementById('sheet-body');if(!body)return;
+      body.innerHTML=`
         <div class="sg"><div class="sg-lbl">Display</div>
           <div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div>
           <div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div>
@@ -1451,27 +1513,20 @@ Do not reveal that you are reasoning. This is internal only.`;
           <div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div>
         </div>`;
     }
-    function togSet(k, el) { S.settings[k] = !S.settings[k]; if (el) el.classList.toggle('on', S.settings[k]); saveStore(); }
-    function nukeAll() { dlgConfirm('Reset everything?','All data will be wiped.',() => { try{localStorage.clear();}catch(e){} location.reload(); }, true); }
+    function togSet(k,el){S.settings[k]=!S.settings[k];if(el)el.classList.toggle('on',S.settings[k]);saveStore();}
+    function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>{try{localStorage.clear();}catch(e){}location.reload();},true);}
 
     /* ══════════════════════════════════════
        UTILS
     ══════════════════════════════════════ */
-    function copyText(text, onDone) {
-      if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(onDone).catch(() => fbCopy(text, onDone)); }
-      else fbCopy(text, onDone);
+    function copyText(text,onDone){
+      if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(onDone).catch(()=>fbCopy(text,onDone));}
+      else fbCopy(text,onDone);
     }
-    function fbCopy(text, onDone) {
-      try {
-        const ta = document.createElement('textarea'); ta.value = text;
-        ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
-        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-        if (onDone) onDone();
-      } catch(e) {}
+    function fbCopy(text,onDone){
+      try{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;pointer-events:none';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);if(onDone)onDone();}catch(e){}
     }
-    function esc(s) {
-      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    }
+    function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
     </script>
   </body>
 </html>
