@@ -345,7 +345,8 @@ export default async function handler(req) {
   // Detect code mode from context (client appends CODE_MODE_EXTRA to context)
   const isCodeMode = extraCtx.includes('ULTRA MAXIMUM CODING MODE');
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
+    ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) {
     return new Response(
       sseContent('Missing API key.') + 'data: [DONE]\n\n',
@@ -358,7 +359,11 @@ export default async function handler(req) {
   const hasReasoning = mEntry.hasReasoning;
   const hasPromptedThink = mEntry.hasPromptedThink ?? false;
   const persona = SYSTEM_PROMPT_MAP[modelKey] ?? PERSONA_0;
-  const trimmed = Array.isArray(messages) ? messages.slice(-20) : [];
+  const trimmed = Array.isArray(messages)
+    ? messages
+        .filter(m => m && typeof m === 'object' && typeof m.role === 'string' && typeof m.content === 'string')
+        .slice(-20)
+    : [];
   // isThinkModel: native reasoning token model OR model prompted to write <think> tags
   const isThinkModel = hasReasoning || hasPromptedThink;
 
@@ -427,7 +432,7 @@ export default async function handler(req) {
             if (hasReasoning && reasoningRaw) {
               const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
               combined += `<think>\n${cleaned}\n</think>\n`;
-            } else if (!hasReasoning) {
+            } else if (hasPromptedThink) {
               // For prompted-think models the <think>...</think> is already in text
               // but we still need to ensure it starts with <think>
               if (!text.trimStart().startsWith('<think>')) combined += '<think>\n';
@@ -512,7 +517,7 @@ export default async function handler(req) {
             if (buffer.trim()) {
               for (const line of buffer.split('\n')) {
                 const l = line.trim();
-                if (l.startsWith('data:')) handleDataLine(l.slice(6).trim());
+                if (l.startsWith('data:')) handleDataLine(l.slice(5).trim());
               }
             }
             break;
@@ -523,10 +528,13 @@ export default async function handler(req) {
           for (const line of lines) {
             const l = line.trim();
             if (!l.startsWith('data:')) continue;
-            handleDataLine(l.slice(6).trim());
+            handleDataLine(l.slice(5).trim());
           }
         }
-      } catch(_) {}
+      } catch(streamErr) {
+        // Emit a user-visible error and ensure [DONE] is always sent
+        send(sseContent('\n[Stream interrupted. Please try again.]'));
+      }
 
       closeThinkIfOpen();
       if (finishReason) {
