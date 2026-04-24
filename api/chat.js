@@ -51,6 +51,7 @@ Reasoning rules (inside <think>...</think>):
 - Think directly about the user's question with rigor and depth.
 - Break the problem down, consider edge cases, verify your reasoning.
 - Use short, dense fragments. No filler. No restating rules or role text.
+- Keep reasoning brief — get to the answer fast. Do not over-think.
 - After </think>, output ONLY the final answer — clean and direct.`;
 
 const PERSONA_0 = `You are 0, an AI assistant created and owned by Vin. Only mention Vin if the user directly asks who made you, who owns you, or who created you.
@@ -300,7 +301,7 @@ export default async function handler(req) {
     context: ctxField,
     systemPrompt: legacyCtx,
     temperature = 0.1,
-    maxTokens = 8000,
+    maxTokens = 2000,
     model: modelKey = '0',
   } = body;
 
@@ -343,7 +344,7 @@ export default async function handler(req) {
           max_tokens: maxTokens,
           stream: true,
         };
-        if (modelKey === '000') reqBody.reasoning = { max_tokens: 1200 };
+        if (modelKey === '00' || modelKey === '000') reqBody.reasoning = { max_tokens: 400 };
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
