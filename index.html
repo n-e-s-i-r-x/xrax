@@ -78,12 +78,59 @@ body.themed .ai-txt a{color:var(--accent);}
 body.themed .ai-txt blockquote{border-left-color:var(--accent-border);}
 .ai-txt code:not(pre code){background:#1a1a1a;border-radius:4px;padding:2px 6px;font-family:"M",Menlo,monospace;font-size:13px;color:#ddd;transition:border .3s;}
 body.themed .ai-txt code:not(pre code){border:1px solid var(--accent-border);background:var(--accent-subtle);}
-/* ── SMART TEXT BLOCKS ── */
-.ai-txt .txt-block{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:10px;padding:10px 14px;margin:8px 0;line-height:1.65;transition:border-color .3s;}
-body.themed .ai-txt .txt-block{border-color:var(--accent-border);background:var(--accent-subtle);}
-.ai-txt .txt-block p{margin:0 0 6px}.ai-txt .txt-block p:last-child{margin:0}
-.ai-txt hr{border:none;border-top:1px solid #1e1e1e;margin:10px 0;transition:border-color .3s;}
+/* ── SMART LAYOUT BLOCKS ── */
+/* Only applied when a response has mixed structure (headings + prose, or code + explanation) */
+.ai-txt .prose-block{background:#0a0a0a;border-left:2px solid #222;border-radius:0 8px 8px 0;padding:8px 12px;margin:6px 0 10px;line-height:1.7;transition:border-color .3s;}
+body.themed .ai-txt .prose-block{border-left-color:var(--accent-border);background:var(--accent-subtle);}
+.ai-txt .prose-block p{margin:0 0 6px}.ai-txt .prose-block p:last-child{margin:0}
+
+/* Callout / note block (triggered by markdown > or NOTE:/TIP: pattern) */
+.ai-txt .callout{display:flex;gap:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px;padding:10px 12px;margin:8px 0;transition:border-color .3s,background .3s;}
+body.themed .ai-txt .callout{border-color:var(--accent-border);background:var(--accent-subtle);}
+.ai-txt .callout-icon{font-size:14px;flex-shrink:0;margin-top:1px;opacity:.8}
+.ai-txt .callout-body{flex:1;min-width:0;font-size:14px;line-height:1.6;color:#aaa;}
+body.themed .ai-txt .callout-body{color:#bbb;}
+.ai-txt .callout-body p{margin:0 0 4px}.ai-txt .callout-body p:last-child{margin:0}
+
+/* Numbered steps — wrap ordered lists in structured sections */
+.ai-txt .steps-block{margin:8px 0;}
+.ai-txt .steps-block ol{list-style:none;margin:0;padding:0;}
+.ai-txt .steps-block li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #141414;transition:border-color .3s;}
+body.themed .ai-txt .steps-block li{border-bottom-color:var(--accent-border);opacity:.9;}
+.ai-txt .steps-block li:last-child{border-bottom:none;padding-bottom:0}
+.ai-txt .steps-block li:first-child{padding-top:0}
+.ai-txt .step-num{width:22px;height:22px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#888;flex-shrink:0;margin-top:1px;transition:border-color .3s,background .3s,color .3s;}
+body.themed .ai-txt .step-num{border-color:var(--accent-border);background:var(--accent-subtle);color:var(--accent);}
+.ai-txt .step-body{flex:1;min-width:0;font-size:15px;line-height:1.55;color:#ddd;}
+.ai-txt .step-body strong:first-child{display:block;color:#fff;margin-bottom:2px;}
+
+/* Key-value / definition pairs */
+.ai-txt .kv-block{background:#080808;border:1px solid #1a1a1a;border-radius:10px;overflow:hidden;margin:8px 0;transition:border-color .3s;}
+body.themed .ai-txt .kv-block{border-color:var(--accent-border);}
+.ai-txt .kv-row{display:flex;gap:0;border-bottom:1px solid #111;transition:border-color .3s;}
+body.themed .ai-txt .kv-row{border-bottom-color:var(--accent-border);opacity:.85;}
+.ai-txt .kv-row:last-child{border-bottom:none}
+.ai-txt .kv-key{padding:7px 10px;font-size:12px;font-weight:700;color:#888;background:#0f0f0f;min-width:90px;max-width:130px;flex-shrink:0;letter-spacing:.2px;transition:background .3s,color .3s;}
+body.themed .ai-txt .kv-key{background:var(--accent-subtle);color:var(--accent);}
+.ai-txt .kv-val{padding:7px 10px;font-size:13px;color:#ccc;flex:1;line-height:1.5;}
+
+/* Table */
+.ai-txt .tbl-wrap{overflow-x:auto;margin:8px 0;border-radius:10px;border:1px solid #1a1a1a;transition:border-color .3s;}
+body.themed .ai-txt .tbl-wrap{border-color:var(--accent-border);}
+.ai-txt table{width:100%;border-collapse:collapse;font-size:13px;}
+.ai-txt th{background:#0f0f0f;color:#aaa;font-weight:700;padding:8px 10px;text-align:left;border-bottom:1px solid #1a1a1a;font-size:12px;letter-spacing:.3px;transition:background .3s,color .3s,border-color .3s;}
+body.themed .ai-txt th{background:var(--accent-subtle);color:var(--accent);border-bottom-color:var(--accent-border);}
+.ai-txt td{padding:7px 10px;color:#ccc;border-bottom:1px solid #111;transition:border-color .3s;}
+body.themed .ai-txt td{border-bottom-color:var(--accent-border);opacity:.9;}
+.ai-txt tr:last-child td{border-bottom:none}
+
+/* Divider */
+.ai-txt hr{border:none;border-top:1px solid #1e1e1e;margin:12px 0;transition:border-color .3s;}
 body.themed .ai-txt hr{border-top-color:var(--accent-border);}
+
+/* Inline label pills for bold-colon patterns like **Key:** */
+.ai-txt .lbl-pill{display:inline-block;background:#141414;border:1px solid #242424;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:700;color:#888;margin-right:4px;vertical-align:middle;letter-spacing:.2px;transition:border-color .3s,color .3s,background .3s;}
+body.themed .ai-txt .lbl-pill{border-color:var(--accent-border);color:var(--accent);background:var(--accent-subtle);}
 
 /* ── ACTIVITY / LOADING ORBS ── */
 .activity-wrap{display:flex;align-items:center;gap:10px;padding:4px 0 6px}
@@ -591,31 +638,145 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
 if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")};
 if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
-/* ── SMART TEXT BLOCK RENDERER ── */
+/* ══════════════════════════════════════
+   SMART LAYOUT RENDERER
+   Analyses the parsed HTML structure and applies rich formatting
+   only when the content genuinely calls for it.
+   Rules:
+   - Short/conversational replies  → plain text, zero wrapping
+   - Mixed structure (code + prose, headings + prose) → prose-block on paragraphs
+   - Ordered lists → steps-block with numbered circles
+   - Blockquotes / NOTE/TIP/WARN prefix → callout card
+   - Tables → scrollable tbl-wrap
+   - Bold-colon label patterns inside paragraphs → lbl-pill labels
+   - NEVER wraps a single short paragraph or the whole response if it's
+     just flowing prose (no headings, no code, no lists mixed in)
+══════════════════════════════════════ */
 function renderMd(text){
-  const html=DOMPurify.sanitize(marked.parse(text||''));
-  // Group consecutive <p> nodes into .txt-block when combined text >= 80 chars
+  if(!text)return'';
+
+  /* ── Parse ── */
+  const raw=DOMPurify.sanitize(marked.parse(text));
   const tmp=document.createElement('div');
-  tmp.innerHTML=html;
+  tmp.innerHTML=raw;
+  const nodes=Array.from(tmp.childNodes);
+
+  /* ── Classify content ── */
+  const tags=nodes.map(n=>n.nodeName);
+  const hasHeading=tags.some(t=>/^H[1-3]$/.test(t));
+  const hasCode=tags.some(t=>t==='PRE');
+  const hasOL=tags.some(t=>t==='OL');
+  const hasUL=tags.some(t=>t==='UL');
+  const hasTable=tags.some(t=>t==='TABLE');
+  const hasBlockquote=tags.some(t=>t==='BLOCKQUOTE');
+  const pCount=tags.filter(t=>t==='P').length;
+  const totalText=tmp.textContent.trim();
+  const isRich=hasHeading||hasCode||hasTable||(hasOL&&pCount>0)||(hasUL&&pCount>1);
+  // "conversation" = short plain reply with no structure
+  const isConversational=!isRich&&!hasBlockquote&&totalText.length<300&&pCount<=2;
+
+  /* ── Build output ── */
   const out=document.createElement('div');
-  let pGroup=[];
-  const flushGroup=()=>{
-    if(!pGroup.length)return;
-    const combined=pGroup.map(n=>n.textContent||'').join(' ');
-    if(combined.trim().length>=80){
-      const wrap=document.createElement('div');wrap.className='txt-block';
-      pGroup.forEach(n=>wrap.appendChild(n.cloneNode(true)));
-      out.appendChild(wrap);
-    }else{
-      pGroup.forEach(n=>out.appendChild(n.cloneNode(true)));
+  let i=0;
+
+  const appendNode=n=>out.appendChild(n.cloneNode(true));
+
+  while(i<nodes.length){
+    const node=nodes[i];
+    const tag=node.nodeName;
+
+    /* Headings — always plain, just append */
+    if(/^H[1-3]$/.test(tag)){appendNode(node);i++;continue;}
+
+    /* HR */
+    if(tag==='HR'){appendNode(node);i++;continue;}
+
+    /* TABLE → scrollable wrapper */
+    if(tag==='TABLE'){
+      const wrap=document.createElement('div');wrap.className='tbl-wrap';
+      wrap.appendChild(node.cloneNode(true));
+      out.appendChild(wrap);i++;continue;
     }
-    pGroup=[];
-  };
-  Array.from(tmp.childNodes).forEach(node=>{
-    if(node.nodeName==='P'){pGroup.push(node);}
-    else{flushGroup();out.appendChild(node.cloneNode(true));}
-  });
-  flushGroup();
+
+    /* BLOCKQUOTE → callout card */
+    if(tag==='BLOCKQUOTE'){
+      const inner=(node.textContent||'').trim();
+      // Detect NOTE / TIP / WARN / INFO prefixes
+      const prefixM=inner.match(/^(note|tip|warning|warn|info|important)[:\s]/i);
+      const icon=prefixM?{note:'ℹ',tip:'💡',warning:'⚠',warn:'⚠',info:'ℹ',important:'⚡'}[prefixM[1].toLowerCase()]||'💬':'💬';
+      const callout=document.createElement('div');callout.className='callout';
+      const iconEl=document.createElement('span');iconEl.className='callout-icon';iconEl.textContent=icon;
+      const body=document.createElement('div');body.className='callout-body';
+      body.innerHTML=node.innerHTML;
+      callout.appendChild(iconEl);callout.appendChild(body);
+      out.appendChild(callout);i++;continue;
+    }
+
+    /* ORDERED LIST → steps if in rich context, else plain */
+    if(tag==='OL'){
+      if(isRich){
+        const stepsWrap=document.createElement('div');stepsWrap.className='steps-block';
+        const ol=document.createElement('ol');
+        Array.from(node.children).forEach((li,idx)=>{
+          const item=document.createElement('li');
+          const numEl=document.createElement('span');numEl.className='step-num';numEl.textContent=idx+1;
+          const bodyEl=document.createElement('div');bodyEl.className='step-body';
+          bodyEl.innerHTML=li.innerHTML;
+          item.appendChild(numEl);item.appendChild(bodyEl);
+          ol.appendChild(item);
+        });
+        stepsWrap.appendChild(ol);
+        out.appendChild(stepsWrap);
+      }else{
+        appendNode(node);
+      }
+      i++;continue;
+    }
+
+    /* UL — plain always (bullets are already well styled) */
+    if(tag==='UL'){appendNode(node);i++;continue;}
+
+    /* PRE (code) — plain always */
+    if(tag==='PRE'){appendNode(node);i++;continue;}
+
+    /* PARAGRAPH */
+    if(tag==='P'){
+      // Gather a run of consecutive paragraphs
+      const run=[];
+      let j=i;
+      while(j<nodes.length&&nodes[j].nodeName==='P'){run.push(nodes[j]);j++;}
+      const runText=run.map(n=>n.textContent||'').join(' ').trim();
+
+      if(isConversational||runText.length<60){
+        // Plain — no wrapping
+        run.forEach(n=>appendNode(n));
+      }else if(isRich&&runText.length>=80){
+        // Rich context with substantial prose → prose-block (left-border style)
+        const wrap=document.createElement('div');wrap.className='prose-block';
+        run.forEach(n=>{
+          const clone=n.cloneNode(true);
+          // Transform bold-colon labels: **Label:** text → <span class="lbl-pill">Label</span> text
+          clone.innerHTML=clone.innerHTML.replace(/<strong>([^<]{1,30}):<\/strong>\s*/g,
+            (_,lbl)=>`<span class="lbl-pill">${lbl}</span> `);
+          wrap.appendChild(clone);
+        });
+        out.appendChild(wrap);
+      }else{
+        // Moderately long but not mixed-structure → plain
+        run.forEach(n=>{
+          const clone=n.cloneNode(true);
+          clone.innerHTML=clone.innerHTML.replace(/<strong>([^<]{1,30}):<\/strong>\s*/g,
+            (_,lbl)=>`<span class="lbl-pill">${lbl}</span> `);
+          out.appendChild(clone);
+        });
+      }
+      i=j;continue;
+    }
+
+    /* Anything else (text nodes, spans, etc.) */
+    appendNode(node);i++;
+  }
+
   return out.innerHTML;
 }
 
