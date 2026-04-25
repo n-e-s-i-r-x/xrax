@@ -461,6 +461,8 @@ export default async function handler(req) {
       let inReasoningPhase = hasReasoning;
       let finishReason = null;
       let thinkLineBuf = '';
+      // For hasPromptedThink: strip any leading whitespace before the first <think> tag
+      let promptedThinkLeadStripped = !hasPromptedThink;
 
       const closeThinkIfOpen = () => {
         if (inReasoningPhase) {
@@ -510,8 +512,13 @@ export default async function handler(req) {
           // hasPromptedThink model: model writes <think>...</think> inline in content.
           // Forward content verbatim — the client parser handles the tags.
           // Also check reasoning_content in case this model routes output there instead.
-          const out = (typeof contentDelta === 'string' ? contentDelta : '')
-                    + (typeof reasoningDelta === 'string' && !contentDelta ? reasoningDelta : '');
+          let out = (typeof contentDelta === 'string' ? contentDelta : '')
+                  + (typeof reasoningDelta === 'string' && !contentDelta ? reasoningDelta : '');
+          if (!promptedThinkLeadStripped && out.length) {
+            // Strip leading whitespace/newlines so <think> is always the very first content
+            out = out.trimStart();
+            if (out.length) promptedThinkLeadStripped = true;
+          }
           if (out.length) send(sseContent(out));
         }
 
