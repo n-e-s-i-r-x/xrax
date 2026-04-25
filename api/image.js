@@ -44,6 +44,7 @@ export default async function handler(req) {
 
   try {
     // OpenRouter image generation uses /chat/completions with modalities, NOT /images/generations
+    // flux.2-flex is image-only output so modalities must be ["image"] not ["image","text"]
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -53,8 +54,8 @@ export default async function handler(req) {
         'X-Title': '0vAI',
       },
       body: JSON.stringify({
-        model: 'black-forest-labs/FLUX-1-schnell',
-        modalities: ['image', 'text'],
+        model: 'black-forest-labs/flux.2-flex',
+        modalities: ['image'],
         messages: [{ role: 'user', content: prompt.trim() }],
       }),
     });
@@ -73,18 +74,16 @@ export default async function handler(req) {
 
     const data = await res.json();
 
-    // Images are returned in the assistant message content as base64 data URLs
-    const content = data?.choices?.[0]?.message?.content;
+    // Per OpenRouter docs: images are at choices[0].message.images[].image_url.url
     const images = data?.choices?.[0]?.message?.images;
+    const content = data?.choices?.[0]?.message?.content;
 
-    // Some models return images array, others embed in content parts
     let url = null;
 
     if (Array.isArray(images) && images.length > 0) {
-      // images[] field (some OpenRouter models)
-      url = images[0];
+      // Official format: images[].image_url.url
+      url = images[0]?.image_url?.url || images[0]?.url || null;
     } else if (Array.isArray(content)) {
-      // content is array of parts — find the image part
       const imgPart = content.find(p => p.type === 'image_url');
       url = imgPart?.image_url?.url || null;
     } else if (typeof content === 'string' && content.startsWith('data:image')) {
