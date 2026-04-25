@@ -48,7 +48,7 @@ export default async function handler(req) {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://your-site.com',
+        'HTTP-Referer': 'https://0vai.vercel.app',
         'X-Title': '0vAI',
       },
       body: JSON.stringify({
