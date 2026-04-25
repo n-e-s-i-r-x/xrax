@@ -793,7 +793,7 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
         if(content){if(reasoningOpen&&!sawContentField){sawContentField=true;yield'</think>';}yield content;}}catch(_){}
     }}}catch(e){if(e.name!=='AbortError')throw e;}
 }
-const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];const PARTIAL_CLOSE='</think_partial>';const MAX_TAG_LEN=22;
+const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>','</ think>','</Think>'];const PARTIAL_CLOSE='</think_partial>';const MAX_TAG_LEN=22;
 function findFirst(buffer,tags){let best=-1,bestTag=null;for(const t of tags){const i=buffer.indexOf(t);if(i!==-1&&(best===-1||i<best)){best=i;bestTag=t;}}return{idx:best,tag:bestTag};}
 async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,initialInThink=false){
   let inThink=!!initialInThink,answerStarted=false,buffer='';
@@ -808,7 +808,16 @@ async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,initialIn
       else{const safeLen=Math.max(0,buffer.length-MAX_TAG_LEN);if(safeLen>0){const txt=buffer.substring(0,safeLen);yield{type:'answer',text:txt};if(txt.trim())answerStarted=true;buffer=buffer.substring(safeLen);}break;}}
     }
   }
-  if(buffer.length>0){if(inThink)yield{type:'think',text:buffer};else yield{type:'answer',text:buffer};}
+  if(buffer.length>0){
+    if(inThink){
+      // Stream ended while still in think mode — try to find a loose </think> variant
+      const looseClose=/<\/\s*think[^>]*>/i;const m=looseClose.exec(buffer);
+      if(m){const before=buffer.substring(0,m.index);const after=buffer.substring(m.index+m[0].length).trim();
+        if(before)yield{type:'think',text:before};
+        if(after)yield{type:'answer',text:after};
+      }else yield{type:'think',text:buffer};
+    }else yield{type:'answer',text:buffer};
+  }
 }
 
 async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode){
