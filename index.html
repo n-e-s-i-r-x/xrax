@@ -390,11 +390,11 @@ input,textarea{outline:none;border:none;background:none;}
   </div>
   <div class="mp-item" id="mp-item-00" onclick="selectModel('00')">
     <div class="mp-label-row"><div class="mp-name">00</div><span class="mp-badge fast">Fast</span></div>
-    <div class="mp-desc" id="mp-desc-00">Fast. Better accuracy.</div>
+    <div class="mp-desc" id="mp-desc-00">Fast. No thinking.</div>
   </div>
   <div class="mp-item" id="mp-item-000" onclick="selectModel('000')">
     <div class="mp-label-row"><div class="mp-name">000</div><span class="mp-badge rapid">Rapid</span></div>
-    <div class="mp-desc" id="mp-desc-000">Rapid. Highest accuracy.</div>
+    <div class="mp-desc" id="mp-desc-000">Smartest. Thinking.</div>
   </div>
 </div>
 
@@ -503,7 +503,7 @@ const MODELS={
   '00' :{key:'00', label:'00', placeholder:'Message 00...', hasThink:false, temp:0.1},
   '000':{key:'000',label:'000',placeholder:'Message 000...',hasThink:true, temp:0.6},
 };
-const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking','000':'Smartest. Thinking.'};
+const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. Thinking.'};
 
 /* ══════════════════════════════════════
    COLOR SYSTEM
@@ -685,7 +685,7 @@ function buildMsg(msg,idx){
   let thinkHtml='';
   if(msg.thinking&&msg.thinking.trim()){
     const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:'Thought';
-    thinkHtml=`<div class="ai-think open" onclick="this.classList.toggle('open')">
+    thinkHtml=`<div class="ai-think" onclick="this.classList.toggle('open')">
       <div class="ai-think-hdr">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl">${esc(dur)}</span>
@@ -755,7 +755,7 @@ function appendPending(id){
   const m=MODELS[S.model]||MODELS['0'];const row=document.createElement('div');row.className='msg-row ai';row.id=id;
   if(m.hasThink){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-      <div class="ai-think open streaming" id="${id}think"><div class="ai-think-hdr" onclick="this.closest('.ai-think').classList.toggle('open')">
+      <div class="ai-think streaming" id="${id}think"><div class="ai-think-hdr" onclick="this.closest('.ai-think').classList.toggle('open')">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl" id="${id}thlbl">Thinking</span></div>
         <div class="ai-think-body"><div class="ai-think-content" id="${id}thcont"></div></div></div>
