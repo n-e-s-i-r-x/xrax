@@ -12,7 +12,7 @@ export const config = { runtime: 'edge' };
 ══════════════════════════════════════ */
 const MODEL_MAP = {
   '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: true  },
+  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false  },
   '000': { id: 'minimax/minimax-m2.5:free',         hasReasoning: true,  hasPromptedThink: false },
 };
 
