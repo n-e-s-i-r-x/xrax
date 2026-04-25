@@ -496,22 +496,23 @@ export default async function handler(req) {
         }
 
         if (hasReasoning) {
-          // Native reasoning model — reasoning comes in reasoning_content delta
-          if (typeof reasoningDelta==='string' && reasoningDelta.length) {
-            if (!inReasoningPhase) { send(sseContent('<think>\n')); inReasoningPhase=true; }
+          // Native reasoning model: reasoning_content → wrapped in <think>...</think>
+          // content → sent directly as answer
+          if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
+            if (!inReasoningPhase) { send(sseContent('<think>\n')); inReasoningPhase = true; }
             emitThink(reasoningDelta);
           }
-          if (typeof contentDelta==='string' && contentDelta.length) {
+          if (typeof contentDelta === 'string' && contentDelta.length) {
             closeThinkIfOpen();
             send(sseContent(contentDelta));
           }
         } else {
-          // Prompted-think model — model outputs <think>...</think>answer inline.
-          // Some models (e.g. gpt-oss-120b) route everything through reasoning_content
-          // instead of content, so we must accept both fields and forward as content.
-          const raw = (typeof reasoningDelta === 'string' && reasoningDelta.length ? reasoningDelta : '')
-                    + (typeof contentDelta   === 'string' && contentDelta.length   ? contentDelta   : '');
-          if (raw.length) send(sseContent(raw));
+          // hasPromptedThink model: model writes <think>...</think> inline in content.
+          // Forward content verbatim — the client parser handles the tags.
+          // Also check reasoning_content in case this model routes output there instead.
+          const out = (typeof contentDelta === 'string' ? contentDelta : '')
+                    + (typeof reasoningDelta === 'string' && !contentDelta ? reasoningDelta : '');
+          if (out.length) send(sseContent(out));
         }
 
         if (choice.finish_reason) finishReason = choice.finish_reason;
