@@ -779,139 +779,256 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
-  let reasoningOpen=false,sawContentField=false;
-  try{while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
-    for(const line of lines){const l=line.trim();if(!l.startsWith('data:'))continue;const raw=l.slice(5).trim();if(raw==='[DONE]')return;
+  try{while(true){const{done,value}=await reader.read();if(done)break;
+    buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
+    for(const line of lines){
+      const l=line.trim();if(!l.startsWith('data:'))continue;
+      const raw=l.slice(5).trim();if(raw==='[DONE]')return;
       try{const d=JSON.parse(raw);const choice=d.choices?.[0];if(!choice)continue;
-        const reasoning=choice.delta?.reasoning_content??choice.delta?.reasoning;const content=choice.delta?.content??d.message?.content??'';
-        // Propagate finish_reason so callers can detect truncation
         if(choice.finish_reason)yield{type:'finish',reason:choice.finish_reason};
-        if(reasoning){
-          if(!reasoningOpen){yield'<think>';reasoningOpen=true;}
-          yield reasoning;continue;
-        }
-        if(content){if(reasoningOpen&&!sawContentField){sawContentField=true;yield'</think>';}yield content;}}catch(_){}
-    }}}catch(e){if(e.name!=='AbortError')throw e;}
+        const text=choice.delta?.content;
+        if(typeof text==='string'&&text.length)yield text;
+      }catch(_){}
+    }
+  }}catch(e){if(e.name!=='AbortError')throw e;}
 }
-const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>','</ think>','</Think>'];const PARTIAL_CLOSE='</think_partial>';const MAX_TAG_LEN=22;
-function findFirst(buffer,tags){let best=-1,bestTag=null;for(const t of tags){const i=buffer.indexOf(t);if(i!==-1&&(best===-1||i<best)){best=i;bestTag=t;}}return{idx:best,tag:bestTag};}
-async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,initialInThink=false){
-  let inThink=!!initialInThink,answerStarted=false,buffer='';
+const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];
+const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];
+const MAX_TAG_LEN=22;
+function findFirst(buf,tags){let best=-1,bestTag=null;for(const t of tags){const i=buf.indexOf(t);if(i!==-1&&(best===-1||i<best)){best=i;bestTag=t;}}return{idx:best,tag:bestTag};}
+async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal){
+  let inThink=false,answerStarted=false,buffer='';
   for await(const delta of streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal)){
-    // Pass through finish events (e.g. finish_reason:'length') directly
     if(delta&&typeof delta==='object'){yield delta;continue;}
     buffer+=delta;
-    while(true){const pi=buffer.indexOf(PARTIAL_CLOSE);if(pi===-1)break;buffer=buffer.slice(0,pi)+buffer.slice(pi+PARTIAL_CLOSE.length);}
     while(buffer.length>0){
-      if(inThink){const{idx,tag}=findFirst(buffer,CLOSE_TAGS);if(idx!==-1){const part=buffer.substring(0,idx);if(part)yield{type:'think',text:part};inThink=false;buffer=buffer.substring(idx+tag.length);}else{const safeLen=Math.max(0,buffer.length-MAX_TAG_LEN);if(safeLen>0){yield{type:'think',text:buffer.substring(0,safeLen)};buffer=buffer.substring(safeLen);}break;}}
-      else{const{idx,tag}=findFirst(buffer,OPEN_TAGS);if(idx!==-1){const ansPart=buffer.substring(0,idx);if(ansPart){yield{type:'answer',text:ansPart};if(ansPart.trim())answerStarted=true;}if(answerStarted){yield{type:'answer',text:tag};buffer=buffer.substring(idx+tag.length);}else{inThink=true;buffer=buffer.substring(idx+tag.length);}}
-      else{const safeLen=Math.max(0,buffer.length-MAX_TAG_LEN);if(safeLen>0){const txt=buffer.substring(0,safeLen);yield{type:'answer',text:txt};if(txt.trim())answerStarted=true;buffer=buffer.substring(safeLen);}break;}}
+      if(inThink){
+        const{idx,tag}=findFirst(buffer,CLOSE_TAGS);
+        if(idx!==-1){
+          if(idx>0)yield{type:'think',text:buffer.substring(0,idx)};
+          inThink=false;buffer=buffer.substring(idx+tag.length);
+        }else{
+          const safe=Math.max(0,buffer.length-MAX_TAG_LEN);
+          if(safe>0){yield{type:'think',text:buffer.substring(0,safe)};buffer=buffer.substring(safe);}
+          break;
+        }
+      }else{
+        const{idx,tag}=findFirst(buffer,OPEN_TAGS);
+        if(idx!==-1){
+          if(idx>0){const pre=buffer.substring(0,idx);yield{type:'answer',text:pre};if(pre.trim())answerStarted=true;}
+          if(answerStarted){yield{type:'answer',text:tag};buffer=buffer.substring(idx+tag.length);}
+          else{inThink=true;buffer=buffer.substring(idx+tag.length);}
+        }else{
+          const safe=Math.max(0,buffer.length-MAX_TAG_LEN);
+          if(safe>0){const t=buffer.substring(0,safe);yield{type:'answer',text:t};if(t.trim())answerStarted=true;buffer=buffer.substring(safe);}
+          break;
+        }
+      }
     }
   }
   if(buffer.length>0){
     if(inThink){
-      // Stream ended while still in think mode — try to find a loose </think> variant
-      const looseClose=/<\/\s*think[^>]*>/i;const m=looseClose.exec(buffer);
-      if(m){const before=buffer.substring(0,m.index);const after=buffer.substring(m.index+m[0].length).trim();
-        if(before)yield{type:'think',text:before};
-        if(after)yield{type:'answer',text:after};
-      }else yield{type:'think',text:buffer};
-    }else yield{type:'answer',text:buffer};
+      // Stream ended still inside think — yield as think (server should have closed it)
+      yield{type:'think',text:buffer};
+    }else{
+      yield{type:'answer',text:buffer};
+    }
   }
 }
 
 async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode){
   contMode=contMode||false;S.busy=true;
-  const txtEl=document.getElementById(aiId+'txt'),thinkEl=document.getElementById(aiId+'think'),thCont=document.getElementById(aiId+'thcont'),thLbl=document.getElementById(aiId+'thlbl'),awEl=document.getElementById(aiId+'aw');
+  const txtEl=document.getElementById(aiId+'txt');
+  const thinkEl=document.getElementById(aiId+'think');
+  const thCont=document.getElementById(aiId+'thcont');
+  const thLbl=document.getElementById(aiId+'thlbl');
+  const awEl=document.getElementById(aiId+'aw');
   const modelKey=S.model;const mDef=MODELS[modelKey]||MODELS['0'];const useThink=mDef.hasThink;
   const baseMsgs=convo.msgs.map(m=>({role:m.role,content:m.content}));
-  let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false,internalSearchFired=false,internalSearchData=null;
+  let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false;
+  let internalSearchFired=false,internalSearchData=null;
   let extraCtx=dtCtx();if(modeOn('code'))extraCtx+=CODE_MODE_EXTRA;
   if(userSearchData&&(userSearchData.results?.length||userSearchData.answer))extraCtx+=buildSearchCtx(userSearchData);
   if(contMode)extraCtx+='\n\nResume the previous response without repeating any prior text.';
   S.abort=new AbortController();
 
-  const enterAnswerPhase=()=>{if(answerPhase)return;answerPhase=true;thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');/* keep .open so the block stays visible */}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();
-    if(txtEl){txtEl.style.display='';const aState=modeOn('code')?'coding':'writing';const aLabel=modeOn('code')?'Writing Code':'Writing';txtEl.innerHTML=`<div class="activity-wrap" data-state="${aState}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div></div></div>`;}
-    if(S.settings.autoscroll)scrollBot();};
-  const renderAnswer=()=>{if(!txtEl)return;const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';if(S.settings.autoscroll)scrollBot();};
+  // Called once when the first answer chunk arrives — transitions UI from thinking→answering
+  const enterAnswerPhase=()=>{
+    if(answerPhase)return;answerPhase=true;
+    thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);
+    if(thinkEl){thinkEl.classList.remove('streaming');}// keep .open — block stays visible
+    if(thLbl)thLbl.textContent='Thought for '+thinkDurStr+'s';
+    if(awEl)awEl.remove();
+    if(txtEl){
+      txtEl.style.display='';
+      const aState=modeOn('code')?'coding':'writing';
+      const aLabel=modeOn('code')?'Writing Code':'Writing';
+      txtEl.innerHTML='<div class="activity-wrap" data-state="'+aState+'"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">'+aLabel+'</div></div></div>';
+    }
+    if(S.settings.autoscroll)scrollBot();
+  };
+
+  // Render current answerText into txtEl with streaming cursor
+  const renderAnswer=()=>{
+    if(!txtEl)return;
+    const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
+    if(S.settings.autoscroll)scrollBot();
+  };
+
+  // Write think text chunk into the think block text node
+  const renderThink=(text)=>{
+    thinkText+=text;
+    if(thCont){
+      if(!thCont._tn){thCont._tn=document.createTextNode('');thCont.appendChild(thCont._tn);}
+      thCont._tn.nodeValue=sanitizeThinkText(thinkText);
+      if(S.settings.autoscroll)scrollBot();
+    }
+  };
 
   try{
     if(useThink){
-      tStart=Date.now();let runWithSmartSearch=false,firstPass=true;
+      // ── THINK MODEL PATH ──────────────────────────────────
+      tStart=Date.now();
+      let runWithSmartSearch=false,firstPass=true;
       while(true){
         runWithSmartSearch=false;
-        for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false)){
+        for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal)){
           if(S.abort?.signal?.aborted&&!internalSearchFired)break;
-          if(chunk.type==='think'){if(answerPhase){answerText+=chunk.text;renderAnswer();continue;}thinkText+=chunk.text;if(thCont){if(!thCont._tn){thCont._tn=document.createTextNode('');thCont.appendChild(thCont._tn);}thCont._tn.nodeValue=sanitizeThinkText(thinkText);if(S.settings.autoscroll)scrollBot();}
-            if(firstPass&&!internalSearchFired&&S.settings.webSearchAuto&&!userSearchData&&thinkText.length>80&&detectUncertainty(thinkText)){internalSearchFired=true;runWithSmartSearch=true;if(S.abort)S.abort.abort();break;}}
-          else if(chunk.type==='answer'){enterAnswerPhase();answerText+=chunk.text;renderAnswer();}
+          if(chunk&&typeof chunk==='object'&&chunk.type==='finish')continue;// ignore finish events
+          if(chunk.type==='think'){
+            if(answerPhase){// model leaked think after answer — treat as answer
+              answerText+=chunk.text;renderAnswer();
+            }else{
+              renderThink(chunk.text);
+              // Smart search trigger: if think block shows uncertainty, search mid-think
+              if(firstPass&&!internalSearchFired&&S.settings.webSearchAuto&&!userSearchData&&thinkText.length>80&&detectUncertainty(thinkText)){
+                internalSearchFired=true;runWithSmartSearch=true;if(S.abort)S.abort.abort();break;
+              }
+            }
+          }else if(chunk.type==='answer'){
+            enterAnswerPhase();
+            answerText+=chunk.text;renderAnswer();
+          }
         }
         if(runWithSmartSearch){
-          let pill=null;if(thCont){pill=document.createElement('div');pill.className='think-srch-pill';pill.innerHTML=`Searching for more info<div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>`;thCont.appendChild(pill);if(S.settings.autoscroll)scrollBot();}
-          const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';internalSearchData=await doSearch(q);
+          // Show search pill inside think block
+          let pill=null;
+          if(thCont){pill=document.createElement('div');pill.className='think-srch-pill';pill.innerHTML='Searching for more info<div class="think-srch-dot"></div><div class="think-srch-dot"></div><div class="think-srch-dot"></div>';thCont.appendChild(pill);if(S.settings.autoscroll)scrollBot();}
+          const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
+          internalSearchData=await doSearch(q);
           if(pill&&thCont){const done=document.createElement('div');done.className='think-srch-done';done.textContent='Found info — continuing';pill.replaceWith(done);}
           extraCtx=extraCtx+(internalSearchData?buildSearchCtx(internalSearchData):'')+'\n\nUse the information above and reply with the final answer only.';
-          S.abort=new AbortController();userSearchData=internalSearchData;firstPass=false;if(thCont)thCont._tn=null;continue;
+          S.abort=new AbortController();userSearchData=internalSearchData;firstPass=false;
+          // Reset think text node so second pass starts fresh
+          if(thCont&&thCont._tn){thCont._tn.nodeValue='';thCont._tn=null;}thinkText='';
+          continue;
         }else{break;}
       }
-      if(!answerPhase){const promoted=promoteThinkTail(thinkText);if(promoted){answerText=promoted;enterAnswerPhase();}else{thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);if(thinkEl){thinkEl.classList.remove('streaming');/* keep .open so block stays visible */}if(thLbl)thLbl.textContent=`Thought for ${thinkDurStr}s`;if(awEl)awEl.remove();}}
-      if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.style.display='';txtEl.innerHTML=answerText?DOMPurify.sanitize(marked.parse(answerText)):DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));}
+
+      // If model never transitioned to answer phase, try to promote tail of think block
+      if(!answerPhase){
+        const promoted=promoteThinkTail(thinkText);
+        if(promoted){answerText=promoted;enterAnswerPhase();}
+        else{// No answer at all — just clean up the streaming UI
+          thinkDurStr=((Date.now()-tStart)/1000).toFixed(1);
+          if(thinkEl)thinkEl.classList.remove('streaming');
+          if(thLbl)thLbl.textContent='Thought for '+thinkDurStr+'s';
+          if(awEl)awEl.remove();
+        }
+      }
+
+      // Finalize answer text area
+      if(txtEl){
+        const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+        txtEl.style.display='';
+        txtEl.innerHTML=answerText?DOMPurify.sanitize(marked.parse(answerText)):DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));
+      }
+
     }else{
+      // ── PLAIN MODEL PATH ─────────────────────────────────
       let wasTruncated=false;
-      for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,4096,S.abort.signal,false)){if(S.abort?.signal?.aborted)break;
-        if(chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
-        const txt=chunk.text||'';if(!txt)continue;answerText+=txt;
-        if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';const subEl=document.getElementById(aiId+'sub');if(subEl&&answerText.length>10){const snip=answerText.replace(/[#*`_\[\]]/g,'').trim().slice(-60);if(snip)subEl.textContent=snip;}if(S.settings.autoscroll)scrollBot();}}
-      // Only trigger uncertainty re-answer if the response was NOT truncated by token cap.
-      // A truncated response always looks uncertain mid-sentence — looping on it causes infinite spam.
+      for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,4096,S.abort.signal)){
+        if(S.abort?.signal?.aborted)break;
+        if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
+        const txt=chunk.text||'';if(!txt)continue;
+        answerText+=txt;
+        if(txtEl){
+          const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+          txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
+          if(S.settings.autoscroll)scrollBot();
+        }
+      }
+      // Uncertainty re-answer: only if not truncated (truncated = mid-sentence, always looks uncertain)
       if(!wasTruncated&&answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')&&detectUncertainty(answerText)){
-        showUserSearchInd();const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';const sd=await doSearch(q);hideUserSearchInd();
-        if(sd){userSearchData=sd;userWantsSearch=true;const ctx2=extraCtx+buildSearchCtx(sd);if(txtEl){txtEl.innerHTML=`<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div></div>`;}
+        showUserSearchInd();
+        const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
+        const sd=await doSearch(q);hideUserSearchInd();
+        if(sd){
+          userSearchData=sd;userWantsSearch=true;
+          const ctx2=extraCtx+buildSearchCtx(sd);
+          if(txtEl)txtEl.innerHTML='<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div></div>';
           answerText='';S.abort=new AbortController();
-          for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,4096,S.abort.signal,false)){if(S.abort?.signal?.aborted)break;const txt=chunk.text||'';if(!txt)continue;answerText+=txt;if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';if(S.settings.autoscroll)scrollBot();}}
+          for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,4096,S.abort.signal)){
+            if(S.abort?.signal?.aborted)break;
+            const txt=chunk.text||'';if(!txt)continue;
+            answerText+=txt;
+            if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';if(S.settings.autoscroll)scrollBot();}
+          }
         }
       }
       if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));}
     }
-  }catch(err){if(err.name!=='AbortError'){document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();showErr(err.message||null);S.busy=false;S.abort=null;const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}return;}}
+  }catch(err){
+    if(err.name!=='AbortError'){
+      document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();
+      showErr(err.message||null);S.busy=false;S.abort=null;
+      const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
+      if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}return;
+    }
+  }
 
+  // ── FINALIZE ─────────────────────────────────────────────
   document.getElementById('stop-row')?.remove();
-  const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];const savedAnswer=answerText.trim();
-  const wasFinallyTruncated=!useThink&&typeof wasTruncated!=='undefined'&&wasTruncated;
+  const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];
+  const savedAnswer=answerText.trim();
   const savedThinking=sanitizeThinkText(thinkText).trim()||null;
-  if(!savedAnswer&&!thinkText.trim()){convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});}
-  else{convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasFinallyTruncated,modelKey});}
+  const wasFinallyTruncated=false;// handled per-branch
+
+  if(!savedAnswer&&!thinkText.trim()){
+    convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});
+  }else{
+    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey});
+  }
   const msgIdx=convo.msgs.length-1;
   const pendingRow=document.getElementById(aiId);
+
   if(useThink&&pendingRow){
-    /* Think models: leave the row DOM completely intact — the thinking block is already
-       visible and correct. Just clean up temporary streaming UI and tag the row with its
-       final message index so copy/action buttons work correctly. */
+    // Think models: DOM is already correct — think block visible, answer rendered.
+    // Just tag it, remove streaming cursor, add action buttons. Never re-render.
     pendingRow.dataset.msgIndex=msgIdx;
-    // Remove the stream cursor if still present
     pendingRow.querySelectorAll('.stream-cur').forEach(el=>el.remove());
-    // Remove any leftover answer-waiting dots (should already be gone via enterAnswerPhase)
     pendingRow.querySelector('.answer-waiting')?.remove();
-    // Ensure streaming animation is removed from think block
     pendingRow.querySelector('.ai-think')?.classList.remove('streaming');
-    // Add copy/action buttons row
-    const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id=`msg-${msgIdx}-acts`;
-    if(wasFinallyTruncated){actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="continueMsg(${msgIdx})">Continue</button>`;}
-    const aiBody=pendingRow.querySelector('.ai-body');if(aiBody)aiBody.appendChild(actsEl);
+    const aiBody=pendingRow.querySelector('.ai-body');
+    if(aiBody){
+      const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id='msg-'+msgIdx+'-acts';
+      aiBody.appendChild(actsEl);
+    }
     attachCodeBtns();
   }else if(pendingRow){
-    /* Non-think models: replace with fully rendered buildMsg HTML */
+    // Plain models: replace the pending row with final rendered HTML
     const finalHtml=buildMsg(convo.msgs[msgIdx],msgIdx);
     const tmp=document.createElement('div');tmp.innerHTML=finalHtml;
-    const finalRow=tmp.firstElementChild;
-    pendingRow.replaceWith(finalRow);
+    pendingRow.replaceWith(tmp.firstElementChild);
     attachCodeBtns();
   }else{
     renderMsgs();
   }
+
   saveStore();S.busy=false;S.abort=null;
-  const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}scrollBot();
+  const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
+  if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}scrollBot();
 }
 
 function promoteThinkTail(thinkText){if(!thinkText)return'';const t=thinkText.trim();if(!t)return'';const markers=[/(?:^|\n)\s*(?:final answer|final response|answer|so the answer is|so my answer is|to summarize|in summary|here(?:'s| is)(?: the| my) answer)\s*[:\-—]\s*/i,/\n\s*\n(?=[A-Z0-9])/g];for(const re of markers){if(re.global){let last=-1,m;while((m=re.exec(t))!==null)last=m.index+m[0].length;if(last>0&&last<t.length-10)return t.slice(last).trim();}else{const m=t.match(re);if(m&&m.index!==undefined){const after=t.slice(m.index+m[0].length).trim();if(after.length>10)return after;}}}return'';}
