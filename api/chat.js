@@ -12,8 +12,8 @@ export const config = { runtime: 'edge' };
 ══════════════════════════════════════ */
 const MODEL_MAP = {
   '0':   { id: 'nvidia/nemotron-3-nano-30b-a3b:free',  hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
-  '000': { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
+  '00':  { id: 'deepseek/deepseek-r1:free',             hasReasoning: true,  hasPromptedThink: false },
+  '000': { id: 'deepseek/deepseek-r1-0528:free',        hasReasoning: true,  hasPromptedThink: false },
 };
 
 /** Resolve model entry, falling back to '0' for unknown keys */
