@@ -1,111 +1,85 @@
-export const config = { runtime: 'edge' };
-
-/* ══════════════════════════════════════
-   IMAGE GENERATION — OpenRouter
-   Model: black-forest-labs/FLUX-1-schnell
-   Uses /chat/completions with modalities (correct OpenRouter image API)
-══════════════════════════════════════ */
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let body;
-  try { body = await req.json(); }
-  catch (_) {
-    return new Response(JSON.stringify({ error: 'Invalid request body.' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const { prompt } = body;
-  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
-    return new Response(JSON.stringify({ error: 'Missing prompt.' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const apiKey =
-    (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined) ??
-    (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
+  const { prompt } = req.body;
+  const apiKey = process.env.REPLICATE_API_TOKEN;
 
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'Missing API key.' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: 'REPLICATE_API_TOKEN not set' });
+  }
+
+  if (!prompt || !prompt.trim()) {
+    return res.status(400).json({ error: 'No prompt provided' });
   }
 
   try {
-    // OpenRouter image generation uses /chat/completions with modalities, NOT /images/generations
-    // flux.2-flex is image-only output so modalities must be ["image"] not ["image","text"]
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    // Start prediction
+    const createRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://0vai.vercel.app',
-        'X-Title': '0vAI',
+        'Prefer': 'wait',
       },
       body: JSON.stringify({
-        model: 'black-forest-labs/flux.2-flex',
-        modalities: ['image'],
-        messages: [{ role: 'user', content: prompt.trim() }],
+        input: {
+          prompt: prompt.trim(),
+          num_outputs: 1,
+          aspect_ratio: '1:1',
+          output_format: 'webp',
+          output_quality: 90,
+        },
       }),
     });
 
-    if (!res.ok) {
-      let msg = `Image API error ${res.status}`;
-      if (res.status === 401 || res.status === 403) msg = 'Authentication failed. Check your API key.';
-      else if (res.status === 429) msg = 'Rate limited. Please wait a moment and try again.';
-      else if (res.status === 402) msg = 'Out of credits. Please add funds to your OpenRouter account.';
-      else if (res.status >= 500) msg = 'Upstream service unavailable. Please try again.';
-      return new Response(JSON.stringify({ error: msg }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!createRes.ok) {
+      const status = createRes.status;
+      if (status === 401) return res.status(401).json({ error: 'Invalid Replicate API token' });
+      if (status === 402) return res.status(402).json({ error: 'Replicate account out of credits' });
+      if (status === 422) return res.status(422).json({ error: 'Invalid input parameters' });
+      if (status === 429) return res.status(429).json({ error: 'Rate limited — slow down' });
+      const errText = await createRes.text();
+      return res.status(status).json({ error: `Replicate error ${status}: ${errText}` });
     }
 
-    const data = await res.json();
+    const prediction = await createRes.json();
 
-    // Per OpenRouter docs: images are at choices[0].message.images[].image_url.url
-    const images = data?.choices?.[0]?.message?.images;
-    const content = data?.choices?.[0]?.message?.content;
-
-    let url = null;
-
-    if (Array.isArray(images) && images.length > 0) {
-      // Official format: images[].image_url.url
-      url = images[0]?.image_url?.url || images[0]?.url || null;
-    } else if (Array.isArray(content)) {
-      const imgPart = content.find(p => p.type === 'image_url');
-      url = imgPart?.image_url?.url || null;
-    } else if (typeof content === 'string' && content.startsWith('data:image')) {
-      url = content;
+    // With Prefer: wait, prediction should be completed already
+    if (prediction.status === 'succeeded' && prediction.output) {
+      const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+      return res.status(200).json({ url: imageUrl });
     }
 
-    if (!url) {
-      return new Response(JSON.stringify({ error: 'No image returned from API.' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // If not done yet (shouldn't happen with Prefer: wait, but fallback poll)
+    if (prediction.status === 'processing' || prediction.status === 'starting') {
+      let result = prediction;
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+        });
+        result = await pollRes.json();
+        if (result.status === 'succeeded') {
+          const imageUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+          return res.status(200).json({ url: imageUrl });
+        }
+        if (result.status === 'failed' || result.status === 'canceled') {
+          return res.status(500).json({ error: result.error || 'Prediction failed' });
+        }
+      }
+      return res.status(504).json({ error: 'Timed out waiting for image' });
     }
 
-    return new Response(JSON.stringify({ url }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    if (prediction.status === 'failed') {
+      return res.status(500).json({ error: prediction.error || 'Prediction failed' });
+    }
+
+    return res.status(500).json({ error: 'Unexpected prediction state', status: prediction.status });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Network error. Please try again.' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('Image generation error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
