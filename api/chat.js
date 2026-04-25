@@ -12,8 +12,8 @@ export const config = { runtime: 'edge' };
 ══════════════════════════════════════ */
 const MODEL_MAP = {
   '0':   { id: 'nvidia/nemotron-3-nano-30b-a3b:free',  hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
-  '000': { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
+  '00':  { id: 'openai/gpt-oss-120b:free',             hasReasoning: true,  hasPromptedThink: false },
+  '000': { id: 'openai/gpt-oss-120b:free',             hasReasoning: true,  hasPromptedThink: false },
 };
 
 /** Resolve model entry, falling back to '0' for unknown keys */
@@ -391,7 +391,7 @@ export default async function handler(req) {
           stream: true,
         };
         // Only send reasoning param for models that natively support it (e.g. DeepSeek-R1, QwQ)
-        if (hasReasoning) reqBody.reasoning = { max_tokens: 400 };
+        if (hasReasoning) reqBody.reasoning = { max_tokens: 8000 };
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
