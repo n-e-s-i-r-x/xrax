@@ -873,11 +873,26 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const savedThinking=sanitizeThinkText(thinkText).trim()||null;
   if(!savedAnswer&&!thinkText.trim()){convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});}
   else{convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:modeOn('code'),thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasFinallyTruncated,modelKey});}
-  /* Finalize the streaming row in-place so the thinking block never disappears on re-render.
-     Replace the pending row with the fully-rendered saved message, preserving scroll position. */
   const msgIdx=convo.msgs.length-1;
   const pendingRow=document.getElementById(aiId);
-  if(pendingRow){
+  if(useThink&&pendingRow){
+    /* Think models: leave the row DOM completely intact — the thinking block is already
+       visible and correct. Just clean up temporary streaming UI and tag the row with its
+       final message index so copy/action buttons work correctly. */
+    pendingRow.dataset.msgIndex=msgIdx;
+    // Remove the stream cursor if still present
+    pendingRow.querySelectorAll('.stream-cur').forEach(el=>el.remove());
+    // Remove any leftover answer-waiting dots (should already be gone via enterAnswerPhase)
+    pendingRow.querySelector('.answer-waiting')?.remove();
+    // Ensure streaming animation is removed from think block
+    pendingRow.querySelector('.ai-think')?.classList.remove('streaming');
+    // Add copy/action buttons row
+    const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id=`msg-${msgIdx}-acts`;
+    if(wasFinallyTruncated){actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="continueMsg(${msgIdx})">Continue</button>`;}
+    const aiBody=pendingRow.querySelector('.ai-body');if(aiBody)aiBody.appendChild(actsEl);
+    attachCodeBtns();
+  }else if(pendingRow){
+    /* Non-think models: replace with fully rendered buildMsg HTML */
     const finalHtml=buildMsg(convo.msgs[msgIdx],msgIdx);
     const tmp=document.createElement('div');tmp.innerHTML=finalHtml;
     const finalRow=tmp.firstElementChild;
