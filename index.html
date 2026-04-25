@@ -78,6 +78,12 @@ body.themed .ai-txt a{color:var(--accent);}
 body.themed .ai-txt blockquote{border-left-color:var(--accent-border);}
 .ai-txt code:not(pre code){background:#1a1a1a;border-radius:4px;padding:2px 6px;font-family:"M",Menlo,monospace;font-size:13px;color:#ddd;transition:border .3s;}
 body.themed .ai-txt code:not(pre code){border:1px solid var(--accent-border);background:var(--accent-subtle);}
+/* ── SMART TEXT BLOCKS ── */
+.ai-txt .txt-block{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:10px;padding:10px 14px;margin:8px 0;line-height:1.65;transition:border-color .3s;}
+body.themed .ai-txt .txt-block{border-color:var(--accent-border);background:var(--accent-subtle);}
+.ai-txt .txt-block p{margin:0 0 6px}.ai-txt .txt-block p:last-child{margin:0}
+.ai-txt hr{border:none;border-top:1px solid #1e1e1e;margin:10px 0;transition:border-color .3s;}
+body.themed .ai-txt hr{border-top-color:var(--accent-border);}
 
 /* ── ACTIVITY / LOADING ORBS ── */
 .activity-wrap{display:flex;align-items:center;gap:10px;padding:4px 0 6px}
@@ -585,6 +591,35 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
 if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")};
 if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
+/* ── SMART TEXT BLOCK RENDERER ── */
+function renderMd(text){
+  const html=DOMPurify.sanitize(marked.parse(text||''));
+  // Group consecutive <p> nodes into .txt-block when combined text >= 80 chars
+  const tmp=document.createElement('div');
+  tmp.innerHTML=html;
+  const out=document.createElement('div');
+  let pGroup=[];
+  const flushGroup=()=>{
+    if(!pGroup.length)return;
+    const combined=pGroup.map(n=>n.textContent||'').join(' ');
+    if(combined.trim().length>=80){
+      const wrap=document.createElement('div');wrap.className='txt-block';
+      pGroup.forEach(n=>wrap.appendChild(n.cloneNode(true)));
+      out.appendChild(wrap);
+    }else{
+      pGroup.forEach(n=>out.appendChild(n.cloneNode(true)));
+    }
+    pGroup=[];
+  };
+  Array.from(tmp.childNodes).forEach(node=>{
+    if(node.nodeName==='P'){pGroup.push(node);}
+    else{flushGroup();out.appendChild(node.cloneNode(true));}
+  });
+  flushGroup();
+  return out.innerHTML;
+}
+
+
 const MODELS={
   '0'  :{key:'0',  label:'0',  placeholder:'Message 0...',  hasThink:false,temp:0.5},
   '00' :{key:'00', label:'00', placeholder:'Message 00...', hasThink:false, temp:0.1},
@@ -824,7 +859,7 @@ function buildMsg(msg,idx){
       return`<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><img class="source-favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(h)}&sz=32" alt="" onerror="this.style.display='none'"/><div class="source-text"><span class="source-name">${esc(s.title||h)}</span><span class="source-url">${esc(h)}</span></div></a>`;}).join('');
     sourcesHtml=`<div class="sources-wrap"><button class="sources-toggle" onclick="toggleSources(this)"><svg class="sources-chev" width="8" height="8" viewBox="0 0 4 4" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="1" width="1" height="2"/><rect x="1" y="0" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="1" width="1" height="2"/></svg>Sources (${msg.sources.length})</button><div class="sources-list">${items}</div></div>`;
   }
-  const html=DOMPurify.sanitize(marked.parse(msg.content||''));
+  const html=renderMd(msg.content||'');
   let imgHtml='';if(msg.imageUrl)imgHtml=`<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
   let acts='';
   if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">Continue</button>`;
@@ -1007,6 +1042,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const modelKey=S.model;const mDef=MODELS[modelKey]||MODELS['0'];const useThink=mDef.hasThink;
   const baseMsgs=convo.msgs.map(m=>({role:m.role,content:m.content}));
   let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false;
+  let wasTruncated=false;
   let internalSearchFired=false,internalSearchData=null;
   let extraCtx=dtCtx();
   if(isCodeMode)extraCtx+=CODE_MODE_EXTRA;
@@ -1054,7 +1090,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         runWithSmartSearch=false;
         for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,true)){
           if(S.abort?.signal?.aborted&&!internalSearchFired)break;
-          if(chunk&&typeof chunk==='object'&&chunk.type==='finish')continue;
+          if(chunk&&typeof chunk==='object'&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
           if(chunk.type==='think'){
             if(answerPhase){
               answerText+=chunk.text;renderAnswer();
@@ -1076,7 +1112,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           internalSearchData=await doSearch(q);
           if(pill&&thCont){const done=document.createElement('div');done.className='think-srch-done';done.textContent='Found info — continuing';pill.replaceWith(done);}
           extraCtx=extraCtx+(internalSearchData?buildSearchCtx(internalSearchData):'')+'\n\nUse the information above and reply with the final answer only.';
-          S.abort=new AbortController();userSearchData=internalSearchData;firstPass=false;
+          S.abort=new AbortController();userSearchData=internalSearchData;if(internalSearchData)userWantsSearch=true;firstPass=false;
           if(thCont&&thCont._tn){thCont._tn.nodeValue='';thCont._tn=null;}thinkText='';
           continue;
         }else{break;}
@@ -1098,11 +1134,10 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       if(txtEl){
         const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
         txtEl.style.display='';
-        txtEl.innerHTML=answerText?DOMPurify.sanitize(marked.parse(answerText)):DOMPurify.sanitize(marked.parse('_(No answer generated — try again)_'));
+        txtEl.innerHTML=answerText?renderMd(answerText):renderMd('_(No answer generated — try again)_');
       }
 
     }else{
-      let wasTruncated=false;
       for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,4096,S.abort.signal,false)){
         if(S.abort?.signal?.aborted)break;
         if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
@@ -1132,7 +1167,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           }
         }
       }
-      if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText||''));}
+      if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=renderMd(answerText||'');}
     }
   }catch(err){
     if(err.name!=='AbortError'){
@@ -1153,7 +1188,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   }else if(!savedAnswer&&savedThinking){
     convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey});
   }else{
-    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey});
+    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasTruncated,modelKey});
   }
   const msgIdx=convo.msgs.length-1;
   const pendingRow=document.getElementById(aiId);
@@ -1166,7 +1201,10 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     pendingRow.querySelector('.ai-think')?.classList.remove('streaming');
     const aiBody=pendingRow.querySelector('.ai-body');
     if(aiBody){
+      const savedMsg=convo.msgs[msgIdx];
       const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id='msg-'+msgIdx+'-acts';
+      if(savedMsg&&savedMsg.truncated)actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="continueMsg(${msgIdx})">Continue</button>`;
+      else if(savedMsg&&savedMsg.emptyRetry)actsEl.innerHTML=`<button class="ma-btn" onclick="retryEmpty(${msgIdx})" style="color:#e06060">Retry</button>`;
       aiBody.appendChild(actsEl);
     }
     attachCodeBtns();
@@ -1239,7 +1277,7 @@ async function continueMsg(idx){
       }
     }
   }catch(e){}
-  txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full));
+  txtEl.innerHTML=renderMd(full);
   msg.content=full;msg.truncated=false;msg.ts=Date.now();
   if(actsEl)actsEl.innerHTML='';
   attachCodeBtns();
