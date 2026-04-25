@@ -51,8 +51,7 @@ input,textarea{outline:none;border:none;background:none;}
 
 #empty-state{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:14px;animation:fadeUp .5s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-#empty-logo{width:60px;height:60px;object-fit:contain;opacity:.5;background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;transition:filter .3s;}
-body.themed #empty-logo{opacity:.55;filter:drop-shadow(0 0 12px var(--accent));}
+#empty-logo{width:60px;height:60px;object-fit:contain;opacity:.5;background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;}
 #empty-h{font-size:22px;font-weight:700;color:#ddd;text-align:center;}
 #empty-s{font-size:14px;color:#555;text-align:center;max-width:300px;line-height:1.5;}
 
@@ -65,8 +64,7 @@ body.themed .u-bubble{border:1px solid var(--accent-border);background:var(--acc
 
 .msg-row.ai .msg-in{padding:0 14px;}
 .msg-row.ai .msg-content{display:flex;gap:10px;align-items:flex-start;}
-.ai-av{width:28px;height:28px;object-fit:contain;flex-shrink:0;background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important;transition:filter .3s;}
-body.themed .ai-av{filter:drop-shadow(0 0 6px var(--accent));}
+.ai-av{width:28px;height:28px;object-fit:contain;flex-shrink:0;background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important;}
 .ai-body{flex:1;min-width:0;}
 .ai-txt{font-size:15px;line-height:1.6;color:#ddd;word-wrap:break-word;overflow-wrap:break-word;}
 .ai-txt h1,.ai-txt h2,.ai-txt h3{color:#fff;margin:12px 0 6px;font-weight:600;}
@@ -264,8 +262,7 @@ body.themed #sidebar{border-right-color:var(--accent-border);}
 #sidebar.open{transform:translateX(0)}
 .sb-head{padding:16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #141414;transition:border-color .3s;}
 body.themed .sb-head{border-bottom-color:var(--accent-border);}
-.sb-logo{width:36px;height:36px;object-fit:contain;background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important;flex-shrink:0;transition:filter .3s;}
-body.themed .sb-logo{filter:drop-shadow(0 0 6px var(--accent));}
+.sb-logo{width:36px;height:36px;object-fit:contain;background:none!important;border:none!important;box-shadow:none!important;border-radius:0!important;padding:0!important;flex-shrink:0;}
 .sb-new{margin:12px;padding:12px 16px;background:#fff;color:#000;border-radius:12px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .3s,color .3s;}
 body.themed .sb-new{background:var(--accent);color:#000;}
 .sb-new:active{transform:scale(.97)}
@@ -595,13 +592,6 @@ const MODELS={
 };
 const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. Thinking.'};
 
-/* ── COLOR THEMES ──
-   Each theme now exposes more tokens used by applyColors():
-   accent      = the primary accent hex (borders, icons)
-   accentDim   = rgba for .15 opacity fills
-   accentSubtle= rgba for .08 opacity fills
-   accentBorder= rgba for border usage
-*/
 const C={
   grey:  {
     border:'#444',    text:'#aaa',   glow:'none',
@@ -645,14 +635,12 @@ const C={
   },
 };
 
-/* resolveModelColor: ONLY based on model — drives global UI theme */
 function resolveModelColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
   return C.grey;
 }
 
-/* resolveInputColor: model + modes — drives input box / model btn / send btn only */
 function resolveInputColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
@@ -662,11 +650,6 @@ function resolveInputColor(){
   return C.grey;
 }
 
-/* ── GLOBAL THEME APPLICATION ──
-   Sets CSS variables on :root so every element styled with
-   body.themed [selector] automatically picks up the right color.
-   Only triggered by model selection, NOT by mode toggles.
-*/
 function applyGlobalTheme(c){
   const root=document.documentElement;
   root.style.setProperty('--accent', c.accent);
@@ -678,27 +661,17 @@ function applyGlobalTheme(c){
 }
 
 function applyColors(){
-  /* Global interface theme — model only */
   applyGlobalTheme(resolveModelColor());
-
-  /* Input area colors — model + active modes */
   const c=resolveInputColor();
-
-  /* model button */
   const mb=document.getElementById('model-btn');
   if(mb){mb.style.borderColor=c.border;mb.style.color=c.text;mb.style.boxShadow=c.glow;}
-
-  /* input box border */
   const box=document.getElementById('input-box');
   if(box){box.style.borderColor=c.border;box.style.boxShadow=c.glow;}
-
-  /* send button */
   const sb=document.getElementById('send-btn');
   if(sb){
     if(!sb.disabled){sb.style.background=c.send;sb.style.color=c.sendTxt;sb.style.boxShadow=c.glow;}
     else{sb.style.background=c.sendDis;sb.style.color=c.sendDisTxt;sb.style.boxShadow='none';}
   }
-
   applyModeButtons(c);
 }
 
