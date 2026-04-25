@@ -12,8 +12,8 @@ export const config = { runtime: 'edge' };
 ══════════════════════════════════════ */
 const MODEL_MAP = {
   '0':   { id: 'nvidia/nemotron-3-nano-30b-a3b:free',  hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'openai/gpt-oss-120b:free',             hasReasoning: true,  hasPromptedThink: false },
-  '000': { id: 'openai/gpt-oss-120b:free',             hasReasoning: true,  hasPromptedThink: false },
+  '00':  { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
+  '000': { id: 'openai/gpt-oss-120b:free',             hasReasoning: false, hasPromptedThink: true  },
 };
 
 /** Resolve model entry, falling back to '0' for unknown keys */
@@ -427,7 +427,7 @@ export default async function handler(req) {
         try {
           const data = await upstreamRes.json();
           const reasoningRaw = data?.choices?.[0]?.message?.reasoning_content ?? data?.choices?.[0]?.message?.reasoning ?? '';
-          const text = data?.choices?.[0]?.message?.content ?? '';
+          const text = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.message?.reasoning_content ?? '';
           const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
           let combined = '';
           if (isThinkModel) {
@@ -506,8 +506,12 @@ export default async function handler(req) {
             send(sseContent(contentDelta));
           }
         } else {
-          // Prompted-think model — <think>...</think> tags come inline in content, pass through as-is
-          if (typeof contentDelta==='string' && contentDelta.length) send(sseContent(contentDelta));
+          // Prompted-think model — model outputs <think>...</think>answer inline.
+          // Some models (e.g. gpt-oss-120b) route everything through reasoning_content
+          // instead of content, so we must accept both fields and forward as content.
+          const raw = (typeof reasoningDelta === 'string' && reasoningDelta.length ? reasoningDelta : '')
+                    + (typeof contentDelta   === 'string' && contentDelta.length   ? contentDelta   : '');
+          if (raw.length) send(sseContent(raw));
         }
 
         if (choice.finish_reason) finishReason = choice.finish_reason;
