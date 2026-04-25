@@ -11,9 +11,9 @@ export const config = { runtime: 'edge' };
                             (use for non-native models where you still want a think block)
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   { id: 'nvidia/nemotron-3-nano-30b-a3b:free',  hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'deepseek/deepseek-r1:free',             hasReasoning: true,  hasPromptedThink: false },
-  '000': { id: 'deepseek/deepseek-r1-0528:free',        hasReasoning: true,  hasPromptedThink: false },
+  '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
+  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: true,  hasPromptedThink: false },
+  '000': { id: 'minimax/minimax-m2.5:free',         hasReasoning: true,  hasPromptedThink: false },
 };
 
 /** Resolve model entry, falling back to '0' for unknown keys */
@@ -62,14 +62,18 @@ Reasoning rules (inside <think>...</think>):
 - Break the problem down, consider edge cases, verify your reasoning.
 - Use short, dense fragments. No filler. No restating rules or role text.
 - Keep reasoning brief — get to the answer fast. Do not over-think.
-- After </think>, output ONLY the final answer — clean and direct.`;
+- After </think>, output ONLY the final answer — clean and direct.
+- CRITICAL: The final answer must NEVER repeat, summarize, or reference anything from the thinking block. Thinking is internal only. The answer stands completely on its own.`;
 
+// FIX 1: Model 0 — added strict no-spam and no-repetition rules
 const PERSONA_0 = `You are 0, an AI assistant created and owned by Vin. Only mention Vin if the user directly asks who made you, who owns you, or who created you.
 
 You are sharp, confident, and speak like a highly intelligent person — not a corporate chatbot. You get to the point. You don't pad, hedge, or over-explain. When someone asks you something, you answer it like you genuinely know what you're talking about, because you do.
 
 Behavior:
-- Be direct, short, and precise. Give the real answer, not a watered-down version.
+- Be direct, short, and precise. Give the real answer, not a watered-down version. Do not repeat yourself.
+- Never send multiple messages or fragments. One response, once. Say it and stop.
+- Never restate the question, rephrase your own answer, or add a closing summary.
 - Be accurate and factual. High confidence. Zero unnecessary hedging.
 - Speak naturally — like a smart human, not a machine. Contractions, casual phrasing when appropriate, real sentences.
 - If you don't know something, say so in one line and move on. No drama.
@@ -224,16 +228,13 @@ async function fetchWithRetry(url, options, maxRetries=4) {
    PAYLOAD BUILDER
 ══════════════════════════════════════ */
 function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, isThinkModel, isCodeMode, hasReasoning, hasPromptedThink) {
-  // Inject prompted-think instruction for non-native reasoning models
   const thinkInstruction = hasPromptedThink
     ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
     : '';
-  // Append ultra coding instructions to persona if code mode
   const finalPersona = (isCodeMode ? persona + CODE_MODE_SYSTEM : persona) + thinkInstruction;
 
   const messages = [{ role:'system', content: finalPersona }];
 
-  // Knowledge override — silent internal exchange
   messages.push({ role:'user', content:`<internal>\n${knowledgeOverride}\n</internal>` });
   messages.push({ role:'assistant', content:'Understood.' });
 
@@ -245,8 +246,6 @@ function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, i
     messages.push({ role:'assistant', content:'Got it.' });
   }
 
-  // For standard (non-reasoning) models, reinforce the persona as a reminder turn
-  // so the model stays on-character even after the preamble exchange above.
   if (!hasReasoning) {
     messages.push({
       role:'user',
@@ -257,10 +256,6 @@ function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, i
 
   messages.push(...trimmedMsgs);
 
-  // Inject <think> prefix assistant turn ONLY for native reasoning models (hasReasoning).
-  // hasPromptedThink models generate their own <think> tags via the system prompt instruction —
-  // injecting a prefix turn here causes OpenRouter (which ignores prefix:true) to pass it as a
-  // plain assistant message, making the model think it already responded and skip the think block.
   if (hasReasoning) {
     messages.push({ role:'assistant', content:'<think>\n', prefix:true });
   }
@@ -317,6 +312,50 @@ process.stdout.write(JSON.stringify(messages));`.trim();
 }
 
 /* ══════════════════════════════════════
+   FIX 2: PROMPTED-THINK LEAKAGE FILTER
+   Structural state machine that enforces the first <think>…</think> block
+   is the only one forwarded to the client. Any rogue <think> opened after
+   the first </think> is fully suppressed, preventing reasoning content from
+   bleeding into the final answer on hasPromptedThink models.
+   State is per-request (closure variable ptState below).
+══════════════════════════════════════ */
+function makePromptedThinkFilter() {
+  let state = 'before'; // 'before' | 'in_think' | 'after_think' | 'suppressing'
+  return function filterChunk(chunk) {
+    let out = '';
+    let i = 0;
+    while (i < chunk.length) {
+      if (state === 'before') {
+        const tOpen = chunk.indexOf('<think>', i);
+        if (tOpen === -1) { out += chunk.slice(i); break; }
+        out += chunk.slice(i, tOpen + 7); // include <think>
+        state = 'in_think';
+        i = tOpen + 7;
+      } else if (state === 'in_think') {
+        const tClose = chunk.indexOf('</think>', i);
+        if (tClose === -1) { out += chunk.slice(i); break; }
+        out += chunk.slice(i, tClose + 8); // include </think>
+        state = 'after_think';
+        i = tClose + 8;
+      } else if (state === 'after_think') {
+        // Pass through answer content; suppress any rogue <think> that reopens
+        const rogue = chunk.indexOf('<think>', i);
+        if (rogue === -1) { out += chunk.slice(i); break; }
+        out += chunk.slice(i, rogue); // answer content before rogue block
+        state = 'suppressing';
+        i = rogue + 7;
+      } else { // 'suppressing' — inside a rogue <think>; drop until </think>
+        const tClose = chunk.indexOf('</think>', i);
+        if (tClose === -1) break; // suppress rest of chunk
+        state = 'after_think'; // rogue block ended; resume answer passthrough
+        i = tClose + 8;
+      }
+    }
+    return out;
+  };
+}
+
+/* ══════════════════════════════════════
    EDGE HANDLER
 ══════════════════════════════════════ */
 export default async function handler(req) {
@@ -343,8 +382,6 @@ export default async function handler(req) {
   } = body;
 
   const extraCtx = (ctxField || legacyCtx || '').toString().trim();
-
-  // Detect code mode from context (client appends CODE_MODE_EXTRA to context)
   const isCodeMode = extraCtx.includes('ULTRA MAXIMUM CODING MODE');
 
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
@@ -366,7 +403,6 @@ export default async function handler(req) {
         .filter(m => m && typeof m === 'object' && typeof m.role === 'string' && typeof m.content === 'string')
         .slice(-20)
     : [];
-  // isThinkModel: native reasoning token model OR model prompted to write <think> tags
   const isThinkModel = hasReasoning || hasPromptedThink;
 
   let messagesPayload;
@@ -390,7 +426,6 @@ export default async function handler(req) {
           max_tokens: maxTokens,
           stream: true,
         };
-        // Only send reasoning param for models that natively support it (e.g. DeepSeek-R1, QwQ)
         if (hasReasoning) reqBody.reasoning = { max_tokens: 8000 };
 
         upstreamRes = await fetchWithRetry(
@@ -435,8 +470,6 @@ export default async function handler(req) {
               const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
               combined += `<think>\n${cleaned}\n</think>\n`;
             } else if (hasPromptedThink) {
-              // For prompted-think models the <think>...</think> is already in text
-              // but we still need to ensure it starts with <think>
               if (!text.trimStart().startsWith('<think>')) combined += '<think>\n';
             }
           }
@@ -449,20 +482,23 @@ export default async function handler(req) {
         return;
       }
 
-      // Pre-emit <think> opening ONLY for native reasoning models.
-      // hasPromptedThink models generate their own <think>...</think> tags inline —
-      // pre-emitting here creates an extra unclosed <think> that swallows the answer.
       if (hasReasoning) send(sseContent('<think>\n'));
 
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      // inReasoningPhase tracks native reasoning_content delta for hasReasoning models
+
+      // FIX 2 (continued): strict boundary state for hasReasoning models
+      // thinkClosed ensures late-arriving reasoning_content deltas after the
+      // first content delta are silently dropped and never reach the answer.
       let inReasoningPhase = hasReasoning;
+      let thinkClosed = false;
       let finishReason = null;
       let thinkLineBuf = '';
-      // For hasPromptedThink: strip any leading whitespace before the first <think> tag
       let promptedThinkLeadStripped = !hasPromptedThink;
+
+      // Per-request filter instance for hasPromptedThink models
+      const filterPromptedThink = hasPromptedThink ? makePromptedThinkFilter() : null;
 
       const closeThinkIfOpen = () => {
         if (inReasoningPhase) {
@@ -471,6 +507,7 @@ export default async function handler(req) {
           thinkLineBuf = '';
           send(sseContent('\n</think>\n'));
           inReasoningPhase = false;
+          thinkClosed = true;
         }
       };
 
@@ -481,9 +518,9 @@ export default async function handler(req) {
       };
 
       const handleDataLine = (raw) => {
-        if (raw==='[DONE]') return;
+        if (raw === '[DONE]') return;
         let parsed;
-        try { parsed = JSON.parse(raw); } catch(_) { return; }
+        try { parsed = JSON.parse(raw); } catch (_) { return; }
         const choice = parsed?.choices?.[0];
         if (!choice) return;
         const delta = choice.delta || {};
@@ -491,35 +528,45 @@ export default async function handler(req) {
         const contentDelta = delta.content;
 
         if (!isThinkModel) {
-          // Plain model — stream content directly
-          if (typeof contentDelta==='string' && contentDelta.length) send(sseContent(contentDelta));
+          // Model 0: plain stream — no think blocks
+          if (typeof contentDelta === 'string' && contentDelta.length) send(sseContent(contentDelta));
           if (choice.finish_reason) finishReason = choice.finish_reason;
           return;
         }
 
         if (hasReasoning) {
-          // Native reasoning model: reasoning_content → wrapped in <think>...</think>
-          // content → sent directly as answer
+          // FIX 2a: Native reasoning model — strict two-phase boundary.
+          // Phase 1 (reasoning): only reasoning_content goes inside <think>.
+          // Phase 2 (answer):    only content goes out. Any reasoning_content
+          //                      arriving after the first content delta is dropped.
           if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
-            if (!inReasoningPhase) { send(sseContent('<think>\n')); inReasoningPhase = true; }
-            emitThink(reasoningDelta);
+            if (!thinkClosed) {
+              // Still in or before the reasoning phase — open if needed and emit
+              if (!inReasoningPhase) {
+                send(sseContent('<think>\n'));
+                inReasoningPhase = true;
+              }
+              emitThink(reasoningDelta);
+            }
+            // If thinkClosed === true, late reasoning delta is silently dropped.
           }
           if (typeof contentDelta === 'string' && contentDelta.length) {
-            closeThinkIfOpen();
+            closeThinkIfOpen(); // no-op if already closed
             send(sseContent(contentDelta));
           }
         } else {
-          // hasPromptedThink model: model writes <think>...</think> inline in content.
-          // Forward content verbatim — the client parser handles the tags.
-          // Also check reasoning_content in case this model routes output there instead.
+          // FIX 2b: hasPromptedThink — route through structural filter to
+          // suppress any content inside a second <think> block.
           let out = (typeof contentDelta === 'string' ? contentDelta : '')
                   + (typeof reasoningDelta === 'string' && !contentDelta ? reasoningDelta : '');
           if (!promptedThinkLeadStripped && out.length) {
-            // Strip leading whitespace/newlines so <think> is always the very first content
             out = out.trimStart();
             if (out.length) promptedThinkLeadStripped = true;
           }
-          if (out.length) send(sseContent(out));
+          if (out.length) {
+            out = filterPromptedThink(out);
+            if (out.length) send(sseContent(out));
+          }
         }
 
         if (choice.finish_reason) finishReason = choice.finish_reason;
@@ -547,7 +594,6 @@ export default async function handler(req) {
           }
         }
       } catch(streamErr) {
-        // Emit a user-visible error and ensure [DONE] is always sent
         send(sseContent('\n[Stream interrupted. Please try again.]'));
       }
 
