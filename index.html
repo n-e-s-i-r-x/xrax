@@ -736,6 +736,7 @@ function closeView(){document.getElementById('view-frame').srcdoc='';document.ge
 
 async function sendMsg(){
   const inp=document.getElementById('user-input');if(!inp)return;const raw=inp.value.trim();if(!raw||S.busy)return;
+  S.busy=true;// Lock immediately — prevent double-sends before generate() sets it
   const c=ensureConvo();c.msgs.push({role:'user',content:raw,ts:Date.now()});
   if(c.msgs.length===1){c.title=mkTitle(raw);setTitle(c.title);}
   c.ts=Date.now();inp.value='';autoGrow(inp);
@@ -815,8 +816,11 @@ async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal){
       }else{
         const{idx,tag}=findFirst(buffer,OPEN_TAGS);
         if(idx!==-1){
-          if(idx>0){const pre=buffer.substring(0,idx);yield{type:'answer',text:pre};if(pre.trim())answerStarted=true;}
-          if(answerStarted){yield{type:'answer',text:tag};buffer=buffer.substring(idx+tag.length);}
+          const pre=idx>0?buffer.substring(0,idx):'';
+          const preReal=pre.trim().length>0;
+          if(pre&&preReal){yield{type:'answer',text:pre};answerStarted=true;}
+          // Only treat <think> as answer if real content already came before it
+          if(answerStarted&&preReal){yield{type:'answer',text:tag};buffer=buffer.substring(idx+tag.length);}
           else{inThink=true;buffer=buffer.substring(idx+tag.length);}
         }else{
           const safe=Math.max(0,buffer.length-MAX_TAG_LEN);
