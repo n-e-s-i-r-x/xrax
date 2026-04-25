@@ -256,9 +256,9 @@ function buildPayloadInline(persona, knowledgeOverride, extraCtx, trimmedMsgs, i
 
   messages.push(...trimmedMsgs);
 
-  if (hasReasoning) {
-    messages.push({ role:'assistant', content:'<think>\n', prefix:true });
-  }
+  // NOTE: Do NOT push an assistant prefix with '<think>\n' for hasReasoning models.
+  // The streaming handler already wraps reasoning_content deltas inside <think>…</think>.
+  // Adding a prefix here would produce a duplicate opening tag that breaks the client parser.
   return messages;
 }
 
@@ -298,7 +298,7 @@ if(!hasReasoning){
   messages.push({role:'assistant',content:'Understood. I will follow my instructions precisely.'});
 }
 messages.push(...trimmedMsgs);
-if(isThinkModel&&hasReasoning){messages.push({role:'assistant',content:'<think>\\n',prefix:true});}
+// Do NOT add '<think>' prefix — streaming handler wraps reasoning_content itself.
 process.stdout.write(JSON.stringify(messages));`.trim();
 
     const cmd = await sandbox.runCommand('node', ['-e', scriptSrc]);
@@ -462,18 +462,34 @@ export default async function handler(req) {
         try {
           const data = await upstreamRes.json();
           const reasoningRaw = data?.choices?.[0]?.message?.reasoning_content ?? data?.choices?.[0]?.message?.reasoning ?? '';
-          const text = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.message?.reasoning_content ?? '';
+          let answerText = data?.choices?.[0]?.message?.content ?? '';
           const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
           let combined = '';
           if (isThinkModel) {
-            if (hasReasoning && reasoningRaw) {
-              const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
-              combined += `<think>\n${cleaned}\n</think>\n`;
+            if (hasReasoning) {
+              if (reasoningRaw) {
+                const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
+                combined += `<think>\n${cleaned}\n</think>\n`;
+              }
+              // If content is empty but reasoning had something, try to find an answer in the
+              // tail of the reasoning block (some models put their final answer there).
+              if (!answerText.trim() && reasoningRaw) {
+                const lines = reasoningRaw.trimEnd().split('\n');
+                // Walk backwards for a non-empty, non-internal-monologue line
+                for (let i = lines.length - 1; i >= 0; i--) {
+                  const l = lines[i].trim();
+                  if (l && !looksLikeLeak(lines[i])) { answerText = l; break; }
+                }
+              }
             } else if (hasPromptedThink) {
-              if (!text.trimStart().startsWith('<think>')) combined += '<think>\n';
+              // hasPromptedThink: model writes <think>…</think> inside content
+              if (answerText && !answerText.trimStart().startsWith('<think>')) {
+                combined += '<think>\n</think>\n';
+              }
             }
           }
-          combined += text;
+          combined += answerText;
+          if (!combined.trim()) combined = '_(No answer generated — please try again)_';
           send(sseContent(combined));
           send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
         } catch(_) { send(sseContent('[Empty response]')); }
@@ -482,17 +498,18 @@ export default async function handler(req) {
         return;
       }
 
-      if (hasReasoning) send(sseContent('<think>\n'));
-
+      // For hasReasoning models: open the <think> block lazily on first reasoning delta,
+      // not unconditionally here — this prevents an orphaned <think> if the model
+      // sends content first or skips reasoning entirely.
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
 
-      // FIX 2 (continued): strict boundary state for hasReasoning models
-      // thinkClosed ensures late-arriving reasoning_content deltas after the
-      // first content delta are silently dropped and never reach the answer.
-      let inReasoningPhase = hasReasoning;
-      let thinkClosed = false;
+      // inReasoningPhase: false until the first reasoning_content delta arrives.
+      // This ensures <think> is only opened when there is actually reasoning to show,
+      // and prevents an unclosed <think> if the model produces no reasoning.
+      let inReasoningPhase = false;
+      let thinkOpened = false; // true once we've sent the opening <think>\n
       let finishReason = null;
       let thinkLineBuf = '';
       let promptedThinkLeadStripped = !hasPromptedThink;
@@ -507,7 +524,7 @@ export default async function handler(req) {
           thinkLineBuf = '';
           send(sseContent('\n</think>\n'));
           inReasoningPhase = false;
-          thinkClosed = true;
+          thinkOpened = false; // mark closed so late deltas are dropped
         }
       };
 
@@ -535,23 +552,28 @@ export default async function handler(req) {
         }
 
         if (hasReasoning) {
-          // FIX 2a: Native reasoning model — strict two-phase boundary.
-          // Phase 1 (reasoning): only reasoning_content goes inside <think>.
-          // Phase 2 (answer):    only content goes out. Any reasoning_content
-          //                      arriving after the first content delta is dropped.
+          // Strict two-phase: reasoning_content → inside <think>; content → answer outside.
+          // Phase 1 opens lazily: <think> is only sent when the first reasoning delta arrives.
+          // Phase 2: when a content delta arrives, close the think block (if open) first.
+          // Late reasoning deltas arriving after the first content delta are silently dropped.
           if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
-            if (!thinkClosed) {
-              // Still in or before the reasoning phase — open if needed and emit
-              if (!inReasoningPhase) {
-                send(sseContent('<think>\n'));
-                inReasoningPhase = true;
-              }
+            if (!inReasoningPhase && !thinkOpened) {
+              // First reasoning delta — open the think block now.
+              send(sseContent('<think>\n'));
+              inReasoningPhase = true;
+              thinkOpened = true;
+            }
+            if (inReasoningPhase) {
               emitThink(reasoningDelta);
             }
-            // If thinkClosed === true, late reasoning delta is silently dropped.
+            // If inReasoningPhase===false here, thinkOpened was set then cleared by
+            // a prior content delta — late reasoning is silently dropped.
           }
           if (typeof contentDelta === 'string' && contentDelta.length) {
             closeThinkIfOpen(); // no-op if already closed
+            // Guard: if the model produced no reasoning at all yet but is sending
+            // a content delta that looks like it starts with reasoning text, check
+            // for an inline <think> block (some models mix both channels).
             send(sseContent(contentDelta));
           }
         } else {
