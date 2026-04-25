@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 /* ══════════════════════════════════════
    IMAGE GENERATION — OpenRouter
    Model: black-forest-labs/FLUX-1-schnell
-   No filters, no censorship.
+   Uses /chat/completions with modalities (correct OpenRouter image API)
 ══════════════════════════════════════ */
 
 export default async function handler(req) {
@@ -43,7 +43,8 @@ export default async function handler(req) {
   }
 
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/images/generations', {
+    // OpenRouter image generation uses /chat/completions with modalities, NOT /images/generations
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -53,14 +54,12 @@ export default async function handler(req) {
       },
       body: JSON.stringify({
         model: 'black-forest-labs/FLUX-1-schnell',
-        prompt: prompt.trim(),
-        n: 1,
-        size: '1024x1024',
+        modalities: ['image', 'text'],
+        messages: [{ role: 'user', content: prompt.trim() }],
       }),
     });
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => '');
       let msg = `Image API error ${res.status}`;
       if (res.status === 401 || res.status === 403) msg = 'Authentication failed. Check your API key.';
       else if (res.status === 429) msg = 'Rate limited. Please wait a moment and try again.';
@@ -73,23 +72,27 @@ export default async function handler(req) {
     }
 
     const data = await res.json();
-    const item = data?.data?.[0];
-    if (!item) {
-      return new Response(JSON.stringify({ error: 'No image returned from API.' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+
+    // Images are returned in the assistant message content as base64 data URLs
+    const content = data?.choices?.[0]?.message?.content;
+    const images = data?.choices?.[0]?.message?.images;
+
+    // Some models return images array, others embed in content parts
+    let url = null;
+
+    if (Array.isArray(images) && images.length > 0) {
+      // images[] field (some OpenRouter models)
+      url = images[0];
+    } else if (Array.isArray(content)) {
+      // content is array of parts — find the image part
+      const imgPart = content.find(p => p.type === 'image_url');
+      url = imgPart?.image_url?.url || null;
+    } else if (typeof content === 'string' && content.startsWith('data:image')) {
+      url = content;
     }
 
-    // OpenRouter returns either a URL or base64
-    const url = item.url
-      ? item.url
-      : item.b64_json
-        ? `data:image/png;base64,${item.b64_json}`
-        : null;
-
     if (!url) {
-      return new Response(JSON.stringify({ error: 'No image URL in response.' }), {
+      return new Response(JSON.stringify({ error: 'No image returned from API.' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
