@@ -1487,7 +1487,12 @@ function openSettings(){closeSidebar();renderSettings();document.getElementById(
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
 function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div>
 <div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show AI reply time below each message</div></div><div class="tog ${S.settings.speedC?'on':''}" onclick="togSet('speedC',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
-function togSet(k,el){S.settings[k]=!S.settings[k];if(el)el.classList.toggle('on',S.settings[k]);saveStore();}
+function togSet(k,el){
+  S.settings[k]=!S.settings[k];
+  if(el)el.classList.toggle('on',S.settings[k]);
+  saveStore();
+  if(k==='speedC'){renderMsgs();if(S.settings.speedC)renderSB();} // <-- re‑render messages when toggling Speed C
+}
 function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>{let reqStart=Date.now();
 try{localStorage.clear();}catch(e){}location.reload();},true);}
 
