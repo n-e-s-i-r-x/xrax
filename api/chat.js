@@ -11,7 +11,7 @@ export const config = { runtime: 'edge' };
                             (use for non-native models where you still want a think block)
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
+  '0':   { id: 'z-ai/glm-4.5-air:free',  hasReasoning: false, hasPromptedThink: false },
   '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false  },
   '000': { id: 'openai/gpt-oss-120b:free',         hasReasoning: true,  hasPromptedThink: false },
 };
