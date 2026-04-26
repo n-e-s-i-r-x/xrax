@@ -13,7 +13,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
   '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false  },
-  '000': { id: 'qwen/qwen3.6-plus-preview:free',         hasReasoning: true,  hasPromptedThink: false },
+  '000': { id: 'openai/gpt-oss-120b:free',         hasReasoning: true,  hasPromptedThink: false },
 };
 /** deepseek/deepseek-v4-flash
 /** Resolve model entry, falling back to '0' for unknown keys */
