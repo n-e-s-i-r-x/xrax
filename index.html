@@ -852,6 +852,13 @@ function buildSearchCtx(sd){if(!sd)return'';let c='\n\nRelevant web information:
 /* ─── STATE ─── */
 const S={convos:{},activeId:null,busy:false,abort:null,model:'0',modes:new Set(),settings:{timestamps:false,autoscroll:true,save:true,webSearchAuto:true,speedTimer:false}};
 
+/* ═══ SLASH LINKS – add your shortcuts here ═══ */
+const SLASH_LINKS = {
+  yt: 'https://youtube.com',
+  gh: 'https://github.com',
+  // Add more like:   g: 'https://google.com',
+};
+
 /* ── Speed timer state ── */
 let speedState = { startTime: 0, timer: null };
 
@@ -1058,7 +1065,21 @@ function viewCode(btn){
 function closeView(){document.getElementById('view-frame').srcdoc='';document.getElementById('view-ov').classList.remove('show');}
 
 async function sendMsg(){
-  const inp=document.getElementById('user-input');if(!inp)return;const raw=inp.value.trim();if(!raw||S.busy)return;
+  const inp=document.getElementById('user-input');if(!inp)return;const raw=inp.value.trim();if(!raw)return;
+
+  // ═══ SLASH LINKS (checked first, even if busy) ═══
+  if(raw.startsWith('/')){
+    const parts = raw.slice(1).trim().split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    if(SLASH_LINKS[cmd]){
+      window.location.href = SLASH_LINKS[cmd];
+    }
+    inp.value = ''; autoGrow(inp);
+    const sb = document.getElementById('send-btn'); if(sb){ sb.disabled = true; applyColors(); }
+    return;
+  }
+
+  if(S.busy)return;
   S.busy=true;
   const c=ensureConvo();c.msgs.push({role:'user',content:raw,ts:Date.now()});
   if(c.msgs.length===1){c.title=mkTitle(raw);setTitle(c.title);}
