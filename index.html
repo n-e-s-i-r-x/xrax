@@ -35,6 +35,58 @@ input,textarea{outline:none;border:none;background:none;}
 #app{position:fixed;inset:0;display:flex;flex-direction:column;background:#000;opacity:0;transition:opacity 0.4s ease;}
 #app.ready{opacity:1;}
 
+/* ── REDIRECT OVERLAY (full-screen) ── */
+#redirect-ov{
+  position:fixed;inset:0;z-index:9990;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  background:#000;
+  pointer-events:none;
+  opacity:0;
+}
+#redirect-ov.show{
+  pointer-events:all;
+  animation:rdIn 0.3s ease forwards;
+}
+@keyframes rdIn{from{opacity:0}to{opacity:1}}
+
+#redirect-card{
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  opacity:0;transform:translateY(10px);
+}
+#redirect-ov.show #redirect-card{
+  animation:rdCardIn 0.35s cubic-bezier(0.22,1,0.36,1) 0.15s forwards;
+}
+@keyframes rdCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Pixel spinner */
+.redirect-spinner{width:32px;height:32px;image-rendering:pixelated;}
+
+.redirect-lbl{
+  font-family:"M",sans-serif;
+  font-size:14px;font-weight:600;color:#ddd;letter-spacing:0.2px;
+}
+.redirect-sub{
+  font-family:"M",sans-serif;
+  font-size:12px;color:#444;
+}
+
+/* Progress bar — thin, minimal */
+.redirect-progress{
+  width:120px;height:1px;background:#1a1a1a;overflow:hidden;
+  opacity:0;
+}
+#redirect-ov.show .redirect-progress{
+  animation:rdFadeEl 0.2s ease 0.25s forwards;
+}
+@keyframes rdFadeEl{from{opacity:0}to{opacity:1}}
+.redirect-progress-fill{
+  height:100%;width:0%;background:#fff;
+}
+#redirect-ov.show .redirect-progress-fill{
+  animation:rdProgress 1.05s cubic-bezier(0.4,0,0.2,1) 0.65s forwards;
+}
+@keyframes rdProgress{from{width:0%}to{width:100%}}
+
 /* ── TOPBAR ── */
 #topbar{flex-shrink:0;display:flex;align-items:center;padding:0 12px;gap:10px;background:#000;border-bottom:1px solid #141414;padding-top:env(safe-area-inset-top);height:calc(56px + env(safe-area-inset-top));transition:border-color .3s;}
 #topbar.themed{border-bottom-color:var(--accent-border);}
@@ -521,6 +573,15 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
   </div>
 </div>
 
+<div id="redirect-ov">
+  <div id="redirect-card">
+    <canvas class="redirect-spinner" id="px-spinner" width="9" height="9"></canvas>
+    <div class="redirect-lbl">Redirecting you...</div>
+    <div class="redirect-sub" id="redirect-sub"></div>
+    <div class="redirect-progress"><div class="redirect-progress-fill"></div></div>
+  </div>
+</div>
+
 <div id="mp-overlay" onclick="closeModelPicker()"></div>
 <div id="mp-popup">
   <div class="mp-head" id="mp-head-lbl">Select Model</div>
@@ -635,6 +696,21 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
 
 <script>
 "use strict";
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║              🔗  LINK CONFIG — EDIT HERE              ║
+   ╠══════════════════════════════════════════════════════╣
+   ║  /link        → fires slot 1 (the default)           ║
+   ║  /link 2      → fires slot 2                         ║
+   ║  /link 3      → fires slot 3  ... etc                ║
+   ╚══════════════════════════════════════════════════════╝ */
+const LINKS = {
+  1: 'https://pornhub.com',       // ← change me  (/link or /link 1)
+  2: 'https://0vai.vercel.app',       // ← change me  (/link 2)
+  3: 'https://example.com',       // ← change me  (/link 3)
+};
+/* ═══════════════════════════════════════════════════════ */
+
 if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")};
 if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
@@ -962,8 +1038,13 @@ if(document.readyState!=='loading')init();
 function setupScroll(){const ca=document.getElementById('chat-area');if(!ca)return;ca.addEventListener('scroll',()=>{const far=ca.scrollHeight-ca.scrollTop-ca.clientHeight>120;document.getElementById('scroll-btn')?.classList.toggle('show',far);});}
 function setupInput(){
   const inp=document.getElementById('user-input');
-  if(inp){inp.addEventListener('input',()=>{const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp.value.trim()||S.busy;applyColors();}});}
+  if(inp){inp.addEventListener('input',()=>{
+    checkLinkMode(inp);
+    if(!_linkModeActive){const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp.value.trim()||S.busy;applyColors();}}
+  });}
 }
+/* onKey is kept for non-slash Enter; _masterSend handles slash Enter via DOMContentLoaded listener */
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();_masterSend();}}
 
 function saveStore(){if(!S.settings.save)return;try{localStorage.setItem('vg_convos',JSON.stringify(S.convos));localStorage.setItem('vg_settings',JSON.stringify(S.settings));}catch(e){}}
 function loadStore(){try{const c=localStorage.getItem('vg_convos');if(c)S.convos=JSON.parse(c)||{};const s=localStorage.getItem('vg_settings');if(s)S.settings={...S.settings,...JSON.parse(s)};}catch(e){S.convos={};}}
@@ -1473,7 +1554,6 @@ function showErr(msg){const ca=document.getElementById('chat-area');if(!ca)retur
 function retryLast(){const c=curConvo();if(!c||S.busy)return;const er=document.getElementById('err-row');if(er&&er._retryIv)clearInterval(er._retryIv);document.getElementById('err-row')?.remove();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];const icm=modeOn('code');const aiId='ai'+uid();appendPending(aiId,icm);generate(c,aiId,null,um?.content||'',false,false,icm);}
 
 function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
-function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();sendMsg();}}
 function isMobile(){return/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||'ontouchstart'in window;}
 function scrollBot(smooth=false){const ca=document.getElementById('chat-area');if(!ca)return;ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'});}
 
@@ -1490,6 +1570,110 @@ function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>
 function copyText(text,onDone){if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(onDone).catch(()=>fbCopy(text,onDone));}else fbCopy(text,onDone);}
 function fbCopy(text,onDone){try{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;pointer-events:none';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);if(onDone)onDone();}catch(e){}}
 function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+
+/* ══════════════════════════════════════
+   /link SLASH COMMAND SYSTEM
+══════════════════════════════════════ */
+function triggerRedirect(url){
+  const ov=document.getElementById('redirect-ov');
+  if(!ov)return;
+  ov.classList.add('show');
+  setTimeout(()=>{window.location.href=url;},1750);
+}
+
+function handleLinkCommand(raw){
+  const text=raw.trim();
+  if(!text.startsWith('/link'))return false;
+  const rest=text.slice(5).trim();
+
+  /* /link or /link 1 — fire slot 1 (default) */
+  if(!rest||rest==='1'){const url=LINKS[1];if(url)triggerRedirect(url);return true;}
+
+  /* /link <number> — fire that slot */
+  const num=parseInt(rest,10);
+  if(!isNaN(num)&&LINKS[num]){triggerRedirect(LINKS[num]);return true;}
+
+  return true;
+}
+
+/* ── Send button intercept — bound via JS, not onclick attr ── */
+let _linkModeActive=false;
+
+function _masterSend(){
+  const inp=document.getElementById('user-input');
+  if(!inp)return;
+  const raw=inp.value.trim();
+  if(!raw)return;
+  if(raw.startsWith('/')){
+    handleLinkCommand(raw);
+    inp.value='';autoGrow(inp);
+    _linkModeActive=false;
+    _refreshSendBtn(inp);
+    return;
+  }
+  sendMsg();
+}
+
+function _refreshSendBtn(inp){
+  const sb=document.getElementById('send-btn');
+  if(!sb)return;
+  const val=inp?inp.value:'';
+  const isSlash=val.startsWith('/');
+  if(isSlash){
+    sb.style.background='#4a9eff';sb.style.color='#000';sb.disabled=false;
+    sb.innerHTML=`<svg width="13" height="13" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="1" height="4"/><rect x="1" y="4" width="5" height="1"/><rect x="0" y="5" width="7" height="1"/><rect x="1" y="6" width="5" height="1"/></svg>`;
+  }else{
+    sb.style.background='';sb.style.color='';
+    sb.innerHTML=`<svg width="16" height="16" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="1"/><rect x="2" y="3" width="4" height="1"/><rect x="3" y="3" width="2" height="5"/></svg>`;
+    sb.disabled=!val.trim()||S.busy;
+    applyColors();
+  }
+}
+
+function checkLinkMode(inp){
+  const val=inp?inp.value:'';
+  const isSlash=val.startsWith('/');
+  if(isSlash===_linkModeActive)return;
+  _linkModeActive=isSlash;
+  _refreshSendBtn(inp);
+}
+
+/* Patch the send button click to go through _masterSend on page load */
+document.addEventListener('DOMContentLoaded',()=>{
+  const sb=document.getElementById('send-btn');
+  if(sb){
+    sb.removeAttribute('onclick');
+    sb.addEventListener('click',_masterSend);
+  }
+  /* Also intercept Enter key */
+  const inp=document.getElementById('user-input');
+  if(inp){
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){
+        e.preventDefault();
+        _masterSend();
+      }
+    });
+  }
+});
+
+/* ── PIXEL SPINNER ── */
+const PX_SEGS=[[3,0,3,1],[6,1,2,2],[7,3,1,3],[6,6,2,2],[3,8,3,1],[1,6,2,2],[0,3,1,3],[1,1,2,2]];
+const PX_SHADES=['#fff','#ccc','#888','#555','#333','#222','#1a1a1a','#111'];
+let _pxFrame=0,_pxRaf=null;
+function _drawPxSpinner(){
+  const c=document.getElementById('px-spinner');if(!c)return;
+  const ctx=c.getContext('2d');ctx.clearRect(0,0,9,9);
+  for(let i=0;i<8;i++){const s=PX_SEGS[i];ctx.fillStyle=PX_SHADES[(i-_pxFrame+8)%8];ctx.fillRect(s[0],s[1],s[2],s[3]);}
+  _pxFrame=(_pxFrame+1)%8;
+}
+function _startPxSpinner(){
+  _drawPxSpinner();
+  function tick(){_drawPxSpinner();_pxRaf=setTimeout(tick,100);}
+  _pxRaf=setTimeout(tick,100);
+}
+const _rdBase=triggerRedirect;
+triggerRedirect=function(url){_startPxSpinner();_rdBase(url);};
 </script>
 </body>
 </html>
