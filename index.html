@@ -40,7 +40,6 @@ input,textarea{outline:none;border:none;background:none;}
 #topbar.themed{border-bottom-color:var(--accent-border);}
 .tb-btn{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#888;flex-shrink:0;transition:background .15s,color .15s,transform .1s;}
 .tb-btn:active{background:#141414;color:#fff;transform:scale(.92);}
-/* themed topbar buttons get accent color on their icons */
 #topbar.themed .tb-btn{color:var(--accent);opacity:.7;}
 #topbar.themed .tb-btn:active{opacity:1;background:var(--accent-subtle);}
 .tb-center{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;}
@@ -78,21 +77,15 @@ body.themed .ai-txt a{color:var(--accent);}
 body.themed .ai-txt blockquote{border-left-color:var(--accent-border);}
 .ai-txt code:not(pre code){background:#1a1a1a;border-radius:4px;padding:2px 6px;font-family:"M",Menlo,monospace;font-size:13px;color:#ddd;transition:border .3s;}
 body.themed .ai-txt code:not(pre code){border:1px solid var(--accent-border);background:var(--accent-subtle);}
-/* ── SMART LAYOUT BLOCKS ── */
-/* Only applied when a response has mixed structure (headings + prose, or code + explanation) */
 .ai-txt .prose-block{background:#0a0a0a;border-left:2px solid #222;border-radius:0 8px 8px 0;padding:8px 12px;margin:6px 0 10px;line-height:1.7;transition:border-color .3s;}
 body.themed .ai-txt .prose-block{border-left-color:var(--accent-border);background:var(--accent-subtle);}
 .ai-txt .prose-block p{margin:0 0 6px}.ai-txt .prose-block p:last-child{margin:0}
-
-/* Callout / note block (triggered by markdown > or NOTE:/TIP: pattern) */
 .ai-txt .callout{display:flex;gap:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px;padding:10px 12px;margin:8px 0;transition:border-color .3s,background .3s;}
 body.themed .ai-txt .callout{border-color:var(--accent-border);background:var(--accent-subtle);}
 .ai-txt .callout-icon{font-size:14px;flex-shrink:0;margin-top:1px;opacity:.8}
 .ai-txt .callout-body{flex:1;min-width:0;font-size:14px;line-height:1.6;color:#aaa;}
 body.themed .ai-txt .callout-body{color:#bbb;}
 .ai-txt .callout-body p{margin:0 0 4px}.ai-txt .callout-body p:last-child{margin:0}
-
-/* Numbered steps — wrap ordered lists in structured sections */
 .ai-txt .steps-block{margin:8px 0;}
 .ai-txt .steps-block ol{list-style:none;margin:0;padding:0;}
 .ai-txt .steps-block li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #141414;transition:border-color .3s;}
@@ -103,8 +96,6 @@ body.themed .ai-txt .steps-block li{border-bottom-color:var(--accent-border);opa
 body.themed .ai-txt .step-num{border-color:var(--accent-border);background:var(--accent-subtle);color:var(--accent);}
 .ai-txt .step-body{flex:1;min-width:0;font-size:15px;line-height:1.55;color:#ddd;}
 .ai-txt .step-body strong:first-child{display:block;color:#fff;margin-bottom:2px;}
-
-/* Key-value / definition pairs */
 .ai-txt .kv-block{background:#080808;border:1px solid #1a1a1a;border-radius:10px;overflow:hidden;margin:8px 0;transition:border-color .3s;}
 body.themed .ai-txt .kv-block{border-color:var(--accent-border);}
 .ai-txt .kv-row{display:flex;gap:0;border-bottom:1px solid #111;transition:border-color .3s;}
@@ -113,8 +104,6 @@ body.themed .ai-txt .kv-row{border-bottom-color:var(--accent-border);opacity:.85
 .ai-txt .kv-key{padding:7px 10px;font-size:12px;font-weight:700;color:#888;background:#0f0f0f;min-width:90px;max-width:130px;flex-shrink:0;letter-spacing:.2px;transition:background .3s,color .3s;}
 body.themed .ai-txt .kv-key{background:var(--accent-subtle);color:var(--accent);}
 .ai-txt .kv-val{padding:7px 10px;font-size:13px;color:#ccc;flex:1;line-height:1.5;}
-
-/* Table */
 .ai-txt .tbl-wrap{overflow-x:auto;margin:8px 0;border-radius:10px;border:1px solid #1a1a1a;transition:border-color .3s;}
 body.themed .ai-txt .tbl-wrap{border-color:var(--accent-border);}
 .ai-txt table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -123,12 +112,8 @@ body.themed .ai-txt th{background:var(--accent-subtle);color:var(--accent);borde
 .ai-txt td{padding:7px 10px;color:#ccc;border-bottom:1px solid #111;transition:border-color .3s;}
 body.themed .ai-txt td{border-bottom-color:var(--accent-border);opacity:.9;}
 .ai-txt tr:last-child td{border-bottom:none}
-
-/* Divider */
 .ai-txt hr{border:none;border-top:1px solid #1e1e1e;margin:12px 0;transition:border-color .3s;}
 body.themed .ai-txt hr{border-top-color:var(--accent-border);}
-
-/* Inline label pills for bold-colon patterns like **Key:** */
 .ai-txt .lbl-pill{display:inline-block;background:#141414;border:1px solid #242424;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:700;color:#888;margin-right:4px;vertical-align:middle;letter-spacing:.2px;transition:border-color .3s,color .3s,background .3s;}
 body.themed .ai-txt .lbl-pill{border-color:var(--accent-border);color:var(--accent);background:var(--accent-subtle);}
 
@@ -147,7 +132,6 @@ body.themed .ai-txt .lbl-pill{border-color:var(--accent-border);color:var(--acce
 .activity-wrap[data-state="searching"] .activity-orb-dot{background:#4a9eff}
 .activity-wrap[data-state="imaging"] .activity-orb-ring{border-top-color:#fbbf24;border-right-color:rgba(251,191,36,.4)}
 .activity-wrap[data-state="imaging"] .activity-orb-dot{background:#fbbf24}
-/* themed: override non-special states with accent */
 body.themed .activity-wrap[data-state="writing"] .activity-orb-ring{border-top-color:var(--accent);border-right-color:var(--accent-dim);}
 body.themed .activity-wrap[data-state="writing"] .activity-orb-dot{background:var(--accent);}
 @keyframes orbSpin{to{transform:rotate(360deg)}}
@@ -418,8 +402,18 @@ body.themed .ai-image{border-color:var(--accent-border);}
 .continue-btn{background:#1a1a1a;border:1px solid #2a2a2a;color:#4a9eff}
 body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);}
 .continue-btn:active{background:#252525}
-/* Speed*/
-.speed-c{font-size:11px;color:#666;margin-top:4px;background:none;padding:0;border:none;display:block;}
+
+/* ── SPEED TIMER (text only, no background) ── */
+.speed-timer {
+  font-size: 13px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+body.themed .speed-timer {
+  color: var(--accent);
+}
 </style>
 </head>
 <body>
@@ -437,6 +431,7 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
       </svg>
     </button>
     <div class="tb-center"></div>
+    <span id="speed-timer" class="speed-timer" style="display:none">0.00s</span>
     <button class="tb-btn" onclick="newChat()">
         <svg width="20" height="20" viewBox="0 0 10 10" fill="currentColor" shape-rendering="crispEdges">
           <rect x="6" y="0" width="2" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/>
@@ -642,28 +637,13 @@ if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
 /* ══════════════════════════════════════
    SMART LAYOUT RENDERER
-   Analyses the parsed HTML structure and applies rich formatting
-   only when the content genuinely calls for it.
-   Rules:
-   - Short/conversational replies  → plain text, zero wrapping
-   - Mixed structure (code + prose, headings + prose) → prose-block on paragraphs
-   - Ordered lists → steps-block with numbered circles
-   - Blockquotes / NOTE/TIP/WARN prefix → callout card
-   - Tables → scrollable tbl-wrap
-   - Bold-colon label patterns inside paragraphs → lbl-pill labels
-   - NEVER wraps a single short paragraph or the whole response if it's
-     just flowing prose (no headings, no code, no lists mixed in)
 ══════════════════════════════════════ */
 function renderMd(text){
   if(!text)return'';
-
-  /* ── Parse ── */
   const raw=DOMPurify.sanitize(marked.parse(text));
   const tmp=document.createElement('div');
   tmp.innerHTML=raw;
   const nodes=Array.from(tmp.childNodes);
-
-  /* ── Classify content ── */
   const tags=nodes.map(n=>n.nodeName);
   const hasHeading=tags.some(t=>/^H[1-3]$/.test(t));
   const hasCode=tags.some(t=>t==='PRE');
@@ -674,36 +654,23 @@ function renderMd(text){
   const pCount=tags.filter(t=>t==='P').length;
   const totalText=tmp.textContent.trim();
   const isRich=hasHeading||hasCode||hasTable||(hasOL&&pCount>0)||(hasUL&&pCount>1);
-  // "conversation" = short plain reply with no structure
   const isConversational=!isRich&&!hasBlockquote&&totalText.length<300&&pCount<=2;
 
-  /* ── Build output ── */
   const out=document.createElement('div');
   let i=0;
-
   const appendNode=n=>out.appendChild(n.cloneNode(true));
-
   while(i<nodes.length){
     const node=nodes[i];
     const tag=node.nodeName;
-
-    /* Headings — always plain, just append */
     if(/^H[1-3]$/.test(tag)){appendNode(node);i++;continue;}
-
-    /* HR */
     if(tag==='HR'){appendNode(node);i++;continue;}
-
-    /* TABLE → scrollable wrapper */
     if(tag==='TABLE'){
       const wrap=document.createElement('div');wrap.className='tbl-wrap';
       wrap.appendChild(node.cloneNode(true));
       out.appendChild(wrap);i++;continue;
     }
-
-    /* BLOCKQUOTE → callout card */
     if(tag==='BLOCKQUOTE'){
       const inner=(node.textContent||'').trim();
-      // Detect NOTE / TIP / WARN / INFO prefixes
       const prefixM=inner.match(/^(note|tip|warning|warn|info|important)[:\s]/i);
       const icon=prefixM?{note:'ℹ',tip:'💡',warning:'⚠',warn:'⚠',info:'ℹ',important:'⚡'}[prefixM[1].toLowerCase()]||'💬':'💬';
       const callout=document.createElement('div');callout.className='callout';
@@ -713,8 +680,6 @@ function renderMd(text){
       callout.appendChild(iconEl);callout.appendChild(body);
       out.appendChild(callout);i++;continue;
     }
-
-    /* ORDERED LIST → steps if in rich context, else plain */
     if(tag==='OL'){
       if(isRich){
         const stepsWrap=document.createElement('div');stepsWrap.className='steps-block';
@@ -734,37 +699,25 @@ function renderMd(text){
       }
       i++;continue;
     }
-
-    /* UL — plain always (bullets are already well styled) */
     if(tag==='UL'){appendNode(node);i++;continue;}
-
-    /* PRE (code) — plain always */
     if(tag==='PRE'){appendNode(node);i++;continue;}
-
-    /* PARAGRAPH */
     if(tag==='P'){
-      // Gather a run of consecutive paragraphs
       const run=[];
       let j=i;
       while(j<nodes.length&&nodes[j].nodeName==='P'){run.push(nodes[j]);j++;}
       const runText=run.map(n=>n.textContent||'').join(' ').trim();
-
       if(isConversational||runText.length<60){
-        // Plain — no wrapping
         run.forEach(n=>appendNode(n));
       }else if(isRich&&runText.length>=80){
-        // Rich context with substantial prose → prose-block (left-border style)
         const wrap=document.createElement('div');wrap.className='prose-block';
         run.forEach(n=>{
           const clone=n.cloneNode(true);
-          // Transform bold-colon labels: **Label:** text → <span class="lbl-pill">Label</span> text
           clone.innerHTML=clone.innerHTML.replace(/<strong>([^<]{1,30}):<\/strong>\s*/g,
             (_,lbl)=>`<span class="lbl-pill">${lbl}</span> `);
           wrap.appendChild(clone);
         });
         out.appendChild(wrap);
       }else{
-        // Moderately long but not mixed-structure → plain
         run.forEach(n=>{
           const clone=n.cloneNode(true);
           clone.innerHTML=clone.innerHTML.replace(/<strong>([^<]{1,30}):<\/strong>\s*/g,
@@ -774,14 +727,10 @@ function renderMd(text){
       }
       i=j;continue;
     }
-
-    /* Anything else (text nodes, spans, etc.) */
     appendNode(node);i++;
   }
-
   return out.innerHTML;
 }
-
 
 const MODELS={
   '0'  :{key:'0',  label:'0',  placeholder:'Message 0...',  hasThink:false,temp:0.5},
@@ -838,7 +787,6 @@ function resolveModelColor(){
   if(S.model==='000') return C.red;
   return C.grey;
 }
-
 function resolveInputColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
@@ -847,7 +795,6 @@ function resolveInputColor(){
   if(modeOn('image')) return C.yellow;
   return C.grey;
 }
-
 function applyGlobalTheme(c){
   const root=document.documentElement;
   root.style.setProperty('--accent', c.accent);
@@ -857,7 +804,6 @@ function applyGlobalTheme(c){
   document.body.classList.toggle('themed', !!c.themed);
   document.getElementById('topbar')?.classList.toggle('themed', !!c.themed);
 }
-
 function applyColors(){
   applyGlobalTheme(resolveModelColor());
   const c=resolveInputColor();
@@ -872,7 +818,6 @@ function applyColors(){
   }
   applyModeButtons(c);
 }
-
 function applyModeButtons(c){
   const wb=document.getElementById('web-btn');
   if(wb){
@@ -891,11 +836,9 @@ function applyModeButtons(c){
   }
 }
 
-/* ─── LEAK SANITIZER ─── */
 const LEAK_LINE_RE=[/^\s*\[[A-Z][^\]]{2,120}\]\s*$/,/---\s*WEB SEARCH RESULTS\s*---/i,/---\s*END SEARCH RESULTS\s*---/i,/\bDIRECT\s*ANSWER\s*:/i,/\[CODE MODE\b/i,/\[Current date and time\]/i,/\[Reasoning context above/i,/\[Continue from where/i,/\[Search complete/i,/<context>|<\/context>/i,/\bYou are (?:0|00|000)\b/,/\bsystem prompt\b/i,/\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i];
 function sanitizeThinkText(t){if(!t)return t;return t.split('\n').map(l=>{for(const r of LEAK_LINE_RE)if(r.test(l))return'…';return l;}).join('\n');}
 
-/* ─── UNCERTAINTY ─── */
 const UNCERTAINTY_HARD=[/\b(don'?t|do not|doesn'?t|does not)\s+have\s+(access|real.?time|live|current|up.?to.?date)\b/i,/\b(can'?t|cannot|could not|couldn'?t)\s+(access|find|retrieve|fetch|get)\s+(real.?time|live|current|up.?to.?date|today'?s?|latest)\b/i,/\bmy\s+(knowledge|training|data)\s+(cut.?off|ends?|stops?|is\s+limited\s+to|is\s+from)\b/i,/\b(as\s+of\s+my\s+(last|knowledge)\s+update|my\s+knowledge\s+(only\s+goes?|extends?)\s+to)\b/i,/\b(this\s+(information\s+)?(may|might|could)\s+(be\s+)?(outdated|have\s+changed|no\s+longer\s+be\s+accurate))\b/i,/\b(i\s+(don'?t|do\s+not)\s+know\s+the\s+(current|latest|today'?s?|real.?time|live))\b/i,/\b(for\s+the\s+most\s+(up.?to.?date|current|accurate|recent)\s+(information|data|details),?\s+(please\s+)?(check|visit|refer|look))\b/i,/\b(i\s+(genuinely\s+)?(don'?t|do\s+not)\s+know|i\s+have\s+no\s+(idea|information|data)\s+(about|on|regarding))\b/i,/\b(unable\s+to\s+(provide|give|access)\s+(current|live|real.?time|today'?s?))\b/i,/\b(you'?d?\s+(need|should|would\s+need)\s+to\s+(check|verify|look\s+up)\s+(the\s+)?(current|latest|live|real.?time))\b/i];
 const UNCERTAINTY_NEVER=[/\b(i\s+know|i\s+am\s+sure|i\s+am\s+certain|the\s+answer\s+is|this\s+is\s+definitely)\b/i,/\b(here'?s?\s+(the\s+)?(code|solution|answer|implementation|example|fix))\b/i,/\b(let\s+me\s+(explain|show|walk\s+you|help\s+you|write|create|build))\b/i,/```/];
 function detectUncertainty(text){if(!text||text.length<60)return false;const w=text.slice(-800);if(UNCERTAINTY_NEVER.some(r=>r.test(w)))return false;return UNCERTAINTY_HARD.some(r=>r.test(w));}
@@ -907,7 +850,33 @@ async function doSearch(q){try{const r=await fetch('/api/search.js',{method:'POS
 function buildSearchCtx(sd){if(!sd)return'';let c='\n\nRelevant web information:\n';if(sd.answer)c+='Summary: '+sd.answer+'\n';(sd.results||[]).forEach(r=>{let host='';try{host=new URL(r.url).hostname.replace('www.','');}catch(e){host='';}c+='- '+r.title+(host?' ('+host+')':'')+': '+r.snippet+'\n';});return c;}
 
 /* ─── STATE ─── */
-const S={convos:{},activeId:null,busy:false,abort:null,model:'0',modes:new Set(),settings:{timestamps:false,autoscroll:true,save:true,webSearchAuto:true,speedC:false}};
+const S={convos:{},activeId:null,busy:false,abort:null,model:'0',modes:new Set(),settings:{timestamps:false,autoscroll:true,save:true,webSearchAuto:true,speedTimer:false}};
+
+/* ── Speed timer state ── */
+let speedState = { startTime: 0, timer: null };
+
+function startSpeedTimer(){
+  stopSpeedTimer();
+  speedState.startTime = Date.now();
+  updateSpeedDisplay();
+  speedState.timer = setInterval(updateSpeedDisplay, 100);
+}
+function stopSpeedTimer(){
+  if(speedState.timer) { clearInterval(speedState.timer); speedState.timer = null; }
+}
+function updateSpeedDisplay(){
+  const el = document.getElementById('speed-timer');
+  if(!el) return;
+  const elapsed = Date.now() - speedState.startTime;
+  const secs = elapsed / 1000;
+  el.textContent = formatDuration(secs);
+}
+function formatDuration(secs){
+  if(secs < 60) return secs.toFixed(2) + 's';
+  const minutes = Math.floor(secs / 60);
+  const remainder = secs % 60;
+  return `${minutes}m ${remainder.toFixed(2)}s`;
+}
 
 /* ─── MODEL PICKER ─── */
 function openModelPicker(e){
@@ -955,11 +924,25 @@ function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateStr
 let inited=false;
 function init(){
   if(inited)return;inited=true;
-  try{loadStore();renderSB();showEmpty();setupScroll();setupInput();applyColors();updateModelDescs();}catch(e){console.error(e);}
+  try{loadStore();renderSB();showEmpty();setupScroll();setupInput();applyColors();updateModelDescs();applySpeedSetting();}catch(e){console.error(e);}
   setTimeout(()=>{document.getElementById('intro')?.classList.add('hide');document.getElementById('app')?.classList.add('ready');setTimeout(()=>{const i=document.getElementById('intro');if(i)i.style.display='none';},1000);},2600);
 }
 document.addEventListener('DOMContentLoaded',init);
 if(document.readyState!=='loading')init();
+
+function applySpeedSetting(){
+  const el = document.getElementById('speed-timer');
+  if(!el) return;
+  if(S.settings.speedTimer){
+    el.style.display = '';
+    stopSpeedTimer();
+    speedState.startTime = 0;
+    el.textContent = '0.00s';
+  } else {
+    el.style.display = 'none';
+    stopSpeedTimer();
+  }
+}
 
 function setupScroll(){const ca=document.getElementById('chat-area');if(!ca)return;ca.addEventListener('scroll',()=>{const far=ca.scrollHeight-ca.scrollTop-ca.clientHeight>120;document.getElementById('scroll-btn')?.classList.toggle('show',far);});}
 function setupInput(){
@@ -1027,7 +1010,7 @@ function buildMsg(msg,idx){
   let acts='';
   if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">Continue</button>`;
   if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
-  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}${(S.settings.speedC&&msg.speed)?`<div class="speed-c">${msg.speed}s</div>`:''}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div></div></div></div></div>`;
+  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div></div></div></div></div>`;
 }
 
 function attachCodeBtns(){
@@ -1082,6 +1065,9 @@ async function sendMsg(){
   c.ts=Date.now();inp.value='';autoGrow(inp);
   const sb=document.getElementById('send-btn');if(sb){sb.disabled=true;applyColors();}
   renderMsgs();renderSB();
+  if(S.settings.speedTimer) {
+    startSpeedTimer();
+  }
   if(modeOn('image')){await genImage(c,raw);S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
   let userSearchData=null;const userWantsSearch=queryNeedsSearch(raw);
   if(userWantsSearch){showUserSearchInd();userSearchData=await doSearch(raw);hideUserSearchInd();}
@@ -1337,7 +1323,9 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();
       showErr(err.message||null);S.busy=false;S.abort=null;
       const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
-      if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}return;
+      if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
+      stopSpeedTimer();
+      return;
     }
   }
 
@@ -1347,11 +1335,11 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const savedThinking=sanitizeThinkText(thinkText).trim()||null;
 
   if(!savedAnswer&&!thinkText.trim()){
-    convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey,speed:((Date.now()-reqStart)/1000).toFixed(1)});
+    convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});
   }else if(!savedAnswer&&savedThinking){
-    convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey,speed:((Date.now()-reqStart)/1000).toFixed(1)});
+    convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey});
   }else{
-    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasTruncated,modelKey,speed:((Date.now()-reqStart)/1000).toFixed(1)});
+    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasTruncated,modelKey});
   }
   const msgIdx=convo.msgs.length-1;
   const pendingRow=document.getElementById(aiId);
@@ -1383,6 +1371,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   saveStore();S.busy=false;S.abort=null;
   const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
   if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}scrollBot();
+  stopSpeedTimer();
 }
 
 function promoteThinkTail(thinkText){
@@ -1448,6 +1437,7 @@ async function continueMsg(idx){
   const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
   if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
   scrollBot();
+  stopSpeedTimer();
 }
 
 async function genImage(convo,prompt){
@@ -1468,6 +1458,7 @@ async function genImage(convo,prompt){
     convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:imageUrl,ts:Date.now(),truncated:false,modelKey:S.model});
   }catch(err){convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model});}
   document.getElementById(aiId)?.remove();renderMsgs();saveStore();S.busy=false;
+  stopSpeedTimer();
 }
 
 function stopGen(){if(S.abort)S.abort.abort();}
@@ -1485,16 +1476,20 @@ function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,
 
 function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div>
-<div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show AI reply time below each message</div></div><div class="tog ${S.settings.speedC?'on':''}" onclick="togSet('speedC',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
+function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
 function togSet(k,el){
   S.settings[k]=!S.settings[k];
   if(el)el.classList.toggle('on',S.settings[k]);
+  if(k==='speedTimer'){
+    const timerEl = document.getElementById('speed-timer');
+    if(timerEl) timerEl.style.display = S.settings.speedTimer ? '' : 'none';
+    stopSpeedTimer();
+    speedState.startTime = 0;
+    if(timerEl) timerEl.textContent = '0.00s';
+  }
   saveStore();
-  if(k==='speedC'){renderMsgs();if(S.settings.speedC)renderSB();} // <-- re‑render messages when toggling Speed C
 }
-function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>{let reqStart=Date.now();
-try{localStorage.clear();}catch(e){}location.reload();},true);}
+function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>{try{localStorage.clear();}catch(e){}location.reload();},true);}
 
 function copyText(text,onDone){if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(onDone).catch(()=>fbCopy(text,onDone));}else fbCopy(text,onDone);}
 function fbCopy(text,onDone){try{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;pointer-events:none';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);if(onDone)onDone();}catch(e){}}
