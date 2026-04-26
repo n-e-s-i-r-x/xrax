@@ -35,58 +35,6 @@ input,textarea{outline:none;border:none;background:none;}
 #app{position:fixed;inset:0;display:flex;flex-direction:column;background:#000;opacity:0;transition:opacity 0.4s ease;}
 #app.ready{opacity:1;}
 
-/* ── REDIRECT OVERLAY (full-screen) ── */
-#redirect-ov{
-  position:fixed;inset:0;z-index:9990;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
-  background:#000;
-  pointer-events:none;
-  opacity:0;
-}
-#redirect-ov.show{
-  pointer-events:all;
-  animation:rdIn 0.3s ease forwards;
-}
-@keyframes rdIn{from{opacity:0}to{opacity:1}}
-
-#redirect-card{
-  display:flex;flex-direction:column;align-items:center;gap:16px;
-  opacity:0;transform:translateY(10px);
-}
-#redirect-ov.show #redirect-card{
-  animation:rdCardIn 0.35s cubic-bezier(0.22,1,0.36,1) 0.15s forwards;
-}
-@keyframes rdCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
-/* Pixel spinner */
-.redirect-spinner{width:32px;height:32px;image-rendering:pixelated;}
-
-.redirect-lbl{
-  font-family:"M",sans-serif;
-  font-size:14px;font-weight:600;color:#ddd;letter-spacing:0.2px;
-}
-.redirect-sub{
-  font-family:"M",sans-serif;
-  font-size:12px;color:#444;
-}
-
-/* Progress bar — thin, minimal */
-.redirect-progress{
-  width:120px;height:1px;background:#1a1a1a;overflow:hidden;
-  opacity:0;
-}
-#redirect-ov.show .redirect-progress{
-  animation:rdFadeEl 0.2s ease 0.25s forwards;
-}
-@keyframes rdFadeEl{from{opacity:0}to{opacity:1}}
-.redirect-progress-fill{
-  height:100%;width:0%;background:#fff;
-}
-#redirect-ov.show .redirect-progress-fill{
-  animation:rdProgress 1.05s cubic-bezier(0.4,0,0.2,1) 0.65s forwards;
-}
-@keyframes rdProgress{from{width:0%}to{width:100%}}
-
 /* ── TOPBAR ── */
 #topbar{flex-shrink:0;display:flex;align-items:center;padding:0 12px;gap:10px;background:#000;border-bottom:1px solid #141414;padding-top:env(safe-area-inset-top);height:calc(56px + env(safe-area-inset-top));transition:border-color .3s;}
 #topbar.themed{border-bottom-color:var(--accent-border);}
@@ -131,10 +79,12 @@ body.themed .ai-txt blockquote{border-left-color:var(--accent-border);}
 .ai-txt code:not(pre code){background:#1a1a1a;border-radius:4px;padding:2px 6px;font-family:"M",Menlo,monospace;font-size:13px;color:#ddd;transition:border .3s;}
 body.themed .ai-txt code:not(pre code){border:1px solid var(--accent-border);background:var(--accent-subtle);}
 /* ── SMART LAYOUT BLOCKS ── */
+/* Only applied when a response has mixed structure (headings + prose, or code + explanation) */
 .ai-txt .prose-block{background:#0a0a0a;border-left:2px solid #222;border-radius:0 8px 8px 0;padding:8px 12px;margin:6px 0 10px;line-height:1.7;transition:border-color .3s;}
 body.themed .ai-txt .prose-block{border-left-color:var(--accent-border);background:var(--accent-subtle);}
 .ai-txt .prose-block p{margin:0 0 6px}.ai-txt .prose-block p:last-child{margin:0}
 
+/* Callout / note block (triggered by markdown > or NOTE:/TIP: pattern) */
 .ai-txt .callout{display:flex;gap:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px;padding:10px 12px;margin:8px 0;transition:border-color .3s,background .3s;}
 body.themed .ai-txt .callout{border-color:var(--accent-border);background:var(--accent-subtle);}
 .ai-txt .callout-icon{font-size:14px;flex-shrink:0;margin-top:1px;opacity:.8}
@@ -142,6 +92,7 @@ body.themed .ai-txt .callout{border-color:var(--accent-border);background:var(--
 body.themed .ai-txt .callout-body{color:#bbb;}
 .ai-txt .callout-body p{margin:0 0 4px}.ai-txt .callout-body p:last-child{margin:0}
 
+/* Numbered steps — wrap ordered lists in structured sections */
 .ai-txt .steps-block{margin:8px 0;}
 .ai-txt .steps-block ol{list-style:none;margin:0;padding:0;}
 .ai-txt .steps-block li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #141414;transition:border-color .3s;}
@@ -153,6 +104,7 @@ body.themed .ai-txt .step-num{border-color:var(--accent-border);background:var(-
 .ai-txt .step-body{flex:1;min-width:0;font-size:15px;line-height:1.55;color:#ddd;}
 .ai-txt .step-body strong:first-child{display:block;color:#fff;margin-bottom:2px;}
 
+/* Key-value / definition pairs */
 .ai-txt .kv-block{background:#080808;border:1px solid #1a1a1a;border-radius:10px;overflow:hidden;margin:8px 0;transition:border-color .3s;}
 body.themed .ai-txt .kv-block{border-color:var(--accent-border);}
 .ai-txt .kv-row{display:flex;gap:0;border-bottom:1px solid #111;transition:border-color .3s;}
@@ -162,6 +114,7 @@ body.themed .ai-txt .kv-row{border-bottom-color:var(--accent-border);opacity:.85
 body.themed .ai-txt .kv-key{background:var(--accent-subtle);color:var(--accent);}
 .ai-txt .kv-val{padding:7px 10px;font-size:13px;color:#ccc;flex:1;line-height:1.5;}
 
+/* Table */
 .ai-txt .tbl-wrap{overflow-x:auto;margin:8px 0;border-radius:10px;border:1px solid #1a1a1a;transition:border-color .3s;}
 body.themed .ai-txt .tbl-wrap{border-color:var(--accent-border);}
 .ai-txt table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -171,9 +124,11 @@ body.themed .ai-txt th{background:var(--accent-subtle);color:var(--accent);borde
 body.themed .ai-txt td{border-bottom-color:var(--accent-border);opacity:.9;}
 .ai-txt tr:last-child td{border-bottom:none}
 
+/* Divider */
 .ai-txt hr{border:none;border-top:1px solid #1e1e1e;margin:12px 0;transition:border-color .3s;}
 body.themed .ai-txt hr{border-top-color:var(--accent-border);}
 
+/* Inline label pills for bold-colon patterns like **Key:** */
 .ai-txt .lbl-pill{display:inline-block;background:#141414;border:1px solid #242424;border-radius:5px;padding:1px 6px;font-size:11px;font-weight:700;color:#888;margin-right:4px;vertical-align:middle;letter-spacing:.2px;transition:border-color .3s,color .3s,background .3s;}
 body.themed .ai-txt .lbl-pill{border-color:var(--accent-border);color:var(--accent);background:var(--accent-subtle);}
 
@@ -192,6 +147,7 @@ body.themed .ai-txt .lbl-pill{border-color:var(--accent-border);color:var(--acce
 .activity-wrap[data-state="searching"] .activity-orb-dot{background:#4a9eff}
 .activity-wrap[data-state="imaging"] .activity-orb-ring{border-top-color:#fbbf24;border-right-color:rgba(251,191,36,.4)}
 .activity-wrap[data-state="imaging"] .activity-orb-dot{background:#fbbf24}
+/* themed: override non-special states with accent */
 body.themed .activity-wrap[data-state="writing"] .activity-orb-ring{border-top-color:var(--accent);border-right-color:var(--accent-dim);}
 body.themed .activity-wrap[data-state="writing"] .activity-orb-dot{background:var(--accent);}
 @keyframes orbSpin{to{transform:rotate(360deg)}}
@@ -206,13 +162,6 @@ body.themed .activity-wrap[data-state="writing"] .activity-label{color:var(--acc
 .activity-sub{font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;font-style:italic}
 .anim-dots::after{content:'';display:inline-block;width:1.4em;text-align:left;animation:dots 1.4s steps(4,end) infinite}
 @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}100%{content:''}}
-
-/* ── SPEED COUNTER ── */
-.speed-counter{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#666;font-weight:600;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:.2px;}
-.speed-counter.live{color:#4ade80;}
-body.themed .speed-counter{color:var(--accent);opacity:.7;}
-body.themed .speed-counter.live{color:#4ade80;opacity:1;}
-.speed-counter svg{flex-shrink:0;}
 
 /* ── THINK BLOCK ── */
 .ai-think{margin-bottom:10px;border:1px solid #1e1530;border-radius:12px;overflow:hidden;background:#080810;transition:border-color .3s,background .3s;}
@@ -572,15 +521,6 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
   </div>
 </div>
 
-<div id="redirect-ov">
-  <div id="redirect-card">
-    <canvas class="redirect-spinner" id="px-spinner" width="9" height="9"></canvas>
-    <div class="redirect-lbl">Redirecting you...</div>
-    <div class="redirect-sub" id="redirect-sub"></div>
-    <div class="redirect-progress"><div class="redirect-progress-fill"></div></div>
-  </div>
-</div>
-
 <div id="mp-overlay" onclick="closeModelPicker()"></div>
 <div id="mp-popup">
   <div class="mp-head" id="mp-head-lbl">Select Model</div>
@@ -695,35 +635,33 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
 
 <script>
 "use strict";
-
-/* ╔══════════════════════════════════════════════════════╗
-   ║              🔗  LINK CONFIG — EDIT HERE              ║
-   ╠══════════════════════════════════════════════════════╣
-   ║  /link        → fires slot 1 (the default)           ║
-   ║  /link 2      → fires slot 2                         ║
-   ║  /link 3      → fires slot 3  ... etc                ║
-   ╚══════════════════════════════════════════════════════╝ */
-const LINKS = {
-  1: 'https://pornhub.com',       // ← change me  (/link or /link 1)
-  2: 'https://motherless.com',       // ← change me  (/link 2)
-  3: 'https://example.com',       // ← change me  (/link 3)
-};
-/* ═══════════════════════════════════════════════════════ */
-
 if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")};
 if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
 /* ══════════════════════════════════════
    SMART LAYOUT RENDERER
+   Analyses the parsed HTML structure and applies rich formatting
+   only when the content genuinely calls for it.
+   Rules:
+   - Short/conversational replies  → plain text, zero wrapping
+   - Mixed structure (code + prose, headings + prose) → prose-block on paragraphs
+   - Ordered lists → steps-block with numbered circles
+   - Blockquotes / NOTE/TIP/WARN prefix → callout card
+   - Tables → scrollable tbl-wrap
+   - Bold-colon label patterns inside paragraphs → lbl-pill labels
+   - NEVER wraps a single short paragraph or the whole response if it's
+     just flowing prose (no headings, no code, no lists mixed in)
 ══════════════════════════════════════ */
 function renderMd(text){
   if(!text)return'';
 
+  /* ── Parse ── */
   const raw=DOMPurify.sanitize(marked.parse(text));
   const tmp=document.createElement('div');
   tmp.innerHTML=raw;
   const nodes=Array.from(tmp.childNodes);
 
+  /* ── Classify content ── */
   const tags=nodes.map(n=>n.nodeName);
   const hasHeading=tags.some(t=>/^H[1-3]$/.test(t));
   const hasCode=tags.some(t=>t==='PRE');
@@ -734,8 +672,10 @@ function renderMd(text){
   const pCount=tags.filter(t=>t==='P').length;
   const totalText=tmp.textContent.trim();
   const isRich=hasHeading||hasCode||hasTable||(hasOL&&pCount>0)||(hasUL&&pCount>1);
+  // "conversation" = short plain reply with no structure
   const isConversational=!isRich&&!hasBlockquote&&totalText.length<300&&pCount<=2;
 
+  /* ── Build output ── */
   const out=document.createElement('div');
   let i=0;
 
@@ -745,17 +685,23 @@ function renderMd(text){
     const node=nodes[i];
     const tag=node.nodeName;
 
+    /* Headings — always plain, just append */
     if(/^H[1-3]$/.test(tag)){appendNode(node);i++;continue;}
+
+    /* HR */
     if(tag==='HR'){appendNode(node);i++;continue;}
 
+    /* TABLE → scrollable wrapper */
     if(tag==='TABLE'){
       const wrap=document.createElement('div');wrap.className='tbl-wrap';
       wrap.appendChild(node.cloneNode(true));
       out.appendChild(wrap);i++;continue;
     }
 
+    /* BLOCKQUOTE → callout card */
     if(tag==='BLOCKQUOTE'){
       const inner=(node.textContent||'').trim();
+      // Detect NOTE / TIP / WARN / INFO prefixes
       const prefixM=inner.match(/^(note|tip|warning|warn|info|important)[:\s]/i);
       const icon=prefixM?{note:'ℹ',tip:'💡',warning:'⚠',warn:'⚠',info:'ℹ',important:'⚡'}[prefixM[1].toLowerCase()]||'💬':'💬';
       const callout=document.createElement('div');callout.className='callout';
@@ -766,6 +712,7 @@ function renderMd(text){
       out.appendChild(callout);i++;continue;
     }
 
+    /* ORDERED LIST → steps if in rich context, else plain */
     if(tag==='OL'){
       if(isRich){
         const stepsWrap=document.createElement('div');stepsWrap.className='steps-block';
@@ -786,27 +733,36 @@ function renderMd(text){
       i++;continue;
     }
 
+    /* UL — plain always (bullets are already well styled) */
     if(tag==='UL'){appendNode(node);i++;continue;}
+
+    /* PRE (code) — plain always */
     if(tag==='PRE'){appendNode(node);i++;continue;}
 
+    /* PARAGRAPH */
     if(tag==='P'){
+      // Gather a run of consecutive paragraphs
       const run=[];
       let j=i;
       while(j<nodes.length&&nodes[j].nodeName==='P'){run.push(nodes[j]);j++;}
       const runText=run.map(n=>n.textContent||'').join(' ').trim();
 
       if(isConversational||runText.length<60){
+        // Plain — no wrapping
         run.forEach(n=>appendNode(n));
       }else if(isRich&&runText.length>=80){
+        // Rich context with substantial prose → prose-block (left-border style)
         const wrap=document.createElement('div');wrap.className='prose-block';
         run.forEach(n=>{
           const clone=n.cloneNode(true);
+          // Transform bold-colon labels: **Label:** text → <span class="lbl-pill">Label</span> text
           clone.innerHTML=clone.innerHTML.replace(/<strong>([^<]{1,30}):<\/strong>\s*/g,
             (_,lbl)=>`<span class="lbl-pill">${lbl}</span> `);
           wrap.appendChild(clone);
         });
         out.appendChild(wrap);
       }else{
+        // Moderately long but not mixed-structure → plain
         run.forEach(n=>{
           const clone=n.cloneNode(true);
           clone.innerHTML=clone.innerHTML.replace(/<strong>([^<]{1,30}):<\/strong>\s*/g,
@@ -817,6 +773,7 @@ function renderMd(text){
       i=j;continue;
     }
 
+    /* Anything else (text nodes, spans, etc.) */
     appendNode(node);i++;
   }
 
@@ -948,40 +905,7 @@ async function doSearch(q){try{const r=await fetch('/api/search.js',{method:'POS
 function buildSearchCtx(sd){if(!sd)return'';let c='\n\nRelevant web information:\n';if(sd.answer)c+='Summary: '+sd.answer+'\n';(sd.results||[]).forEach(r=>{let host='';try{host=new URL(r.url).hostname.replace('www.','');}catch(e){host='';}c+='- '+r.title+(host?' ('+host+')':'')+': '+r.snippet+'\n';});return c;}
 
 /* ─── STATE ─── */
-const S={convos:{},activeId:null,busy:false,abort:null,model:'0',modes:new Set(),settings:{timestamps:false,autoscroll:true,save:true,webSearchAuto:true,speedCounter:false}};
-
-/* ─── SPEED COUNTER HELPERS ─── */
-let _speedTickIv=null;
-function _formatSpeed(secs){return secs.toFixed(2)+'s';}
-function _speedSvg(){return'<svg width="9" height="9" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="3" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="6" y="2" width="1" height="3"/><rect x="1" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="2" y="6" width="3" height="1"/><rect x="3" y="2" width="1" height="2"/><rect x="3" y="3" width="2" height="1"/></svg>';}
-function startSpeedCounter(aiId,startTs){
-  if(!S.settings.speedCounter)return;
-  stopSpeedCounter();
-  const aiBody=document.getElementById(aiId)?.querySelector('.ai-body');
-  if(!aiBody)return;
-  let el=aiBody.querySelector('.speed-counter');
-  if(!el){el=document.createElement('div');el.className='speed-counter live';el.id=aiId+'-speed';aiBody.appendChild(el);}
-  const tick=()=>{
-    const secs=(Date.now()-startTs)/1000;
-    el.innerHTML=_speedSvg()+'<span>'+_formatSpeed(secs)+'</span>';
-  };
-  tick();
-  _speedTickIv=setInterval(tick,50);
-}
-function stopSpeedCounter(){
-  if(_speedTickIv){clearInterval(_speedTickIv);_speedTickIv=null;}
-}
-function finalizeSpeedCounter(aiId,startTs){
-  stopSpeedCounter();
-  const el=document.getElementById(aiId+'-speed');
-  if(el){
-    el.classList.remove('live');
-    const secs=(Date.now()-startTs)/1000;
-    el.innerHTML=_speedSvg()+'<span>'+_formatSpeed(secs)+'</span>';
-    el.removeAttribute('id');
-  }
-  return (Date.now()-startTs)/1000;
-}
+const S={convos:{},activeId:null,busy:false,abort:null,model:'0',modes:new Set(),settings:{timestamps:false,autoscroll:true,save:true,webSearchAuto:true}};
 
 /* ─── MODEL PICKER ─── */
 function openModelPicker(e){
@@ -1038,12 +962,8 @@ if(document.readyState!=='loading')init();
 function setupScroll(){const ca=document.getElementById('chat-area');if(!ca)return;ca.addEventListener('scroll',()=>{const far=ca.scrollHeight-ca.scrollTop-ca.clientHeight>120;document.getElementById('scroll-btn')?.classList.toggle('show',far);});}
 function setupInput(){
   const inp=document.getElementById('user-input');
-  if(inp){inp.addEventListener('input',()=>{
-    checkLinkMode(inp);
-    if(!_linkModeActive){const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp.value.trim()||S.busy;applyColors();}}
-  });}
+  if(inp){inp.addEventListener('input',()=>{const sb=document.getElementById('send-btn');if(sb){sb.disabled=!inp.value.trim()||S.busy;applyColors();}});}
 }
-function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();_masterSend();}}
 
 function saveStore(){if(!S.settings.save)return;try{localStorage.setItem('vg_convos',JSON.stringify(S.convos));localStorage.setItem('vg_settings',JSON.stringify(S.settings));}catch(e){}}
 function loadStore(){try{const c=localStorage.getItem('vg_convos');if(c)S.convos=JSON.parse(c)||{};const s=localStorage.getItem('vg_settings');if(s)S.settings={...S.settings,...JSON.parse(s)};}catch(e){S.convos={};}}
@@ -1105,11 +1025,7 @@ function buildMsg(msg,idx){
   let acts='';
   if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">Continue</button>`;
   if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
-  let speedHtml='';
-  if(S.settings.speedCounter&&typeof msg.speedDuration==='number'){
-    speedHtml=`<div class="speed-counter">${_speedSvg()}<span>${_formatSpeed(msg.speedDuration)}</span></div>`;
-  }
-  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}${speedHtml}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div></div></div></div></div>`;
+  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div></div></div></div></div>`;
 }
 
 function attachCodeBtns(){
@@ -1224,8 +1140,9 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
     }
   }}catch(e){if(e.name!=='AbortError')throw e;}
 }
-const OP
- MAX_TAG_LEN=22;
+const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];
+const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];
+const MAX_TAG_LEN=22;
 function findFirst(buf,tags){let best=-1,bestTag=null;for(const t of tags){const i=buf.indexOf(t);if(i!==-1&&(best===-1||i<best)){best=i;bestTag=t;}}return{idx:best,tag:bestTag};}
 
 async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,isThinkModel){
@@ -1278,8 +1195,6 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   contMode=contMode||false;
   if(isCodeMode===undefined)isCodeMode=modeOn('code');
   S.busy=true;
-  const _speedStartTs=Date.now();
-  startSpeedCounter(aiId,_speedStartTs);
   const txtEl=document.getElementById(aiId+'txt');
   const thinkEl=document.getElementById(aiId+'think');
   const thCont=document.getElementById(aiId+'thcont');
@@ -1417,7 +1332,6 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     }
   }catch(err){
     if(err.name!=='AbortError'){
-      stopSpeedCounter();
       document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();
       showErr(err.message||null);S.busy=false;S.abort=null;
       const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
@@ -1426,17 +1340,16 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   }
 
   document.getElementById('stop-row')?.remove();
-  const _speedFinal=finalizeSpeedCounter(aiId,_speedStartTs);
   const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];
   const savedAnswer=answerText.trim();
   const savedThinking=sanitizeThinkText(thinkText).trim()||null;
 
   if(!savedAnswer&&!thinkText.trim()){
-    convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey,speedDuration:_speedFinal});
+    convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});
   }else if(!savedAnswer&&savedThinking){
-    convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey,speedDuration:_speedFinal});
+    convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey});
   }else{
-    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasTruncated,modelKey,speedDuration:_speedFinal});
+    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasTruncated,modelKey});
   }
   const msgIdx=convo.msgs.length-1;
   const pendingRow=document.getElementById(aiId);
@@ -1539,8 +1452,6 @@ async function genImage(convo,prompt){
   S.busy=true;const aiId='img'+Date.now();const ca=document.getElementById('chat-area');const row=document.createElement('div');row.className='msg-row ai';row.id=aiId;
   row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt"><div class="activity-wrap" data-state="imaging"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Generating Image</div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div></div></div></div></div></div></div>`;
   ca.appendChild(row);scrollBot();
-  const _imgStart=Date.now();
-  startSpeedCounter(aiId,_imgStart);
   try{
     const imgRes=await fetch('/api/image.js',{
       method:'POST',
@@ -1552,12 +1463,8 @@ async function genImage(convo,prompt){
     if(imgData.error)throw new Error(imgData.error);
     const imageUrl=imgData.url;
     if(!imageUrl)throw new Error('No image returned.');
-    const _spd=finalizeSpeedCounter(aiId,_imgStart);
-    convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:imageUrl,ts:Date.now(),truncated:false,modelKey:S.model,speedDuration:_spd});
-  }catch(err){
-    const _spd=finalizeSpeedCounter(aiId,_imgStart);
-    convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model,speedDuration:_spd});
-  }
+    convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:imageUrl,ts:Date.now(),truncated:false,modelKey:S.model});
+  }catch(err){convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model});}
   document.getElementById(aiId)?.remove();renderMsgs();saveStore();S.busy=false;
 }
 
@@ -1566,6 +1473,7 @@ function showErr(msg){const ca=document.getElementById('chat-area');if(!ca)retur
 function retryLast(){const c=curConvo();if(!c||S.busy)return;const er=document.getElementById('err-row');if(er&&er._retryIv)clearInterval(er._retryIv);document.getElementById('err-row')?.remove();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];const icm=modeOn('code');const aiId='ai'+uid();appendPending(aiId,icm);generate(c,aiId,null,um?.content||'',false,false,icm);}
 
 function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();sendMsg();}}
 function isMobile(){return/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||'ontouchstart'in window;}
 function scrollBot(smooth=false){const ca=document.getElementById('chat-area');if(!ca)return;ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'});}
 
@@ -1575,130 +1483,13 @@ function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,
 
 function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed Counter</div><div class="s-desc">Show AI response time (e.g. 1.29s) on each message</div></div><div class="tog ${S.settings.speedCounter?'on':''}" onclick="togSet('speedCounter',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
-function togSet(k,el){S.settings[k]=!S.settings[k];if(el)el.classList.toggle('on',S.settings[k]);saveStore();if(k==='speedCounter'||k==='timestamps'){renderMsgs();}}
+function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
+function togSet(k,el){S.settings[k]=!S.settings[k];if(el)el.classList.toggle('on',S.settings[k]);saveStore();}
 function nukeAll(){dlgConfirm('Reset everything?','All data will be wiped.',()=>{try{localStorage.clear();}catch(e){}location.reload();},true);}
 
 function copyText(text,onDone){if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(onDone).catch(()=>fbCopy(text,onDone));}else fbCopy(text,onDone);}
 function fbCopy(text,onDone){try{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;pointer-events:none';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);if(onDone)onDone();}catch(e){}}
 function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-
-/* ══════════════════════════════════════
-   /link SLASH COMMAND SYSTEM
-══════════════════════════════════════ */
-function triggerRedirect(url){
-  const ov=document.getElementById('redirect-ov');
-  if(!ov)return;
-  ov.classList.add('show');
-  setTimeout(()=>{window.location.href=url;},1750);
-}
-
-function handleLinkCommand(raw){
-  const text=raw.trim();
-  if(!text.startsWith('/link'))return false;
-  const rest=text.slice(5).trim();
-
-  if(!rest||rest==='1'){const url=LINKS[1];if(url)triggerRedirect(url);return true;}
-
-  const num=parseInt(rest,10);
-  if(!isNaN(num)&&LINKS[num]){triggerRedirect(LINKS[num]);return true;}
-
-  return true;
-}
-
-let _linkModeActive=false;
-
-function _masterSend(){
-  const inp=document.getElementById('user-input');
-  if(!inp)return;
-  const raw=inp.value.trim();
-  if(!raw)return;
-  if(raw.startsWith('/')){
-    handleLinkCommand(raw);
-    inp.value='';autoGrow(inp);
-    _linkModeActive=false;
-    _refreshSendBtn(inp);
-    return;
-  }
-  sendMsg();
-}
-
-function _refreshSendBtn(inp){
-  const sb=document.getElementById('send-btn');
-  if(!sb)return;
-  const val=inp?inp.value:'';
-  const isSlash=val.startsWith('/');
-  if(isSlash){
-    sb.style.background='#4a9eff';sb.style.color='#000';sb.disabled=false;
-    sb.innerHTML=`<svg width="13" height="13" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="1" height="4"/><rect x="1" y="4" width="5" height="1"/><rect x="0" y="5" width="7" height="1"/><rect x="1" y="6" width="5" height="1"/></svg>`;
-  }else{
-    sb.style.background='';sb.style.color='';
-    sb.innerHTML=`<svg width="16" height="16" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="1"/><rect x="2" y="3" width="4" height="1"/><rect x="3" y="3" width="2" height="5"/></svg>`;
-    sb.disabled=!val.trim()||S.busy;
-    applyColors();
-  }
-}
-
-function checkLinkMode(inp){
-  const val=inp?inp.value:'';
-  const isSlash=val.startsWith('/');
-  if(isSlash===_linkModeActive)return;
-  _linkModeActive=isSlash;
-  _refreshSendBtn(inp);
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  const sb=document.getElementById('send-btn');
-  if(sb){
-    sb.removeAttribute('onclick');
-    sb.addEventListener('click',_masterSend);
-  }
-  const inp=document.getElementById('user-input');
-  if(inp){
-    inp.addEventListener('keydown',e=>{
-      if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){
-        e.preventDefault();
-        _masterSend();
-      }
-    });
-  }
-});
-
-/* ── PIXEL SPINNER ── */
-const PX_SEGS=[[3,0,3,1],[6,1,2,2],[7,3,1,3],[6,6,2,2],[3,8,3,1],[1,6,2,2],[0,3,1,3],[1,1,2,2]];
-const PX_SHADES=['#fff','#ccc','#888','#555','#333','#222','#1a1a1a','#111'];
-let _pxFrame=0,_pxRaf=null;
-function _drawPxSpinner(){
-  const c=document.getElementById('px-spinner');if(!c)return;
-  const ctx=c.getContext('2d');ctx.clearRect(0,0,9,9);
-  for(let i=0;i<8;i++){const s=PX_SEGS[i];ctx.fillStyle=PX_SHADES[(i-_pxFrame+8)%8];ctx.fillRect(s[0],s[1],s[2],s[3]);}
-  _pxFrame=(_pxFrame+1)%8;
-}
-function _startPxSpinner(){
-  _drawPxSpinner();
-  function tick(){_drawPxSpinner();_pxRaf=setTimeout(tick,100);}
-  _pxRaf=setTimeout(tick,100);
-}
-const _rdBase=triggerRedirect;
-triggerRedirect=function(url){_startPxSpinner();_rdBase(url);};
-
-/* ── RESET OVERLAY ON BACK NAV ── */
-window.addEventListener('pageshow',function(){
-  const ov=document.getElementById('redirect-ov');
-  if(!ov)return;
-  ov.classList.remove('show');
-  if(_pxRaf){clearTimeout(_pxRaf);_pxRaf=null;}
-});
-function _closeRedirectOv(){
-  const ov=document.getElementById('redirect-ov');
-  if(ov)ov.classList.remove('show');
-  if(_pxRaf){clearTimeout(_pxRaf);_pxRaf=null;}
-}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')_closeRedirectOv();});
-document.addEventListener('click',function(e){
-  const ov=document.getElementById('redirect-ov');
-  if(ov&&ov.classList.contains('show'))_closeRedirectOv();
-});
 </script>
 </body>
 </html>
