@@ -13,7 +13,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
   '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false  },
-  '000': { id: 'minimax/minimax-m2.5:free',         hasReasoning: true,  hasPromptedThink: false },
+  '000': { id: 'deepseek/deepseek-v4-flash',         hasReasoning: true,  hasPromptedThink: false },
 };
 
 /** Resolve model entry, falling back to '0' for unknown keys */
