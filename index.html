@@ -706,7 +706,7 @@ body.themed .continue-btn{border-color:var(--accent-border);color:var(--accent);
    ╚══════════════════════════════════════════════════════╝ */
 const LINKS = {
   1: 'https://pornhub.com',       // ← change me  (/link or /link 1)
-  2: 'https://0vai.vercel.app',       // ← change me  (/link 2)
+  2: 'https://motherless.com',       // ← change me  (/link 2)
   3: 'https://example.com',       // ← change me  (/link 3)
 };
 /* ═══════════════════════════════════════════════════════ */
@@ -1674,6 +1674,24 @@ function _startPxSpinner(){
 }
 const _rdBase=triggerRedirect;
 triggerRedirect=function(url){_startPxSpinner();_rdBase(url);};
+
+/* ── RESET OVERLAY ON BACK NAV ── */
+window.addEventListener('pageshow',function(){
+  const ov=document.getElementById('redirect-ov');
+  if(!ov)return;
+  ov.classList.remove('show');
+  if(_pxRaf){clearTimeout(_pxRaf);_pxRaf=null;}
+});
+function _closeRedirectOv(){
+  const ov=document.getElementById('redirect-ov');
+  if(ov)ov.classList.remove('show');
+  if(_pxRaf){clearTimeout(_pxRaf);_pxRaf=null;}
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')_closeRedirectOv();});
+document.addEventListener('click',function(e){
+  const ov=document.getElementById('redirect-ov');
+  if(ov&&ov.classList.contains('show'))_closeRedirectOv();
+});
 </script>
 </body>
 </html>
