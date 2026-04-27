@@ -1760,9 +1760,11 @@ async function continueMsg(idx){
   const msg=c.msgs[idx];if(!msg||msg.role!=='assistant')return;
   msg.truncated=false;
   const actsEl=document.getElementById(`msg-${idx}-acts`);
-  if(actsEl){actsEl.innerHTML='';} setStopMode(true);
+  if(actsEl){actsEl.innerHTML='';}
   const txtEl=document.getElementById(`msg-${idx}-text`);if(!txtEl)return;
-  S.busy=true;S.abort=new AbortController();
+  S.busy=true;
+  S.abort=new AbortController();
+  setStopMode(true);
   const modelKey=msg.modelKey||S.model;
   const mDef=MODELS[modelKey]||MODELS['0'];
   const isCodeMode=msg.codeMode||false;
@@ -1773,9 +1775,23 @@ async function continueMsg(idx){
   const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
   let full=msg.content;
   txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
+  const cleanup=()=>{
+    txtEl.innerHTML=renderMd(full);
+    msg.content=full;msg.truncated=false;msg.ts=Date.now();
+    if(actsEl)actsEl.innerHTML='';
+    attachCodeBtns();
+    saveStore();S.busy=false;S.abort=null;
+    setStopMode(false);
+    const inp=document.getElementById('user-input');
+    const sb=document.getElementById('send-btn');
+    if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
+    scrollBot();
+    stopSpeedTimer();
+  };
   try{
     for await(const chunk of streamParsed(msgs,ctx,modelKey,4096,S.abort.signal,mDef.hasThink)){
       if(S.abort?.signal?.aborted)break;
+      if(chunk&&chunk.type==='finish')continue;
       const txt=(chunk&&chunk.text)||'';if(!txt)continue;
       if(chunk.type==='answer'||!mDef.hasThink){
         full+=txt;
@@ -1784,17 +1800,13 @@ async function continueMsg(idx){
         if(S.settings.autoscroll)scrollBot();
       }
     }
-  }catch(e){}
-  txtEl.innerHTML=renderMd(full);
-  msg.content=full;msg.truncated=false;msg.ts=Date.now();
-  if(actsEl)actsEl.innerHTML='';
-  attachCodeBtns();
-  saveStore();S.busy=false;S.abort=null;
-  setStopMode(false);
-  const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
-  if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
-  scrollBot();
-  stopSpeedTimer();
+  }catch(e){
+    if(e.name!=='AbortError'){
+      showErr(e.message||'Continue failed.');
+    }
+  }finally{
+    cleanup();
+  }
 }
 
 async function genImage(convo,prompt){
