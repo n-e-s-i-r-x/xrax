@@ -18,15 +18,15 @@ function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 //   - Edge-case probe belongs in the reasoning phase only; removed from output rules.
 
 const ACCURACY_RULES = `
-Match response depth to the question. Simple questions get direct answers with no working shown. Medium questions get key steps only. Hard problems get full working. Never add structure, verification, or elaboration a question doesn't require.
+Match response depth to the question. Simple questions get direct answers with no working shown. Medium questions get key steps only. Hard problems get full working. Never add structure, verification, or elaboration a question doesn't require. For science and physics questions, state the principle and apply it — do not over-narrate the setup.
 
 Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
 
 Never describe what you would do — do it. Never say "we would simulate" — simulate it.
 
-For math: write each step on its own line, one operation per line. Label each step with what you are doing and why (e.g. "divide both sides by 4 to isolate x"). Show every intermediate value — never compress multiple operations into one line. After reaching the answer, verify it by substituting back or reversing the operation and show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
+For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-trivial problems: write each step on its own line, label what you are doing and why, show every intermediate value. Verify by substituting back or reversing — but only once, and only when the result is non-obvious. Show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
 
-For factual answers: state the precise answer, not a vague approximation. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them. If a question has a common wrong answer, address why it is wrong before giving the correct one.
+For factual answers: state the precise answer using the most specific correct term available. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them. Do not add qualifiers like "maritime" or "approximately" unless they are necessary for correctness. If a question has a common wrong answer, state why it is wrong in one sentence before giving the correct one.
 
 For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering whether the premises are true.
 
@@ -39,7 +39,6 @@ For attribution: use the source's actual published position. If you are uncertai
 If you lack the information needed to answer, say so directly and stop.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
-
 // ── THINK RULES ───────────────────────────────────────────────────────────────
 // Design principles:
 //   - No bold imperative labels (SCOPE FIRST:, ATTACK PLAN:) — they leak into output.
