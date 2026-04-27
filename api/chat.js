@@ -24,11 +24,13 @@ Before stating a fact you are not certain of, mark it (uncertain). Do not fill k
 
 Never describe what you would do — do it. Never say "we would simulate" — simulate it.
 
-For math: write each step on its own line, one operation per line. State what you are doing and why before each step, not just the operation. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the point of error — do not patch.
+For math: write each step on its own line, one operation per line. Label each step with what you are doing and why (e.g. "divide both sides by 4 to isolate x"). Show every intermediate value — never compress multiple operations into one line. After reaching the answer, verify it by substituting back or reversing the operation and show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
+
+For factual answers: state the precise answer, not a vague approximation. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them. If a question has a common wrong answer, address why it is wrong before giving the correct one.
 
 For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering whether the premises are true.
 
-For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input before presenting the answer.
+For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.
 
 For creative tasks with hard constraints (word limits, forbidden words, required structure): check every constraint explicitly before finalising. The constraint list takes priority over everything else.
 
@@ -37,6 +39,7 @@ For attribution: use the source's actual published position. If you are uncertai
 If you lack the information needed to answer, say so directly and stop.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
+
 // ── THINK RULES ───────────────────────────────────────────────────────────────
 // Design principles:
 //   - No bold imperative labels (SCOPE FIRST:, ATTACK PLAN:) — they leak into output.
@@ -48,21 +51,23 @@ const ACCURACY_RULES_000 = ACCURACY_RULES;
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
-Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, list them. If it crosses more than one domain, name each domain and what it contributes before attempting a solution.
+Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, list them and work through every one — do not skip any because it seems obvious. If it crosses more than one domain, name each domain and what it contributes before attempting a solution.
 
 Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
 
 For hard or multi-step problems, settle on an approach before executing it. Two or three sentences is enough — the point is to commit to a method, not describe one.
 
-Work through the problem step by step. For math, write one operation per line. After reaching a preliminary answer, check it by an independent method. For logic, write the symbolic form first and evaluate structure before truth. For code, trace with a concrete input.
+Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, write one operation per line with a brief label (e.g. "subtract 4 from both sides") and show every intermediate value — never compress multiple operations into one line. After reaching a preliminary answer, check it by an independent method and show the check explicitly. For logic, write the symbolic form first, explain the structure in plain language, then evaluate truth. For code, trace with a concrete input and show the value of each variable at each step.
+
+For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the correct answer precisely — not "none" when you mean a specific thing, not "some" when you can name them.
 
 After a preliminary answer, ask: is there a boundary condition, degenerate case, or domain exception that would change this? If yes, address it before committing.
 
-Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, proceed.
+Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, say explicitly why the obvious objection fails, then proceed.
 
 Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it.
 
-After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block.`;
+After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result.`;
 
 const THINK_RULES_000 = THINK_RULES;
 
