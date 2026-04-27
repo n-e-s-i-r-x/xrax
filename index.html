@@ -1427,8 +1427,9 @@ setStopMode(false);
     }
   }
 
-  document.getElementById('stop-row')?.remove();
+  setStopMode(false);
   const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];
+
   const savedAnswer=answerText.trim();
   const savedThinking=sanitizeThinkText(thinkText).trim()||null;
 
@@ -1502,7 +1503,7 @@ async function continueMsg(idx){
   const msg=c.msgs[idx];if(!msg||msg.role!=='assistant')return;
   msg.truncated=false;
   const actsEl=document.getElementById(`msg-${idx}-acts`);
-  if(actsEl){actsEl.innerHTML=`<button class="stop-btn" onclick="stopGen()" style="padding:5px 12px;font-size:12px"><svg width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="3" height="3"/></svg>Stop</button>`;}
+  if(actsEl){actsEl.innerHTML='';} setStopMode(true);
   const txtEl=document.getElementById(`msg-${idx}-text`);if(!txtEl)return;
   S.busy=true;S.abort=new AbortController();
   const modelKey=msg.modelKey||S.model;
@@ -1532,6 +1533,7 @@ async function continueMsg(idx){
   if(actsEl)actsEl.innerHTML='';
   attachCodeBtns();
   saveStore();S.busy=false;S.abort=null;
+  setStopMode(false);
   const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
   if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
   scrollBot();
@@ -1541,7 +1543,7 @@ async function continueMsg(idx){
 async function genImage(convo,prompt){
   S.busy=true;const aiId='img'+Date.now();const ca=document.getElementById('chat-area');const row=document.createElement('div');row.className='msg-row ai';row.id=aiId;
   row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt"><div class="activity-wrap" data-state="imaging"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Generating Image</div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div></div></div></div></div></div></div>`;
-  ca.appendChild(row);scrollBot();
+  ca.appendChild(row);setStopMode(true);scrollBot();
   try{
     const imgRes=await fetch('/api/image.js',{
       method:'POST',
@@ -1567,7 +1569,7 @@ async function genImage(convo,prompt){
     convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:savedUrl,ts:Date.now(),truncated:false,modelKey:S.model});
   }catch(err){convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model});}
   document.getElementById(aiId)?.remove();renderMsgs();saveStore();S.busy=false;
-  stopSpeedTimer();
+  setStopMode(false);stopSpeedTimer();
 }
 
 function stopGen(){if(S.abort)S.abort.abort();}
