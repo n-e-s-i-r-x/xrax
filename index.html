@@ -856,13 +856,34 @@ function applyModeButtons(c){
 const LEAK_LINE_RE=[/^\s*\[[A-Z][^\]]{2,120}\]\s*$/,/---\s*WEB SEARCH RESULTS\s*---/i,/---\s*END SEARCH RESULTS\s*---/i,/\bDIRECT\s*ANSWER\s*:/i,/\[CODE MODE\b/i,/\[Current date and time\]/i,/\[Reasoning context above/i,/\[Continue from where/i,/\[Search complete/i,/<context>|<\/context>/i,/\bYou are (?:0|00|000)\b/,/\bsystem prompt\b/i,/\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i];
 function sanitizeThinkText(t){if(!t)return t;return t.split('\n').map(l=>{for(const r of LEAK_LINE_RE)if(r.test(l))return'…';return l;}).join('\n');}
 
-const UNCERTAINTY_HARD=[/\b(don'?t|do not|doesn'?t|does not)\s+have\s+(access|real.?time|live|current|up.?to.?date)\b/i,/\b(can'?t|cannot|could not|couldn'?t)\s+(access|find|retrieve|fetch|get)\s+(real.?time|live|current|up.?to.?date|today'?s?|latest)\b/i,/\bmy\s+(knowledge|training|data)\s+(cut.?off|ends?|stops?|is\s+limited\s+to|is\s+from)\b/i,/\b(as\s+of\s+my\s+(last|knowledge)\s+update|my\s+knowledge\s+(only\s+goes?|extends?)\s+to)\b/i,/\b(this\s+(information\s+)?(may|might|could)\s+(be\s+)?(outdated|have\s+changed|no\s+longer\s+be\s+accurate))\b/i,/\b(i\s+(don'?t|do\s+not)\s+know\s+the\s+(current|latest|today'?s?|real.?time|live))\b/i,/\b(for\s+the\s+most\s+(up.?to.?date|current|accurate|recent)\s+(information|data|details),?\s+(please\s+)?(check|visit|refer|look))\b/i,/\b(i\s+(genuinely\s+)?(don'?t|do\s+not)\s+know|i\s+have\s+no\s+(idea|information|data)\s+(about|on|regarding))\b/i,/\b(unable\s+to\s+(provide|give|access)\s+(current|live|real.?time|today'?s?))\b/i,/\b(you'?d?\s+(need|should|would\s+need)\s+to\s+(check|verify|look\s+up)\s+(the\s+)?(current|latest|live|real.?time))\b/i];
+const UNCERTAINTY_HARD=[/\b(don'?t|do not|doesn'?t|does not)\s+have\s+(access|real.?time|live|current|up.?to.?date)\b/i,/\b(can'?t|cannot|could not|couldn'?t)\s+(access|find|retrieve|fetch|get)\s+(real.?time|live|current|up.?to.?date|today'?s?|latest)\b/i,/\bmy\s+(knowledge|training|data)\s+(cut.?off|ends?|stops?|is\s+limited\s+to|is\s+from)\b/i,/\b(as\s+of\s+my\s+(last|knowledge)\s+update|my\s+knowledge\s+(only\s+goes?|extends?)\s+to)\b/i,/\b(this\s+(information\s+)?(may|might|could)\s+(be\s+)?(outdated|have\s+changed|no\s+longer\s+be\s+accurate))\b/i,/\b(i\s+(don'?t|do\s+not)\s+know\s+the\s+(current|latest|today'?s?|real.?time|live))\b/i,/\b(for\s+the\s+most\s+(up.?to.?date|current|accurate|recent)\s+(information|data|details),?\s+(please\s+)?(check|visit|refer|look))\b/i,/\b(i\s+(genuinely\s+)?(don'?t|do\s+not)\s+know|i\s+have\s+no\s+(idea|information|data)\s+(about|on|regarding))\b/i,/\b(unable\s+to\s+(provide|give|access)\s+(current|live|real.?time|today'?s?))\b/i,/\b(you'?d?\s+(need|should|would\s+need)\s+to\s+(check|verify|look\s+up)\s+(the\s+)?(current|latest|live|real.?time))\b/i,
+/\b(not\s+sure\s+(if|whether|about)\s+(this\s+)?(syntax|api|method|function|library|package|version))\b/i,/\b(you\s+(may|might|should)\s+(want\s+to\s+)?(check|verify|confirm)\s+(the\s+)?(docs?|documentation|api|syntax))\b/i,/\b(this\s+(may|might)\s+(have\s+changed|be\s+different|vary)\s+(in|across|between|with)\s+(newer|older|different|recent)\s+versions?)\b/i,/\b(i'?m\s+not\s+(100%\s+)?(certain|sure|confident)\s+(about\s+(the\s+)?)?(exact|precise|correct)\s+(syntax|api|usage|name))\b/i];
 const UNCERTAINTY_NEVER=[/\b(i\s+know|i\s+am\s+sure|i\s+am\s+certain|the\s+answer\s+is|this\s+is\s+definitely)\b/i,/\b(here'?s?\s+(the\s+)?(code|solution|answer|implementation|example|fix))\b/i,/\b(let\s+me\s+(explain|show|walk\s+you|help\s+you|write|create|build))\b/i,/```/];
 function detectUncertainty(text){if(!text||text.length<60)return false;const w=text.slice(-800);if(UNCERTAINTY_NEVER.some(r=>r.test(w)))return false;return UNCERTAINTY_HARD.some(r=>r.test(w));}
 
 const USER_SEARCH_EXPLICIT=[/\b(weather|forecast)\s+(in|for|today|tomorrow|right\s+now)\b/i,/\b(live|real.?time)\s+(score|result|price|rate|stock|exchange|update)\b/i,/\b(breaking\s+news|latest\s+news|recent\s+news|today'?s?\s+news)\b/i,/\bwhat'?s?\s+(the\s+)?(current|today'?s?|live|right\s+now)\s+(price|weather|score|news|status)\b/i,/\b(price\s+of|how\s+much\s+is)\s+(bitcoin|btc|eth|ethereum)\s+(now|today|currently|right\s+now)\b/i,/\b(who\s+won|final\s+score|match\s+result)\s+.{0,30}(today|tonight|yesterday|this\s+week)\b/i,/\bcurrent\s+(time|date)\s+in\b/i];
 const USER_SEARCH_SKIP=[/^(hi|hello|hey|thanks?|ok|bye|yes|no|sure|lol|hm+|um+)[\s!.?]*$/i,/\b(how\s+(do|to)|what\s+is|explain|why|define|difference\s+between|compare|what\s+are)\b/i,/\b(write|create|make|generate|help\s+me|give\s+me|list|show|build|code|design)\b/i,/\b(math|calculate|solve|equation|formula|algorithm|function|class|component)\b/i,/\b(who\s+(is|was)|history\s+of|founded|invented|created|born|died)\b/i,/\b(how\s+does|what\s+does|meaning\s+of|definition\s+of)\b/i];
-function queryNeedsSearch(text){if(modeOn('web'))return true;if(modeOn('image')||!text)return false;if(!S.settings.webSearchAuto)return false;const t=text.trim();if(t.length<8)return false;if(USER_SEARCH_SKIP.some(r=>r.test(t)))return false;return USER_SEARCH_EXPLICIT.some(r=>r.test(t));}
+function queryNeedsSearch(text){
+  if(modeOn('image'))return false;
+  if(!text)return false;
+  if(modeOn('web'))return true;
+  if(!S.settings.webSearchAuto)return false;
+  const t=text.trim();
+  if(t.length<8)return false;
+  if(USER_SEARCH_SKIP.some(r=>r.test(t)))return false;
+  if(modeOn('code')){
+    const codeSearchTriggers=[
+      /\b(latest|current|newest|stable)\s+(version|release|api|docs?)\b/i,
+      /\b(how\s+to|best\s+way\s+to)\s+(install|setup|configure|deploy)\b/i,
+      /\b(does|is|are|has)\s+.{0,40}\s+(supported?|available|work|exist)\b/i,
+      /\b(npm|yarn|pip|cargo|gem)\s+(install|add|update)\b/i,
+      /\b(changelog|breaking\s+change|migration|upgrade)\b/i,
+    ];
+    if(codeSearchTriggers.some(r=>r.test(t)))return true;
+  }
+  return USER_SEARCH_EXPLICIT.some(r=>r.test(t));
+}
+
 async function doSearch(q){try{const r=await fetch('/api/search.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});if(!r.ok)return null;const d=await r.json();return(d.results?.length||d.answer)?d:null;}catch(e){return null;}}
 function buildSearchCtx(sd){if(!sd)return'';let c='\n\nRelevant web information:\n';if(sd.answer)c+='Summary: '+sd.answer+'\n';(sd.results||[]).forEach(r=>{let host='';try{host=new URL(r.url).hostname.replace('www.','');}catch(e){host='';}c+='- '+r.title+(host?' ('+host+')':'')+': '+r.snippet+'\n';});return c;}
 
@@ -946,7 +967,7 @@ function toggleMode(m){
 }
 function modeOn(m){return S.modes.has(m);}
 
-const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nRules:\n- Write complete, working, production-quality code. No placeholders, no TODOs, no truncation.\n- Use the best design patterns, architecture, and algorithms.\n- Clean, readable, well-structured, modern best practices.\n- Proper error handling, edge cases, type safety.\n- For UI/frontend: pixel-perfect, beautiful, modern designs. Best CSS, animations, UX.\n- For backend: proper security, validation, efficiency.\n- Always fenced code blocks with correct language tag.\n- Multiple files if needed, each clearly labeled.\n- Highest coding accuracy. Best design. No shortcuts.`;
+const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nYou are now the world's best full-stack engineer and UI/UX designer. Write complete, production-quality code with stunning CSS. Mobile-first, fully responsive, smooth animations, proper typography and color contrast. Zero placeholders. Zero truncation. If you don't know something, say so in one line then provide the closest working alternative and search for the correct answer.`;
 
 function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'. Local time: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})+'. Year: 2026. Knowledge and training data is current to 2026. Answer confidently with 2026 as your present baseline. Do not caveat answers with outdated-knowledge disclaimers unless the user specifically asks about real-time live data (prices, scores, breaking news).';}
 
