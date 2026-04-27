@@ -24,9 +24,9 @@ Before stating a fact you are not certain of, mark it (uncertain). Do not fill k
 
 Never describe what you would do — do it. Never say "we would simulate" — simulate it.
 
-For math: write each step on its own line, one operation per line. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the point of error — do not patch.
+For math: write each step on its own line, one operation per line. State what you are doing and why before each step, not just the operation. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the point of error — do not patch.
 
-For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Evaluate structural validity before considering whether the premises are true.
+For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering whether the premises are true.
 
 For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input before presenting the answer.
 
@@ -37,7 +37,6 @@ For attribution: use the source's actual published position. If you are uncertai
 If you lack the information needed to answer, say so directly and stop.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
-
 // ── THINK RULES ───────────────────────────────────────────────────────────────
 // Design principles:
 //   - No bold imperative labels (SCOPE FIRST:, ATTACK PLAN:) — they leak into output.
