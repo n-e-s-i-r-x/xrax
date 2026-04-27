@@ -10,6 +10,10 @@ const MODEL_MAP = {
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
 // ── ACCURACY RULES (all models) ───────────────────────────────────────────────
+// FIX: Expanded with first-principles reasoning mandate, uncertainty handling,
+//      edge-case probing, and a lightweight self-verification pass.
+//      Addresses: knowledge gaps, shallow processing, edge case reliability,
+//      hard-to-verify answers.
 
 const ACCURACY_RULES = `
 Accuracy rules — apply only what the question actually requires:
@@ -18,6 +22,27 @@ RESPONSE DEPTH:
 - Match depth to difficulty. A simple question gets a direct answer. A complex problem gets full reasoning. Do not apply heavy structure to light questions.
 - If you know the answer, say it. If you don't know, say so clearly and stop — do not fill the gap with hedged guesses.
 - Never describe what you would do — do it. Never say "we would simulate" — simulate it.
+
+FIRST-PRINCIPLES REASONING (medium and hard questions):
+- Before answering, identify what type of problem this actually is. Do not pattern-match to a surface resemblance — reason from definitions and constraints.
+- Ask: what is the minimum set of facts needed to answer this? Do I actually have all of them? If not, flag the gap explicitly before answering.
+- Intersection and trick questions often require combining two or more domains. Identify every domain the question touches before solving.
+
+UNCERTAINTY AND KNOWLEDGE GAPS:
+- Before stating a fact, ask yourself: am I certain, or am I pattern-completing? If uncertain, say so explicitly with a confidence marker: (confident), (likely), or (uncertain — verify).
+- Do not state guesses as facts. Do not fill knowledge gaps with plausible-sounding details.
+- "I don't know" is a complete, valid answer when it's true.
+
+EDGE CASES:
+- After forming your answer, ask: is there a boundary condition, degenerate case, or domain-specific exception that changes this answer? If yes, address it explicitly.
+- For any rule or formula you apply, state the conditions under which it holds. If the question is near those boundaries, say so.
+
+SELF-VERIFICATION (after reaching a conclusion):
+- Re-read your answer and ask: does this actually answer what was asked? Check for off-by-one errors, sign errors, missed sub-parts, or unstated assumptions.
+- For math: verify by plugging back in or reversing the operation.
+- For logic: confirm the argument form is correctly identified and validity is evaluated structurally.
+- For code: trace with a concrete input.
+- If verification fails, recompute — do not patch.
 
 MATH (only when doing math):
 - Show steps. After a numeric answer, verify it by plugging back in or reversing the operation. If verification fails, recompute.
@@ -43,15 +68,21 @@ MISSING INFORMATION:
 - If you lack the data to answer, say so directly and stop. Do not substitute speculation for facts.
 - "I don't know" is a complete, valid answer when it's true.`;
 
-// ACCURACY_RULES_000 is identical — single source of truth
 const ACCURACY_RULES_000 = ACCURACY_RULES;
 
-// ── THINKING RULES (all models that have prompted/reasoning think) ─────────────
+// ── THINK RULES ───────────────────────────────────────────────────────────────
+// FIX: Adds structured attack plan, domain intersection detection, uncertainty
+//      flagging, and edge-case probe inside the reasoning block.
+//      Addresses: no reasoning transparency, trick/intersection questions,
+//      shallow processing, edge case reliability.
 
 const THINK_RULES = `
 Reasoning rules (inside <think>...</think>):
-- Think directly about the question. Match depth to difficulty — a simple question needs a short think, a hard problem needs a thorough one.
-- If the question has multiple parts, list them first and work through each. Don't start solving until you've scoped what's being asked.
+- Think directly about the question. Match depth to difficulty.
+- SCOPE FIRST: Before solving, list every sub-part or requirement. Identify every domain the question touches. If it crosses two or more domains (e.g., probability + combinatorics, history + geography), note the intersection explicitly.
+- KNOWLEDGE CHECK: Before using a fact, ask — am I certain of this, or am I pattern-completing? Flag uncertain facts with (uncertain) inside the think block. If a gap would change the answer, say so.
+- ATTACK PLAN: For hard or multi-domain problems, write a 2-3 step plan before executing it. Do not start solving until the plan is clear.
+- EDGE-CASE PROBE: After reaching a preliminary answer, ask — is there a boundary condition, degenerate case, or exception that invalidates this? If yes, address it.
 - Challenge your first conclusion before committing. Find a flaw or counterexample. If it holds, proceed.
 - For math: compute explicitly. Verify by an independent method. If wrong, recompute — never patch.
 - For logic: write symbolic form. Evaluate structural validity independent of premise truth.
@@ -62,7 +93,6 @@ Reasoning rules (inside <think>...</think>):
 - Use dense, focused reasoning. No restating rules. No filler.
 - After </think>, output ONLY the final answer. Never repeat, summarize, or reference the thinking block.`;
 
-// THINK_RULES_000 is identical — single source of truth
 const THINK_RULES_000 = THINK_RULES;
 
 // ── SYSTEM PROMPTS ─────────────────────────────────────────────────────────────
@@ -74,21 +104,46 @@ const SYSTEM_PROMPT_MAP = {
   'V':   `You are V, created by Vin.\n${ACCURACY_RULES}\n${THINK_RULES}`,
 };
 
-// ── DOMAIN HINT INJECTION (difficulty-gated) ─────────────────────────────────
+// ── DIFFICULTY CLASSIFICATION ─────────────────────────────────────────────────
+// FIX: Added intersection detection and trick-question patterns to difficulty
+//      scoring so they reliably promote to 'hard'.
+//      Addresses: trick/intersection questions being under-classified.
 
 function classifyDifficulty(msg) {
   const t = msg.trim();
-  // Short or clearly conversational → simple
   if (t.length < 40) return 'simple';
   const conversational = /^(hi|hello|hey|thanks?|ok|sure|yes|no|what('?s| is) (up|good)|how (are|r) (you|u)|lol|haha|nice|cool|great|got it|makes sense|understood)/i.test(t);
   if (conversational) return 'simple';
-  // Single-sentence factual question with no sub-parts → medium
+
+  // FIX: Intersection signals — questions that cross multiple domains always need deep processing
+  const isIntersection = (
+    (/\b(both|combine|intersection|overlap|relate|connection between|difference between|compare)\b/i.test(t) && t.length > 80) ||
+    // Multiple distinct domain keywords in same question
+    [
+      /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
+      /\b(history|century|war|treaty|empire|revolution)\b/i,
+      /\b(logic|argument|premise|syllogism|valid)\b/i,
+      /\b(code|algorithm|function|runtime|complexity)\b/i,
+      /\b(physics|chemistry|biology|science)\b/i,
+    ].filter(re => re.test(t)).length >= 2
+  );
+  if (isIntersection) return 'hard';
+
+  // FIX: Trick/trap patterns always hard — these are exactly where shallow processing fails
+  const isTrickHard = /\b(trick|trap|paradox|always\s+true|never\s+true|impossible|counterintuitive|common\s+mistake|most\s+people|obvious(ly)?|simple(ly)?|easy\s+question|what\s+is\s+wrong)\b/i.test(t);
+  if (isTrickHard) return 'hard';
+
   const hasSubParts = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\)|sub.?question)\b/i.test(t) || /[A-E]\./i.test(t);
   const isLong = t.length > 200;
   const isDeep = /\b(prove|proof|derive|algorithm|implement|simulate|explain\s+how|step.?by.?step|in\s+detail|thoroughly|rigorously|trace|analyze|compare|contrast)\b/i.test(t);
   if (!hasSubParts && !isLong && !isDeep) return 'medium';
   return 'hard';
 }
+
+// ── DOMAIN HINT INJECTION ─────────────────────────────────────────────────────
+// FIX: Added intersection hint, uncertainty-flag hint, edge-case probe hint,
+//      and self-verify reminder. These fire on hard questions.
+//      Addresses: knowledge gaps, trick questions, edge cases, verifiability.
 
 function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
@@ -99,7 +154,6 @@ function injectTaskHint(messages, modelKey) {
   const msg = last.content;
   const difficulty = classifyDifficulty(msg);
 
-  // Simple messages get no hint injection at all
   if (difficulty === 'simple') return messages;
 
   const hints = [];
@@ -119,7 +173,17 @@ function injectTaskHint(messages, modelKey) {
   const isStats      = /\b(sensitivity|specificity|precision|recall|probability|bayes|conditional|false positive|true positive)\b/i.test(msg);
   const isCalculus   = /\b(critical point|inflection|derivative|maximum|minimum|saddle|classify|second derivative|optimization)\b/i.test(msg);
 
-  // Domain-specific hints only fire when their domain is actually detected
+  // FIX: Intersection hint — fires when multiple domains are detected in one question
+  const domainCount = [
+    /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
+    /\b(history|century|war|treaty|empire|revolution)\b/i,
+    /\b(logic|argument|premise|syllogism|valid)\b/i,
+    /\b(code|algorithm|function|runtime|complexity)\b/i,
+    /\b(physics|chemistry|biology|science)\b/i,
+  ].filter(re => re.test(msg)).length;
+  const isIntersection = domainCount >= 2 || /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
+  if (isIntersection) hints.push('[INTERSECTION] This question crosses multiple domains. Identify each domain and what it contributes before solving. Do not collapse them into one framework prematurely.');
+
   if (isMultiPart)  hints.push('[MULTI-PART] List every sub-part first. Answer all of them in order. Do not skip any.');
   if (isMath)       hints.push('[MATH] Show steps. After your answer, verify it by plugging back in or reversing the operation. Non-integer results are not automatically impossible — state the value and explain it.');
   if (isCalculus)   hints.push('[CALCULUS] Classify every critical point (min, max, or saddle) using the second derivative test. Finding them without classifying is incomplete.');
@@ -135,8 +199,12 @@ function injectTaskHint(messages, modelKey) {
   if (isTrick)      hints.push('[CAUTION] Possible cognitive trap. Solve mechanically. If a result seems impossible, check whether it is non-integer/non-physical but still meaningful.');
   if (isList)       hints.push('[COMPLETENESS] If you cannot be certain the list is exhaustive, say so explicitly.');
 
-  // On hard queries only: add a single focused reminder, not a checklist
+  // FIX: Uncertainty-flag hint — always present on hard questions
+  //      Addresses: knowledge gaps, non-obvious facts
   if (difficulty === 'hard') {
+    hints.push('[UNCERTAINTY] Before stating any fact you are less than confident about, mark it (uncertain). Do not present guesses as facts.');
+    hints.push('[EDGE CASE] After your answer, ask: is there a boundary condition or exception that changes this? If yes, address it.');
+    hints.push('[SELF-VERIFY] Re-read your final answer. Does it actually answer what was asked? Check for missed sub-parts, sign errors, or off-by-one errors. If verification fails, recompute.');
     hints.push('[If you lack the data to answer a part, say so and stop — do not substitute speculation.]');
   }
 
@@ -146,25 +214,47 @@ function injectTaskHint(messages, modelKey) {
   return [...messages.slice(0, -1), patched];
 }
 
-// ── CONSISTENCY NUDGE (difficulty-gated) ─────────────────────────────────────
+// ── CONSISTENCY NUDGE ─────────────────────────────────────────────────────────
 
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
 
   const difficulty = classifyDifficulty(last.content);
-  // Simple messages get no nudge
   if (difficulty === 'simple') return messages;
 
   const msg = last.content;
   const isMultiPart  = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\))\b/i.test(msg) || /[A-E]\./i.test(msg);
   const isSimulation = /\b(simulate|roleplay|dialogue|conversation between|act as|play out)\b/i.test(msg);
 
-  let nudge = '\n\n[Answer accurately. If uncertain about a claim, flag it — do not state guesses as facts.]';
+  // FIX: Nudge now also asks for uncertainty flagging, not just accuracy.
+  //      Addresses: non-obvious facts slipping through without a flag.
+  let nudge = '\n\n[Answer accurately. Flag any fact you are uncertain about — do not state guesses as facts.]';
   if (isMultiPart)  nudge += '\n[Answer every sub-part. Do not skip any.]';
   if (isSimulation) nudge += '\n[Produce the content — do not describe it.]';
 
   const patched = { ...last, content: last.content + nudge };
+  return [...messages.slice(0, -1), patched];
+}
+
+// ── FORCED THINK FOR NON-REASONING MODELS ────────────────────────────────────
+// FIX: Models without native reasoning (hasReasoning: false, hasPromptedThink: false)
+//      now receive a lightweight prompted-think instruction on hard questions.
+//      Addresses: no reasoning transparency, shallow processing.
+
+function injectForcedThinkOnHard(messages, modelKey, mEntry) {
+  // Only apply to models that have neither native reasoning nor prompted think
+  if (mEntry.hasReasoning || mEntry.hasPromptedThink) return messages;
+
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
+
+  const difficulty = classifyDifficulty(last.content);
+  if (difficulty !== 'hard') return messages;
+
+  // Append a think-before-answer instruction directly to the user message
+  const thinkPrompt = '\n\n[Before answering, work through this step-by-step inside <think>...</think> tags. Show your reasoning. Then give the final answer after </think>.]';
+  const patched = { ...last, content: last.content + thinkPrompt };
   return [...messages.slice(0, -1), patched];
 }
 
@@ -181,7 +271,6 @@ function effectiveTemperature(modelKey, requested) {
 // ── SAMPLING PARAMS ───────────────────────────────────────────────────────────
 
 function samplingParams(modelKey) {
-  // All models use the same high-quality baseline (000-level) for parity.
   return { top_p: 0.75, top_k: 20, frequency_penalty: 0.15, presence_penalty: 0.05 };
 }
 
@@ -436,7 +525,10 @@ export default async function handler(req) {
   // Step 1: inject domain-specific verification hints (skip on continuations)
   const trimmedWithHints = contMode ? trimmed : injectTaskHint(trimmed, modelKey);
   // Step 2: inject self-consistency nudge (skip on continuations)
-  const trimmedFinal = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
+  const trimmedWithNudge = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
+  // Step 3 (NEW): inject forced think on hard questions for non-reasoning models
+  //               Addresses: no reasoning transparency, shallow processing on 0/00/V
+  const trimmedFinal = contMode ? trimmedWithNudge : injectForcedThinkOnHard(trimmedWithNudge, modelKey, mEntry);
 
   let messagesPayload;
   try {
