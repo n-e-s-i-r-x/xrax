@@ -1581,6 +1581,7 @@ async function genImage(convo,prompt){
 function stopGen(){if(S.abort)S.abort.abort();}
 function toggleMsgCopy(row,e){
   if(e)e.stopPropagation();
+  if(e&&e.target.closest('.ai-think'))return;
   const btn=row.querySelector('.msg-copy-btn');
   if(!btn)return;
   const isShow=btn.classList.contains('show');
