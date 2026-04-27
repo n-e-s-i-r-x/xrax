@@ -276,6 +276,46 @@ body.themed .mp-item.sel{border-color:var(--accent-border);background:var(--acce
 #image-notice.show{display:block}
 .stream-cur{display:none;}
 
+/* ── FILE ATTACHMENT ── */
+#file-tray{display:none;flex-direction:row;flex-wrap:wrap;gap:6px;padding:6px 12px 4px;background:#000;}
+#file-tray.show{display:flex;}
+.file-chip{display:inline-flex;align-items:center;gap:5px;background:#141414;border:1px solid #252525;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:600;color:#888;letter-spacing:.3px;text-transform:uppercase;animation:chipIn .18s ease;transition:border-color .3s;flex-shrink:0;}
+@keyframes chipIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+body.themed .file-chip{border-color:var(--accent-border);color:var(--accent);}
+.file-chip svg{flex-shrink:0;opacity:.7;}
+.file-chip-remove{width:14px;height:14px;border-radius:0;background:transparent;color:#555;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:2px;transition:color .15s;}
+.file-chip-remove:active{background:transparent;color:#e06060;}
+#file-parse-progress{display:none;padding:2px 12px 4px;font-size:11px;color:#555;font-style:italic;background:#000;}
+#file-parse-progress.show{display:block;}
+.attach-btn{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#555;flex-shrink:0;transition:background .15s,color .15s,transform .1s;}
+.attach-btn:active{background:#1a1a1a;color:#fff;transform:scale(.9);}
+body.themed .attach-btn{color:var(--accent);opacity:.5;}
+body.themed .attach-btn:active{opacity:1;background:var(--accent-subtle);}
+.attach-btn.has-file{color:#4a9eff;}
+body.themed .attach-btn.has-file{color:var(--accent);opacity:1;}
+/* file chips inside user bubble */
+.u-file-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
+.u-file-chip{display:inline-flex;align-items:center;gap:4px;background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;color:#777;letter-spacing:.4px;text-transform:uppercase;}
+body.themed .u-file-chip{border-color:var(--accent-border);color:var(--accent);background:var(--accent-subtle);}
+
+/* ── FILE ATTACHMENT ── */
+#file-tray{display:none;flex-direction:row;flex-wrap:wrap;gap:6px;padding:6px 12px 4px;}
+#file-tray.show{display:flex;}
+.file-chip{display:flex;align-items:center;gap:6px;background:#141414;border:1px solid #2a2a2a;border-radius:8px;padding:5px 10px;font-size:12px;color:#bbb;max-width:220px;animation:chipIn .18s ease;transition:border-color .3s;}
+@keyframes chipIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+body.themed .file-chip{border-color:var(--accent-border);color:var(--accent);}
+.file-chip-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
+.file-chip-remove{width:16px;height:16px;border-radius:50%;background:#2a2a2a;color:#888;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;line-height:1;transition:background .15s,color .15s;}
+.file-chip-remove:active{background:#3a1515;color:#e06060;}
+.attach-btn{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#666;flex-shrink:0;transition:background .15s,color .15s,transform .1s;}
+.attach-btn:active{background:#1a1a1a;color:#fff;transform:scale(.9);}
+body.themed .attach-btn{color:var(--accent);opacity:.6;}
+body.themed .attach-btn:active{opacity:1;background:var(--accent-subtle);}
+.attach-btn.has-file{color:#4a9eff;}
+body.themed .attach-btn.has-file{color:var(--accent);opacity:1;}
+#file-parse-progress{display:none;padding:2px 12px 4px;font-size:11px;color:#555;font-style:italic;}
+#file-parse-progress.show{display:block;}
+
 /* ── STOP ROW ── */
 #stop-row{display:none;}
 
@@ -460,6 +500,10 @@ body.themed .speed-timer {
     </button>
   </div>
 
+  <input type="file" id="file-input" accept=".txt,.md,.log,.json,.xml,.yaml,.yml,.html,.css,.js,.py,.java,.c,.cpp,.cs,.csv,.tsv,.rtf,.pdf,.docx,.xlsx,.zip" multiple style="display:none" onchange="onFileSelected(event)"/>
+
+  <div id="file-tray"></div>
+  <div id="file-parse-progress"></div>
   <div id="input-area">
     <div class="input-box" id="input-box">
       <div class="input-tools">
@@ -502,6 +546,20 @@ body.themed .speed-timer {
       <div class="input-row">
         <button class="model-btn" id="model-btn" onclick="openModelPicker(event)">0</button>
         <textarea id="user-input" placeholder="Message 0..." rows="1" oninput="autoGrow(this)" onkeydown="onKey(event)"></textarea>
+        <button class="send-btn" id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file">
+          <svg width="14" height="14" viewBox="0 0 8 10" fill="currentColor" shape-rendering="crispEdges">
+            <rect x="3" y="0" width="2" height="1"/>
+            <rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/>
+            <rect x="1" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/>
+            <rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/>
+            <rect x="1" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/>
+            <rect x="1" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/>
+            <rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/>
+            <rect x="3" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/>
+            <rect x="4" y="8" width="1" height="1"/><rect x="6" y="8" width="1" height="1"/>
+            <rect x="5" y="9" width="2" height="1"/>
+          </svg>
+        </button>
         <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
           <svg width="16" height="16" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
             <rect x="3" y="0" width="2" height="1"/>
@@ -836,6 +894,9 @@ function applyColors(){
     if(!sb.disabled){sb.style.background=c.send;sb.style.color=c.sendTxt;sb.style.boxShadow=c.glow;}
     else{sb.style.background=c.sendDis;sb.style.color=c.sendDisTxt;sb.style.boxShadow='none';}
   }
+  const ab=document.getElementById('attach-btn');
+  if(ab){ab.style.background='#1a1a1a';ab.style.color='#888';}
+
   applyModeButtons(c);
 }
 function applyModeButtons(c){
@@ -1075,7 +1136,11 @@ function stopBubble(e){e.stopPropagation();}
 
 function buildMsg(msg,idx){
   const ts=S.settings.timestamps&&msg.ts?`<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>`:'';
-  if(msg.role==='user'){return`<div class="msg-row user" onclick="toggleMsgCopy(this,event)"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}<button class="msg-copy-btn" style="align-self:flex-end" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div>`;}
+  if(msg.role==='user'){
+    const fileChipsHtml=(msg.files&&msg.files.length)?`<div class="u-file-chips">${msg.files.map(f=>`<span class="u-file-chip"><svg width="9" height="9" viewBox="0 0 6 7" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="0" width="3" height="1"/><rect x="0" y="1" width="1" height="5"/><rect x="5" y="2" width="1" height="4"/><rect x="0" y="6" width="6" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="3" height="1"/><rect x="1" y="4" width="3" height="1"/></svg>${esc(f)}</span>`).join('')}</div>`:'';
+    const bubbleText=msg.content?`<div style="white-space:pre-wrap;word-wrap:break-word;">${esc(msg.content)}</div>`:'';
+    return`<div class="msg-row user" onclick="toggleMsgCopy(this,event)"><div class="msg-in">${fileChipsHtml}<div class="u-bubble">${bubbleText}</div>${ts}<button class="msg-copy-btn" style="align-self:flex-end" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div>`;
+  }
   const cma=msg.codeMode?'data-codemode="true"':'';
   const badge=msg.userSearched?`<div class="web-badge"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="2" height="1"/><rect x="1" y="1" width="4" height="1"/><rect x="0" y="2" width="6" height="1"/><rect x="1" y="3" width="4" height="1"/><rect x="0" y="3" width="1" height="2"/><rect x="5" y="3" width="1" height="2"/><rect x="1" y="5" width="4" height="1"/></svg>Searched the web</div>`:'';
   let thinkHtml='';
@@ -1148,38 +1213,218 @@ function viewCode(btn){
 }
 function closeView(){document.getElementById('view-frame').srcdoc='';document.getElementById('view-ov').classList.remove('show');}
 
+/* ══════════════════════════════════════
+   FILE ATTACHMENT SYSTEM
+══════════════════════════════════════ */
+const FILE_MAX_BYTES=20*1024*1024;
+const FILE_ACCEPT=['.txt','.md','.log','.json','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv','.rtf','.pdf','.docx','.xlsx','.zip'];
+let _attachedFiles=[]; // [{name, ext, text}]
+
+function _fileExtOf(name){return('.'+name.split('.').pop().toLowerCase());}
+function _fmtLabel(ext){return ext.replace('.','').toUpperCase();}
+
+const _chipSVG=`<svg width="9" height="9" viewBox="0 0 6 7" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="0" width="3" height="1"/><rect x="0" y="1" width="1" height="5"/><rect x="5" y="2" width="1" height="4"/><rect x="0" y="6" width="6" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="1" y="2" width="3" height="1"/><rect x="1" y="4" width="3" height="1"/></svg>`;
+
+function showFileErr(msg){
+  const pr=document.getElementById('file-parse-progress');if(!pr)return;
+  pr.textContent='⚠ '+msg;pr.style.color='#e06060';pr.classList.add('show');
+  setTimeout(()=>{pr.classList.remove('show');pr.style.color='';},4000);
+}
+
+function onFileSelected(e){
+  const files=Array.from(e.target.files||[]);e.target.value='';
+  if(!files.length)return;
+  const valid=[];
+  for(const f of files){
+    const ext=_fileExtOf(f.name);
+    if(!FILE_ACCEPT.includes(ext)){showFileErr('"'+f.name+'" — unsupported type. Allowed: '+FILE_ACCEPT.join(', '));continue;}
+    if(f.size>FILE_MAX_BYTES){showFileErr('"'+f.name+'" is too large (max 20MB).');continue;}
+    if(_attachedFiles.some(a=>a.name===f.name))continue;
+    valid.push(f);
+  }
+  if(valid.length)_parseFiles(valid);
+}
+
+async function _parseFiles(files){
+  const pr=document.getElementById('file-parse-progress');
+  for(let i=0;i<files.length;i++){
+    const file=files[i];
+    if(pr){pr.textContent='Reading '+file.name+(files.length>1?' ('+(i+1)+'/'+files.length+')':'')+'…';pr.style.color='';pr.classList.add('show');}
+    try{
+      const ext=_fileExtOf(file.name);let text='';
+      if(['.txt','.md','.log','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv'].includes(ext)){text=await file.text();if(!text.trim())throw new Error('"'+file.name+'" is empty.');}
+      else if(ext==='.rtf'){text=await file.text();text=text.replace(/\{\\[a-z]+\d*\s?|\}|\\[a-z]+\d*\s?/g,' ').replace(/\s+/g,' ').trim();if(!text.trim())throw new Error('"'+file.name+'" is empty.');}
+      else if(ext==='.json'){text=await file.text();if(!text.trim())throw new Error('"'+file.name+'" is empty.');try{JSON.parse(text);}catch(_){throw new Error('"'+file.name+'" is not valid JSON.');}}
+      else if(ext==='.pdf'){text=await _parsePDF(file,pr);}
+      else if(ext==='.docx'){text=await _parseDOCX(file);}
+      else if(ext==='.xlsx'){text=await _parseXLSX(file);}
+      else if(ext==='.zip'){text=await _parseZIP(file);}
+
+      if(!text||!text.trim())throw new Error('Could not extract text from "'+file.name+'".');
+      _attachedFiles.push({name:file.name,ext,text:text.trim()});
+    }catch(err){showFileErr(err.message||'Failed to read "'+file.name+'".');}
+  }
+  if(pr){pr.classList.remove('show');pr.textContent='';}
+  _renderTray();
+}
+
+async function _parsePDF(file,pr){
+  if(!window.pdfjsLib){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=res;s.onerror=()=>rej(new Error('Failed to load PDF parser.'));document.head.appendChild(s);});
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const buf=await file.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+  let out='';
+  for(let i=1;i<=pdf.numPages;i++){
+    if(pr)pr.textContent='Reading '+file.name+'… page '+i+'/'+pdf.numPages;
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    const t=content.items.map(it=>it.str).join(' ');
+    if(t.trim())out+=t+'\n';
+  }
+  if(!out.trim())throw new Error('"'+file.name+'" has no extractable text (scanned/image PDF).');
+  return out;
+}
+
+async function _parseDOCX(file){
+  if(!window.mammoth){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';s.onload=res;s.onerror=()=>rej(new Error('Failed to load DOCX parser.'));document.head.appendChild(s);});
+  }
+  const buf=await file.arrayBuffer();
+  const result=await window.mammoth.extractRawText({arrayBuffer:buf});
+  if(!result.value||!result.value.trim())throw new Error('"'+file.name+'" is empty or unreadable.');
+  return result.value;
+}
+
+async function _parseZIP(file){
+  if(!window.JSZip){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';s.onload=res;s.onerror=()=>rej(new Error('Failed to load ZIP parser.'));document.head.appendChild(s);});
+  }
+  const buf=await file.arrayBuffer();
+  const zip=await window.JSZip.loadAsync(buf);
+  const TEXT_EXTS=['.txt','.md','.log','.json','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv','.rtf'];
+  let out='';
+  const entries=Object.values(zip.files).filter(f=>!f.dir);
+  if(!entries.length)throw new Error('"'+file.name+'" is empty.');
+  for(const entry of entries){
+    const ext='.'+entry.name.split('.').pop().toLowerCase();
+    if(!TEXT_EXTS.includes(ext))continue;
+    const text=await entry.async('string');
+    if(text.trim())out+=`[File: ${entry.name}]\n${text.trim()}\n\n`;
+  }
+  if(!out.trim())throw new Error('"'+file.name+'" has no readable text files inside.');
+  return out.trim();
+}
+
+async function _parseXLSX(file){
+  if(!window.XLSX){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=()=>rej(new Error('Failed to load XLSX parser.'));document.head.appendChild(s);});
+  }
+  const buf=await file.arrayBuffer();
+  const wb=window.XLSX.read(buf,{type:'array'});
+  let out='';
+  wb.SheetNames.forEach(name=>{
+    const ws=wb.Sheets[name];
+    const csv=window.XLSX.utils.sheet_to_csv(ws);
+    if(csv.trim())out+=`[Sheet: ${name}]\n${csv}\n\n`;
+  });
+  if(!out.trim())throw new Error('"'+file.name+'" has no readable content.');
+  return out.trim();
+}
+
+function _renderTray(){
+  const tray=document.getElementById('file-tray');
+  const ab=document.getElementById('attach-btn');
+  if(!tray)return;
+  if(!_attachedFiles.length){
+    tray.innerHTML='';tray.classList.remove('show');
+    if(ab)ab.classList.remove('has-file');
+    return;
+  }
+  tray.innerHTML=_attachedFiles.map((f,i)=>`<div class="file-chip">${_chipSVG}<span>${esc(_fmtLabel(f.ext))}</span><button class="file-chip-remove" onclick="_removeFile(${i})" title="Remove"><svg width="8" height="8" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/></svg></button></div>`).join('');
+  tray.classList.add('show');
+  if(ab)ab.classList.add('has-file');
+  const sb=document.getElementById('send-btn');
+  if(sb){sb.disabled=false;applyColors();}
+}
+
+function _removeFile(idx){
+  _attachedFiles.splice(idx,1);
+  _renderTray();
+  if(!_attachedFiles.length){
+    const inp=document.getElementById('user-input');
+    const sb=document.getElementById('send-btn');
+    if(sb&&inp){sb.disabled=!inp.value.trim();applyColors();}
+  }
+}
+
+function _clearAllFiles(){
+  _attachedFiles=[];
+  const tray=document.getElementById('file-tray');
+  const ab=document.getElementById('attach-btn');
+  if(tray){tray.innerHTML='';tray.classList.remove('show');}
+  if(ab)ab.classList.remove('has-file');
+}
+
 async function sendMsg(){
-  const inp=document.getElementById('user-input');if(!inp)return;const raw=inp.value.trim();if(!raw)return;
+  const inp=document.getElementById('user-input');if(!inp)return;
+  const raw=inp.value.trim();
+  if(!raw&&!_attachedFiles.length)return;
 
   // ═══ SLASH LINKS (checked first, even if busy) ═══
   if(raw.startsWith('/')){
-    const parts = raw.slice(1).trim().split(/\s+/);
-    const cmd = parts[0].toLowerCase();
-    if(SLASH_LINKS[cmd]){
-      window.location.href = SLASH_LINKS[cmd];
-    }
-    inp.value = ''; autoGrow(inp);
-    const sb = document.getElementById('send-btn'); if(sb){ sb.disabled = true; applyColors(); }
+    const parts=raw.slice(1).trim().split(/\s+/);
+    const cmd=parts[0].toLowerCase();
+    if(SLASH_LINKS[cmd]){window.location.href=SLASH_LINKS[cmd];}
+    inp.value='';autoGrow(inp);
+    const sb=document.getElementById('send-btn');if(sb){sb.disabled=true;applyColors();}
     return;
   }
 
   if(S.busy)return;
   S.busy=true;
-  const c=ensureConvo();c.msgs.push({role:'user',content:raw,ts:Date.now()});
-  if(c.msgs.length===1){c.title=mkTitle(raw);setTitle(c.title);}
+
+  // Capture and clear files before any async work
+  const files=[..._attachedFiles];
+  _clearAllFiles();
+
+  // Build the model payload: user text + all file contents as plain-text context
+  let modelContent=raw;
+  if(files.length){
+    const ctx=files.map(f=>`[Attached File: ${f.name}]\n---\n${f.text}\n---`).join('\n\n');
+    modelContent=raw?raw+'\n\n'+ctx:ctx;
+  }
+
+  // Store display message: text + file ext labels in msg.files array
+  const displayMsg={
+    role:'user',
+    content:raw,
+    files:files.map(f=>_fmtLabel(f.ext)),
+    ts:Date.now()
+  };
+
+  const c=ensureConvo();
+  c.msgs.push(displayMsg);
+  if(c.msgs.length===1){c.title=mkTitle(raw||files.map(f=>f.name).join(', '));setTitle(c.title);}
   c.ts=Date.now();inp.value='';autoGrow(inp);
+
   const sb=document.getElementById('send-btn');if(sb){sb.disabled=true;applyColors();}
   renderMsgs();renderSB();
-  if(S.settings.speedTimer) {
-    startSpeedTimer();
-  }
-  if(modeOn('image')){await genImage(c,raw);S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
-  let userSearchData=null;const userWantsSearch=queryNeedsSearch(raw);
-  if(userWantsSearch){showUserSearchInd();userSearchData=await doSearch(raw);hideUserSearchInd();}
+  if(S.settings.speedTimer){startSpeedTimer();}
+  if(modeOn('image')){await genImage(c,raw||'');S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
+
+  let userSearchData=null;const userWantsSearch=queryNeedsSearch(modelContent);
+  if(userWantsSearch){showUserSearchInd();userSearchData=await doSearch(modelContent);hideUserSearchInd();}
   const aiId='ai'+uid();
   const isCodeMode=modeOn('code');
   appendPending(aiId,isCodeMode);
-  await generate(c,aiId,userSearchData,raw,userWantsSearch,false,isCodeMode);
+
+  // Temporarily swap content to full model payload for the API call only
+  displayMsg.content=modelContent;
+  await generate(c,aiId,userSearchData,modelContent,userWantsSearch,false,isCodeMode);
+  // Restore display content so history renders cleanly
+  displayMsg.content=raw;
 }
 function showUserSearchInd(){const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div></div>`;ca.appendChild(el);scrollBot();}
 function hideUserSearchInd(){document.getElementById('srch-ind')?.remove();}
@@ -1632,7 +1877,14 @@ function setStopMode(active){
 function showErr(msg){const ca=document.getElementById('chat-area');if(!ca)return;document.getElementById('err-row')?.remove();const r=document.createElement('div');r.className='err-row';r.id='err-row';const displayMsg=msg||'Failed to get a response';const isRateLimit=/rate.?limit|slow.?down|busy/i.test(displayMsg);r.innerHTML=`<div class="err-box"><span class="err-msg">${esc(displayMsg)}</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;ca.appendChild(r);scrollBot();if(isRateLimit){const retryDelay=8000;const countdown=r.querySelector('.err-msg');let secs=Math.round(retryDelay/1000);const iv=setInterval(()=>{secs--;if(countdown&&document.getElementById('err-row'))countdown.textContent=displayMsg+' Retrying in '+secs+'s…';if(secs<=0){clearInterval(iv);if(document.getElementById('err-row'))retryLast();}},1000);r._retryIv=iv;}}
 function retryLast(){const c=curConvo();if(!c||S.busy)return;const er=document.getElementById('err-row');if(er&&er._retryIv)clearInterval(er._retryIv);document.getElementById('err-row')?.remove();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];const icm=modeOn('code');const aiId='ai'+uid();appendPending(aiId,icm);generate(c,aiId,null,um?.content||'',false,false,icm);}
 
-function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px';}
+function autoGrow(el){
+  if(!el)return;
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,140)+'px';
+  const sb=document.getElementById('send-btn');
+  if(sb&&!S.busy){sb.disabled=!(el.value.trim()||_attachedFiles.length);applyColors();}
+}
+
 function onKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile()){e.preventDefault();sendMsg();}}
 function isMobile(){return/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||'ontouchstart'in window;}
 function scrollBot(smooth=false){const ca=document.getElementById('chat-area');if(!ca)return;ca.scrollTo({top:ca.scrollHeight,behavior:smooth?'smooth':'auto'});}
