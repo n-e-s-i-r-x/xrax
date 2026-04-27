@@ -1194,7 +1194,7 @@ function appendPending(id,isCodeMode){
 
   if(m.hasThink){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-      <div class="ai-think streaming" id="${id}think"><div class="ai-think-hdr" onclick="event.stopPropagation();this.closest('.ai-think').classList.toggle('open')">
+      <div class="ai-think streaming" id="${id}think" onclick="event.stopPropagation()"><div class="ai-think-hdr" onclick="event.stopPropagation();this.closest('.ai-think').classList.toggle('open')">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl" id="${id}thlbl">Thinking</span></div>
         <div class="ai-think-body"><div class="ai-think-content" id="${id}thcont"></div></div></div>
