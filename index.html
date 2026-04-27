@@ -1861,13 +1861,16 @@ function copyMsgTxt(btn,e){
 function setStopMode(active){
   const sb=document.getElementById('send-btn');
   const stopBtn=document.getElementById('inline-stop-btn');
+  const ab=document.getElementById('attach-btn');
   if(!sb||!stopBtn)return;
   if(active){
     sb.style.display='none';
     stopBtn.style.display='flex';
+    if(ab)ab.style.display='none';
   }else{
     sb.style.display='';
     stopBtn.style.display='none';
+    if(ab)ab.style.display='';
     const inp=document.getElementById('user-input');
     sb.disabled=!inp||!inp.value.trim();
     applyColors();
