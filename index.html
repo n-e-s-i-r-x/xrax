@@ -1071,16 +1071,17 @@ function mkTitle(raw){const t=raw.trim().replace(/\s+/g,' ');return t.length>40?
 function showEmpty(){const ca=document.getElementById('chat-area');if(!ca)return;ca.innerHTML=`<div id="empty-state"><img id="empty-logo" src="icon.webp" alt=""/><div id="empty-h">How can I help?</div><div id="empty-s">Ask me anything. I can write, explain, code, and more.</div></div>`;}
 function renderMsgs(){const c=curConvo();const ca=document.getElementById('chat-area');if(!ca)return;if(!c||!c.msgs.length){showEmpty();return;}ca.innerHTML=c.msgs.map((m,i)=>buildMsg(m,i)).join('');attachCodeBtns();scrollBot();}
 function toggleSources(el){el.closest('.sources-wrap')?.classList.toggle('open');}
+function stopBubble(e){e.stopPropagation();}
 
 function buildMsg(msg,idx){
   const ts=S.settings.timestamps&&msg.ts?`<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>`:'';
-  if(msg.role==='user'){return`<div class="msg-row user" onclick="toggleMsgCopy(this)"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}<button class="msg-copy-btn" style="align-self:flex-end" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div>`;}
+  if(msg.role==='user'){return`<div class="msg-row user" onclick="toggleMsgCopy(this,event)"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}<button class="msg-copy-btn" style="align-self:flex-end" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div>`;}
   const cma=msg.codeMode?'data-codemode="true"':'';
   const badge=msg.userSearched?`<div class="web-badge"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="2" height="1"/><rect x="1" y="1" width="4" height="1"/><rect x="0" y="2" width="6" height="1"/><rect x="1" y="3" width="4" height="1"/><rect x="0" y="3" width="1" height="2"/><rect x="5" y="3" width="1" height="2"/><rect x="1" y="5" width="4" height="1"/></svg>Searched the web</div>`:'';
   let thinkHtml='';
   if(msg.thinking&&msg.thinking.trim()){
     const dur=msg.thinkDuration?`Thought for ${msg.thinkDuration}s`:'Thought';
-    thinkHtml=`<div class="ai-think" onclick="this.classList.toggle('open')">
+    thinkHtml=`<div class="ai-think" onclick="event.stopPropagation();this.classList.toggle('open')">
       <div class="ai-think-hdr">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl">${esc(dur)}</span>
@@ -1092,14 +1093,14 @@ function buildMsg(msg,idx){
   if(msg.userSearched&&msg.sources&&msg.sources.length){
     const items=msg.sources.map(s=>{let h='';try{h=new URL(s.url).hostname.replace('www.','');}catch(e){h=s.url;}
       return`<a class="source-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><img class="source-favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(h)}&sz=32" alt="" onerror="this.style.display='none'"/><div class="source-text"><span class="source-name">${esc(s.title||h)}</span><span class="source-url">${esc(h)}</span></div></a>`;}).join('');
-    sourcesHtml=`<div class="sources-wrap"><button class="sources-toggle" onclick="toggleSources(this)"><svg class="sources-chev" width="8" height="8" viewBox="0 0 4 4" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="1" width="1" height="2"/><rect x="1" y="0" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="1" width="1" height="2"/></svg>Sources (${msg.sources.length})</button><div class="sources-list">${items}</div></div>`;
+    sourcesHtml=`<div class="sources-wrap"><button class="sources-toggle" onclick="event.stopPropagation();toggleSources(this)"><svg class="sources-chev" width="8" height="8" viewBox="0 0 4 4" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="1" width="1" height="2"/><rect x="1" y="0" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="1" width="1" height="2"/></svg>Sources (${msg.sources.length})</button><div class="sources-list">${items}</div></div>`;
   }
   const html=renderMd(msg.content||'');
   let imgHtml='';if(msg.imageUrl)imgHtml=`<div class="ai-image"><img src="${esc(msg.imageUrl)}" alt="Generated image" loading="lazy"/></div>`;
   let acts='';
   if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">Continue</button>`;
   if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
-  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma} onclick="toggleMsgCopy(this)"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div><button class="msg-copy-btn" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div></div></div>`;
+  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma} onclick="toggleMsgCopy(this,event)"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div><button class="msg-copy-btn" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div></div></div>`;
 }
 
 function attachCodeBtns(){
@@ -1112,7 +1113,8 @@ function attachCodeBtns(){
     const hdr=document.createElement('div');hdr.className='code-hdr';
     let extra='';
     if(isCM)extra=`<button class="view-btn" data-lang="${esc(lang)}" onclick="viewCode(this)">View</button><button class="dl-btn" data-lang="${esc(lang)}" onclick="downloadCode(this)">Save</button>`;
-    hdr.innerHTML=`<span class="code-lang">${esc(lang)}</span><div class="code-hdr-btns">${extra}<button class="copy-code" onclick="cpyCode(this)">Copy</button></div>`;
+    hdr.innerHTML=`<span class="code-lang">${esc(lang)}</span><div class="code-hdr-btns">${extra}<button class="copy-code" onclick="event.stopPropagation();cpyCode(this)">Copy</button></div>`;
+    wrap.onclick=e=>e.stopPropagation();
     pre.parentNode.insertBefore(wrap,pre);wrap.appendChild(hdr);wrap.appendChild(pre);
   });
 }
@@ -1192,7 +1194,7 @@ function appendPending(id,isCodeMode){
 
   if(m.hasThink){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-      <div class="ai-think streaming" id="${id}think"><div class="ai-think-hdr" onclick="this.closest('.ai-think').classList.toggle('open')">
+      <div class="ai-think streaming" id="${id}think"><div class="ai-think-hdr" onclick="event.stopPropagation();this.closest('.ai-think').classList.toggle('open')">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl" id="${id}thlbl">Thinking</span></div>
         <div class="ai-think-body"><div class="ai-think-content" id="${id}thcont"></div></div></div>
@@ -1584,6 +1586,9 @@ function toggleMsgCopy(row){
   document.querySelectorAll('.msg-copy-btn.show').forEach(b=>b.classList.remove('show'));
   if(!isShow)btn.classList.add('show');
 }
+document.addEventListener('click',()=>{
+  document.querySelectorAll('.msg-copy-btn.show').forEach(b=>b.classList.remove('show'));
+});
 function copyMsgTxt(btn,e){
   e.stopPropagation();
   const row=btn.closest('.msg-row');
