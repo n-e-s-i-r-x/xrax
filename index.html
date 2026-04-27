@@ -1579,7 +1579,8 @@ async function genImage(convo,prompt){
 }
 
 function stopGen(){if(S.abort)S.abort.abort();}
-function toggleMsgCopy(row){
+function toggleMsgCopy(row,e){
+  if(e)e.stopPropagation();
   const btn=row.querySelector('.msg-copy-btn');
   if(!btn)return;
   const isShow=btn.classList.contains('show');
