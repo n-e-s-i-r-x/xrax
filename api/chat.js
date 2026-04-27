@@ -18,7 +18,7 @@ function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 //   - Edge-case probe belongs in the reasoning phase only; removed from output rules.
 
 const ACCURACY_RULES = `
-Match response depth to the question. Simple questions get direct answers with no working shown. Medium questions get key steps only. Hard problems get full working. Never add structure, verification, or elaboration a question doesn't require. For science and physics questions, state the principle and apply it — do not over-narrate the setup.
+Match response depth to the question. Before answering, classify it: simple, medium, or hard. Simple questions get one direct answer with no working, no verification, no elaboration. Medium questions get key steps only. Hard problems get full working and verification. Never upgrade a question's complexity because the topic is interesting. For science and physics questions, state the principle and apply it in one move — do not over-narrate the setup.
 
 Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
 
@@ -50,7 +50,9 @@ const ACCURACY_RULES_000 = ACCURACY_RULES;
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
-Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, list them and work through every one — do not skip any because it seems obvious. If it crosses more than one domain, name each domain and what it contributes before attempting a solution. Calibrate reasoning depth to difficulty: simple sub-parts get one line of reasoning, not a full derivation. Do not re-derive what is already established.
+Before doing anything else, classify the question: simple (one fact, one step), medium (requires method selection or multi-step), or hard (proof, algorithm, multi-domain, or trick). Let this classification control how much reasoning you produce — not how interesting the topic feels. Simple: one or two lines maximum. Medium: key steps only. Hard: full derivation with verification. Do not upgrade a simple question into a hard one by over-examining it.
+
+Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, classify each sub-part independently — a multi-part question can have both simple and hard parts, and each gets only the depth it requires. If it crosses more than one domain, name each domain and what it contributes before attempting a solution. Do not re-derive what is already established.
 
 Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
 
@@ -64,9 +66,9 @@ After a preliminary answer, ask: is there a boundary condition, degenerate case,
 
 Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, say explicitly why the obvious objection fails, then proceed.
 
-Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on.
+Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on. If a conclusion follows obviously from what is already established, state it in one line and stop.
 
-After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result, but do not re-state reasoning already shown inside the block.`;
+After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result, but do not re-state reasoning already shown inside the block. Simple questions get one-line final answers. Do not pad.`;
 
 const THINK_RULES_000 = THINK_RULES;
 
