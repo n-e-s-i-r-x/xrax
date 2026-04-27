@@ -1452,6 +1452,7 @@ setStopMode(false);
   if(useThink&&pendingRow){
     pendingRow.dataset.msgIndex=msgIdx;
     if(isCodeMode)pendingRow.dataset.codemode='true';
+    pendingRow.setAttribute('onclick','toggleMsgCopy(this,event)');
     pendingRow.querySelectorAll('.stream-cur').forEach(el=>el.remove());
     pendingRow.querySelector('.answer-waiting')?.remove();
     pendingRow.querySelector('.ai-think')?.classList.remove('streaming');
@@ -1462,6 +1463,11 @@ setStopMode(false);
       if(savedMsg&&savedMsg.truncated)actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="continueMsg(${msgIdx})">Continue</button>`;
       else if(savedMsg&&savedMsg.emptyRetry)actsEl.innerHTML=`<button class="ma-btn" onclick="retryEmpty(${msgIdx})" style="color:#e06060">Retry</button>`;
       aiBody.appendChild(actsEl);
+      const copyBtn=document.createElement('button');
+      copyBtn.className='msg-copy-btn';
+      copyBtn.setAttribute('onclick','copyMsgTxt(this,event)');
+      copyBtn.innerHTML=`<svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy`;
+      aiBody.appendChild(copyBtn);
     }
     attachCodeBtns();
   }else if(pendingRow){
