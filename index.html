@@ -270,16 +270,10 @@ body.themed .mp-item.sel{border-color:var(--accent-border);background:var(--acce
 
 #image-notice{display:none;text-align:center;font-size:10.5px;color:#ffe066;padding:6px 14px 0;line-height:1.5}
 #image-notice.show{display:block}
-.stream-cur{display:inline-block;width:2px;height:15px;background:#666;margin-left:2px;vertical-align:text-bottom;animation:blink .8s infinite;transition:background .3s;}
-body.themed .stream-cur{background:var(--accent);}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.stream-cur{display:none;}
 
 /* ── STOP ROW ── */
-#stop-row{display:flex;justify-content:center;padding:10px 0}
-.stop-btn{padding:9px 18px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:99px;color:#ddd;font-size:13px;display:flex;align-items:center;gap:7px;transition:background .15s,transform .1s,border-color .3s;}
-body.themed .stop-btn{border-color:var(--accent-border);color:var(--accent);}
-body.themed .stop-btn svg{color:var(--accent);}
-.stop-btn:active{background:#252525;transform:scale(.96)}
+#stop-row{display:none;}
 
 .err-row{padding:0 14px;margin:6px 0}
 .err-box{background:#1a0a0a;border:1px solid #3a1515;border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px}
@@ -511,6 +505,11 @@ body.themed .speed-timer {
             <rect x="1" y="2" width="6" height="1"/>
             <rect x="2" y="3" width="4" height="1"/>
             <rect x="3" y="3" width="2" height="5"/>
+          </svg>
+        </button>
+        <button class="send-btn" id="inline-stop-btn" onclick="stopGen()" style="display:none;background:#333;">
+          <svg width="12" height="12" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges">
+            <rect x="1" y="1" width="4" height="4"/>
           </svg>
         </button>
       </div>
@@ -1204,9 +1203,7 @@ function appendPending(id,isCodeMode){
     </div></div></div></div>`;
   }
   ca.appendChild(row);
-  const sr=document.createElement('div');sr.id='stop-row';
-  sr.innerHTML=`<button class="stop-btn" onclick="stopGen()"><svg width="12" height="12" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="4" height="4"/></svg>Stop</button>`;
-  ca.appendChild(sr);scrollBot();
+  setStopMode(true);scrollBot();
 }
 
 async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
@@ -1420,7 +1417,8 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     }
   }catch(err){
     if(err.name!=='AbortError'){
-      document.getElementById(aiId)?.remove();document.getElementById('stop-row')?.remove();
+      document.getElementById(aiId)?.remove();
+setStopMode(false);
       showErr(err.message||null);S.busy=false;S.abort=null;
       const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
       if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
@@ -1573,6 +1571,22 @@ async function genImage(convo,prompt){
 }
 
 function stopGen(){if(S.abort)S.abort.abort();}
+function setStopMode(active){
+  const sb=document.getElementById('send-btn');
+  const stopBtn=document.getElementById('inline-stop-btn');
+  if(!sb||!stopBtn)return;
+  if(active){
+    sb.style.display='none';
+    stopBtn.style.display='flex';
+  }else{
+    sb.style.display='';
+    stopBtn.style.display='none';
+    const inp=document.getElementById('user-input');
+    sb.disabled=!inp||!inp.value.trim();
+    applyColors();
+  }
+}
+
 function showErr(msg){const ca=document.getElementById('chat-area');if(!ca)return;document.getElementById('err-row')?.remove();const r=document.createElement('div');r.className='err-row';r.id='err-row';const displayMsg=msg||'Failed to get a response';const isRateLimit=/rate.?limit|slow.?down|busy/i.test(displayMsg);r.innerHTML=`<div class="err-box"><span class="err-msg">${esc(displayMsg)}</span><button class="retry-btn" onclick="retryLast()">Retry</button></div>`;ca.appendChild(r);scrollBot();if(isRateLimit){const retryDelay=8000;const countdown=r.querySelector('.err-msg');let secs=Math.round(retryDelay/1000);const iv=setInterval(()=>{secs--;if(countdown&&document.getElementById('err-row'))countdown.textContent=displayMsg+' Retrying in '+secs+'s…';if(secs<=0){clearInterval(iv);if(document.getElementById('err-row'))retryLast();}},1000);r._retryIv=iv;}}
 function retryLast(){const c=curConvo();if(!c||S.busy)return;const er=document.getElementById('err-row');if(er&&er._retryIv)clearInterval(er._retryIv);document.getElementById('err-row')?.remove();const um=c.msgs.filter(m=>m.role==='user').slice(-1)[0];const icm=modeOn('code');const aiId='ai'+uid();appendPending(aiId,icm);generate(c,aiId,null,um?.content||'',false,false,icm);}
 
