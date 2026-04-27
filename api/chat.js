@@ -1,90 +1,34 @@
 export const config = { runtime: 'edge' };
 
-/* ══════════════════════════════════════
-   MODEL MAP
-══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false },
-  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false },
-  '000': { id: 'openai/gpt-oss-120b:free',         hasReasoning: true  },
-  'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false },
+  '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
+  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
+  '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false },
+  'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
 };
 
-function modelEntry(key) {
-  return MODEL_MAP[key] ?? MODEL_MAP['0'];
-}
+function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
-/* ══════════════════════════════════════
-   SYSTEM ACCURACY CORE
-══════════════════════════════════════ */
-const ACCURACY_LAYER = `
-You are an AI assistant operating in April 2026.
+const THINK_RULES = `
+Reasoning rules (inside <think>...</think>):
+- Think directly about the user's question with rigor and depth.
+- Break the problem down, consider edge cases, verify your reasoning.
+- Use short, dense fragments. No filler. No restating rules or role text.
+- Keep reasoning focused — reach the answer without padding.
+- After </think>, output ONLY the final answer — clean and direct.
+- CRITICAL: The final answer must NEVER repeat, summarize, or reference anything from the thinking block. Thinking is internal only. The answer stands completely on its own.`;
 
-Core rules:
-- Never guess unknown facts.
-- If uncertain, say "uncertain".
-- Do not invent names, events, statistics, or places.
-- If a question contains a false assumption, correct it clearly.
-- If information cannot be verified, do not fabricate it.
-
-Behavior:
-- Be natural, human-like, and direct.
-- Avoid robotic or overly formal tone.
-- Prefer clarity and correctness over completeness.
-
-Priority:
-Accuracy > Clarity > Naturalness > Speed
-`;
-
-/* ══════════════════════════════════════
-   VERIFICATION LAYER (SMART MODE ONLY)
-══════════════════════════════════════ */
-const VERIFIER_LAYER = `
-Before finalizing your answer:
-- Check for factual errors
-- Check logic consistency
-- Check constraint violations (word limits, formatting)
-- Fix mistakes silently before responding
-
-Rules:
-- Do not add new facts unless correcting errors
-- Do not hallucinate information
-- Output only corrected final answer
-`;
-
-/* ══════════════════════════════════════
-   PERSONAS
-══════════════════════════════════════ */
-const PERSONA_BASE = (model) => `
-You are "0", a smart, human-like AI assistant running model ${model}.
-You respond naturally, clearly, and directly like a knowledgeable person.
-`;
-
-const PERSONA_0   = PERSONA_BASE('0');
-const PERSONA_00  = PERSONA_BASE('00');
-const PERSONA_000 = PERSONA_BASE('000');
-const PERSONA_V   = PERSONA_BASE('V') + `
-You are slightly bold in tone but strictly accurate.
-Never invent facts.
-`;
-
-/* SYSTEM MAP */
 const SYSTEM_PROMPT_MAP = {
-  '0':   PERSONA_0 + ACCURACY_LAYER,
-  '00':  PERSONA_00 + ACCURACY_LAYER,
-  '000': PERSONA_000 + ACCURACY_LAYER + VERIFIER_LAYER,
-  'V':   PERSONA_V + ACCURACY_LAYER,
+  '0':   `You are 0, created by Vin.`,
+  '00':  `You are 00, created by Vin.`,
+  '000': `You are 000, created by Vin.\n${THINK_RULES}`,
+  'V':   `You are V, created by Vin.`,
 };
 
-/* ══════════════════════════════════════
-   HELPERS
-══════════════════════════════════════ */
 function jsonEscape(s) {
   return String(s)
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '');
+    .replace(/\\/g,'\\\\').replace(/"/g,'\\"')
+    .replace(/\n/g,'\\n').replace(/\r/g,'');
 }
 
 function sseContent(text) {
@@ -92,68 +36,179 @@ function sseContent(text) {
 }
 
 function genericError(status) {
-  if (status === 401 || status === 403) return 'Authentication failed.';
-  if (status === 429) return 'Rate limited. Try again soon.';
-  if (status === 402) return 'Out of credits.';
-  if (status >= 500) return 'Server error.';
-  return 'Request failed.';
+  if (status===401||status===403) return 'Authentication failed. Check your API key.';
+  if (status===429) return 'Rate limited. The service is busy — please wait a moment and try again.';
+  if (status===402) return 'Out of credits. Please add funds to your OpenRouter account.';
+  if (status>=500) return 'Upstream service unavailable. Please try again in a moment.';
+  return 'Request failed. Please try again.';
 }
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+const LEAK_LINE_PATTERNS = [
+  /^\s*\[[A-Z][^\]]{2,120}\]\s*$/,
+  /---\s*WEB SEARCH RESULTS\s*---/i,
+  /---\s*END SEARCH RESULTS\s*---/i,
+  /\bDIRECT\s*ANSWER\s*:/i,
+  /\[CODE MODE\b/i,
+  /\[Current date and time\]/i,
+  /\[Reasoning context above/i,
+  /\[Continue from where/i,
+  /\[Search complete/i,
+  /<context>|<\/context>/i,
+  /\bYou are (?:0|00|000)\b/,
+  /\bsystem prompt\b/i,
+  /\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i,
+];
+
+function looksLikeLeak(line) {
+  if (!line) return false;
+  for (const re of LEAK_LINE_PATTERNS) if (re.test(line)) return true;
+  return false;
 }
 
-/* ══════════════════════════════════════
-   RETRY FETCH
-══════════════════════════════════════ */
-async function fetchWithRetry(url, options, maxRetries = 4) {
-  const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+function sanitizeThinkChunk(buf, incoming) {
+  const combined = buf + incoming;
+  const lastNl = combined.lastIndexOf('\n');
+  if (lastNl === -1) return { safe:'', buf:combined };
+  const head = combined.slice(0, lastNl+1);
+  const tail = combined.slice(lastNl+1);
+  const cleaned = head.split('\n').map((line,i,arr) => {
+    if (i===arr.length-1 && line==='') return '';
+    return looksLikeLeak(line) ? '…' : line;
+  }).join('\n');
+  return { safe: cleaned, buf: tail };
+}
 
-  for (let i = 0; i <= maxRetries; i++) {
+function sanitizeThinkFlush(buf) {
+  if (!buf) return '';
+  return looksLikeLeak(buf) ? '…' : buf;
+}
+
+async function fetchWithRetry(url, options, maxRetries=4) {
+  const RETRYABLE = new Set([429,500,502,503,504]);
+  let lastErr = null;
+  for (let attempt=0; attempt<=maxRetries; attempt++) {
     let res;
-
-    try {
-      res = await fetch(url, options);
-    } catch (e) {
-      if (i < maxRetries) {
-        await sleep(1000 * Math.pow(2, i));
-        continue;
+    try { res = await fetch(url, options); }
+    catch(networkErr) {
+      lastErr = networkErr;
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000*Math.pow(2,attempt)+Math.random()*500, 16000);
+        await sleep(delay); continue;
       }
-      throw e;
+      throw networkErr;
     }
-
     if (res.ok) return res;
     if (!RETRYABLE.has(res.status)) return res;
+    let delay;
+    if (res.status===429) {
+      const retryAfter = res.headers.get('Retry-After')||res.headers.get('X-RateLimit-Reset-After');
+      if (retryAfter) {
+        const seconds = parseFloat(retryAfter);
+        delay = isNaN(seconds) ? 4000 : Math.min(seconds*1000, 30000);
+      } else {
+        delay = Math.min(2000*Math.pow(2,attempt)+Math.random()*1000, 30000);
+      }
+    } else {
+      delay = Math.min(1000*Math.pow(2,attempt)+Math.random()*500, 16000);
+    }
+    try { await res.text(); } catch(_) {}
+    if (attempt < maxRetries) { await sleep(delay); continue; }
+    return new Response(null, {status: res.status});
+  }
+  throw lastErr || new Error('fetchWithRetry: exhausted');
+}
 
-    await sleep(1000 * Math.pow(2, i));
+function buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink) {
+  const thinkInstruction = hasPromptedThink
+    ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
+    : '';
+  const finalPersona = persona + thinkInstruction;
+  const messages = [{ role:'system', content: finalPersona }];
+  messages.push(...trimmedMsgs);
+  return messages;
+}
+
+async function buildPayloadInSandbox(persona, trimmedMsgs, hasReasoning, hasPromptedThink) {
+  let Sandbox;
+  try {
+    const mod = await import('@vercel/sandbox');
+    Sandbox = mod.Sandbox;
+  } catch(_) {
+    return buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink);
+  }
+
+  let sandbox;
+  try {
+    sandbox = await Sandbox.create({ timeout: 8000 });
+    const thinkInstruction = hasPromptedThink
+      ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
+      : '';
+    const finalPersona = persona + thinkInstruction;
+    const scriptSrc = `
+const finalPersona=${JSON.stringify(finalPersona)};
+const trimmedMsgs=${JSON.stringify(trimmedMsgs)};
+const messages=[{role:'system',content:finalPersona}];
+messages.push(...trimmedMsgs);
+process.stdout.write(JSON.stringify(messages));`.trim();
+
+    const cmd = await sandbox.runCommand('node', ['-e', scriptSrc]);
+    const output = await cmd.stdout();
+    await sandbox.stop();
+    return JSON.parse(output);
+  } catch(err) {
+    try { await sandbox?.stop(); } catch(_) {}
+    return buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink);
   }
 }
 
-/* ══════════════════════════════════════
-   PAYLOAD
-══════════════════════════════════════ */
-function buildPayload(persona, messages) {
-  return [
-    { role: 'system', content: persona },
-    ...messages
-  ];
+function makePromptedThinkFilter() {
+  let state = 'before';
+  return function filterChunk(chunk) {
+    let out = '';
+    let i = 0;
+    while (i < chunk.length) {
+      if (state === 'before') {
+        const tOpen = chunk.indexOf('<think>', i);
+        if (tOpen === -1) { out += chunk.slice(i); break; }
+        out += chunk.slice(i, tOpen + 7);
+        state = 'in_think';
+        i = tOpen + 7;
+      } else if (state === 'in_think') {
+        const tClose = chunk.indexOf('</think>', i);
+        if (tClose === -1) { out += chunk.slice(i); break; }
+        out += chunk.slice(i, tClose + 8);
+        state = 'after_think';
+        i = tClose + 8;
+      } else if (state === 'after_think') {
+        const rogue = chunk.indexOf('<think>', i);
+        if (rogue === -1) { out += chunk.slice(i); break; }
+        out += chunk.slice(i, rogue);
+        state = 'suppressing';
+        i = rogue + 7;
+      } else {
+        const tClose = chunk.indexOf('</think>', i);
+        if (tClose === -1) break;
+        state = 'after_think';
+        i = tClose + 8;
+      }
+    }
+    return out;
+  };
 }
 
-/* ══════════════════════════════════════
-   EDGE HANDLER
-══════════════════════════════════════ */
 export default async function handler(req) {
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response('Method not allowed', { status:405 });
   }
 
   let body;
-  try {
-    body = await req.json();
-  } catch {
+  try { body = await req.json(); }
+  catch(_) {
     return new Response(
-      sseContent('Invalid request.') + 'data: [DONE]\n\n',
-      { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
+      sseContent('Invalid request body.') + 'data: [DONE]\n\n',
+      { status:200, headers:{'Content-Type':'text/event-stream'} }
     );
   }
 
@@ -164,111 +219,233 @@ export default async function handler(req) {
     model: modelKey = '0',
   } = body;
 
-  const apiKey =
-    (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
-    ?? globalThis?.OPENROUTER_API_KEY;
-
+  const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
+    ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) {
     return new Response(
       sseContent('Missing API key.') + 'data: [DONE]\n\n',
-      { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
+      { status:200, headers:{'Content-Type':'text/event-stream'} }
     );
   }
 
   const mEntry = modelEntry(modelKey);
-  const persona = SYSTEM_PROMPT_MAP[modelKey] ?? PERSONA_0;
+  const modelId = mEntry.id;
+  const hasReasoning = mEntry.hasReasoning;
+  const hasPromptedThink = mEntry.hasPromptedThink ?? false;
+  const persona = SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0'];
+  const isThinkModel = hasReasoning || hasPromptedThink;
 
   const trimmed = Array.isArray(messages)
-    ? messages.filter(m => m?.role && m?.content).slice(-20)
+    ? messages
+        .filter(m => m && typeof m === 'object' && typeof m.role === 'string' && typeof m.content === 'string')
+        .slice(-20)
     : [];
 
-  const payload = buildPayload(persona, trimmed);
+  let messagesPayload;
+  try {
+    messagesPayload = await buildPayloadInSandbox(persona, trimmed, hasReasoning, hasPromptedThink);
+  } catch(_) {
+    messagesPayload = buildPayloadInline(persona, trimmed, hasReasoning, hasPromptedThink);
+  }
 
   const encoder = new TextEncoder();
-
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (c) => controller.enqueue(encoder.encode(c));
+      const send = (chunk) => { try { controller.enqueue(encoder.encode(chunk)); } catch(_) {} };
 
-      let upstream;
-
+      let upstreamRes;
       try {
-        upstream = await fetchWithRetry(
+        const reqBody = {
+          model: modelId,
+          messages: messagesPayload,
+          temperature,
+          max_tokens: maxTokens,
+          stream: true,
+        };
+        if (hasReasoning) reqBody.reasoning = { max_tokens: 8000 };
+
+        upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
           {
-            method: 'POST',
-            headers: {
+            method:'POST',
+            headers:{
               'Authorization': `Bearer ${apiKey}`,
               'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://your-site.com',
+              'X-Title': '0vAI',
             },
-            body: JSON.stringify({
-              model: mEntry.id,
-              messages: payload,
-              temperature,
-              max_tokens: maxTokens,
-              stream: true,
-              ...(mEntry.hasReasoning ? { reasoning: { max_tokens: 8000 } } : {})
-            }),
+            body: JSON.stringify(reqBody),
           },
           4
         );
-      } catch {
-        send(sseContent('Network error.'));
+      } catch(err) {
+        send(sseContent('Network error. Please try again.'));
         send('data: [DONE]\n\n');
-        controller.close();
+        try { controller.close(); } catch(_) {}
         return;
       }
 
-      if (!upstream.ok || !upstream.body) {
-        send(sseContent(genericError(upstream.status)));
+      if (!upstreamRes.ok) {
+        try { await upstreamRes.text(); } catch(_) {}
+        send(sseContent(genericError(upstreamRes.status)));
         send('data: [DONE]\n\n');
-        controller.close();
+        try { controller.close(); } catch(_) {}
         return;
       }
 
-      const reader = upstream.body.getReader();
+      if (!upstreamRes.body) {
+        try {
+          const data = await upstreamRes.json();
+          const reasoningRaw = data?.choices?.[0]?.message?.reasoning_content ?? data?.choices?.[0]?.message?.reasoning ?? '';
+          let answerText = data?.choices?.[0]?.message?.content ?? '';
+          const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
+          let combined = '';
+          if (isThinkModel) {
+            if (hasReasoning) {
+              if (reasoningRaw) {
+                const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
+                combined += `<think>\n${cleaned}\n</think>\n`;
+              }
+              if (!answerText.trim() && reasoningRaw) {
+                const lines = reasoningRaw.trimEnd().split('\n');
+                for (let i = lines.length - 1; i >= 0; i--) {
+                  const l = lines[i].trim();
+                  if (l && !looksLikeLeak(lines[i])) { answerText = l; break; }
+                }
+              }
+            } else if (hasPromptedThink) {
+              if (answerText && !answerText.trimStart().startsWith('<think>')) {
+                combined += '<think>\n</think>\n';
+              }
+            }
+          }
+          combined += answerText;
+          if (!combined.trim()) combined = '_(No answer generated — please try again)_';
+          send(sseContent(combined));
+          send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
+        } catch(_) { send(sseContent('[Empty response]')); }
+        send('data: [DONE]\n\n');
+        try { controller.close(); } catch(_) {}
+        return;
+      }
+
+      const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
 
-      const handle = (line) => {
-        if (line === '[DONE]') return;
+      let inReasoningPhase = false;
+      let thinkOpened = false;
+      let finishReason = null;
+      let thinkLineBuf = '';
+      let promptedThinkLeadStripped = !hasPromptedThink;
 
-        try {
-          const json = JSON.parse(line);
-          const content = json?.choices?.[0]?.delta?.content;
-          if (content) send(sseContent(content));
-        } catch {}
+      const filterPromptedThink = hasPromptedThink ? makePromptedThinkFilter() : null;
+
+      const closeThinkIfOpen = () => {
+        if (inReasoningPhase) {
+          const tail = sanitizeThinkFlush(thinkLineBuf);
+          if (tail) send(sseContent(tail));
+          thinkLineBuf = '';
+          send(sseContent('\n</think>\n'));
+          inReasoningPhase = false;
+          thinkOpened = false;
+        }
+      };
+
+      const emitThink = (delta) => {
+        const {safe, buf} = sanitizeThinkChunk(thinkLineBuf, delta);
+        thinkLineBuf = buf;
+        if (safe) send(sseContent(safe));
+      };
+
+      const handleDataLine = (raw) => {
+        if (raw === '[DONE]') return;
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch (_) { return; }
+        const choice = parsed?.choices?.[0];
+        if (!choice) return;
+        const delta = choice.delta || {};
+        const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
+        const contentDelta = delta.content;
+
+        if (!isThinkModel) {
+          if (typeof contentDelta === 'string' && contentDelta.length) send(sseContent(contentDelta));
+          if (choice.finish_reason) finishReason = choice.finish_reason;
+          return;
+        }
+
+        if (hasReasoning) {
+          if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
+            if (!inReasoningPhase && !thinkOpened) {
+              send(sseContent('<think>\n'));
+              inReasoningPhase = true;
+              thinkOpened = true;
+            }
+            if (inReasoningPhase) {
+              emitThink(reasoningDelta);
+            }
+          }
+          if (typeof contentDelta === 'string' && contentDelta.length) {
+            closeThinkIfOpen();
+            send(sseContent(contentDelta));
+          }
+        } else {
+          let out = (typeof contentDelta === 'string' ? contentDelta : '')
+                  + (typeof reasoningDelta === 'string' && !contentDelta ? reasoningDelta : '');
+          if (!promptedThinkLeadStripped && out.length) {
+            out = out.trimStart();
+            if (out.length) promptedThinkLeadStripped = true;
+          }
+          if (out.length) {
+            out = filterPromptedThink(out);
+            if (out.length) send(sseContent(out));
+          }
+        }
+
+        if (choice.finish_reason) finishReason = choice.finish_reason;
       };
 
       try {
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split('\n');
-          buffer = parts.pop();
-
-          for (const p of parts) {
-            const l = p.replace('data:', '').trim();
-            if (l) handle(l);
+          const {done, value} = await reader.read();
+          if (done) {
+            if (buffer.trim()) {
+              for (const line of buffer.split('\n')) {
+                const l = line.trim();
+                if (l.startsWith('data:')) handleDataLine(l.slice(5).trim());
+              }
+            }
+            break;
+          }
+          buffer += decoder.decode(value, {stream:true});
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            const l = line.trim();
+            if (!l.startsWith('data:')) continue;
+            handleDataLine(l.slice(5).trim());
           }
         }
-      } catch {
-        send(sseContent('Stream error.'));
+      } catch(streamErr) {
+        send(sseContent('\n[Stream interrupted. Please try again.]'));
       }
 
+      closeThinkIfOpen();
+      if (finishReason) {
+        send(`data: {"choices":[{"delta":{},"finish_reason":"${finishReason}"}]}\n\n`);
+      }
       send('data: [DONE]\n\n');
-      controller.close();
+      try { controller.close(); } catch(_) {}
     }
   });
 
   return new Response(stream, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    }
+    status:200,
+    headers:{
+      'Content-Type':'text/event-stream',
+      'Cache-Control':'no-cache, no-transform',
+      'Connection':'keep-alive',
+      'X-Accel-Buffering':'no',
+    },
   });
 }
