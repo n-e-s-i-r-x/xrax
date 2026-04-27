@@ -51,7 +51,7 @@ const ACCURACY_RULES_000 = ACCURACY_RULES;
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
-Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, list them and work through every one — do not skip any because it seems obvious. If it crosses more than one domain, name each domain and what it contributes before attempting a solution.
+Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, list them and work through every one — do not skip any because it seems obvious. If it crosses more than one domain, name each domain and what it contributes before attempting a solution. Calibrate reasoning depth to difficulty: simple sub-parts get one line of reasoning, not a full derivation. Do not re-derive what is already established.
 
 Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
 
@@ -65,9 +65,9 @@ After a preliminary answer, ask: is there a boundary condition, degenerate case,
 
 Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, say explicitly why the obvious objection fails, then proceed.
 
-Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it.
+Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on.
 
-After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result.`;
+After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result, but do not re-state reasoning already shown inside the block.`;
 
 const THINK_RULES_000 = THINK_RULES;
 
