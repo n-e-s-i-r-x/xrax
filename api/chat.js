@@ -18,7 +18,7 @@ function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 //   - Edge-case probe belongs in the reasoning phase only; removed from output rules.
 
 const ACCURACY_RULES = `
-Match response depth to the question. Simple questions get direct answers. Hard problems get full working. Never add structure a question doesn't require.
+Match response depth to the question. Simple questions get direct answers with no working shown. Medium questions get key steps only. Hard problems get full working. Never add structure, verification, or elaboration a question doesn't require.
 
 Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
 
