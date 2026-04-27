@@ -533,6 +533,11 @@ body.themed .speed-timer {
     <div class="mp-label-row"><div class="mp-name">000</div><span class="mp-badge rapid">Rapid</span></div>
     <div class="mp-desc" id="mp-desc-000">Smartest. Thinking.</div>
   </div>
+  <div style="height:1px;background:#1e1e1e;margin:4px 0;"></div>
+  <div class="mp-item" id="mp-item-V" onclick="selectModel('V')">
+    <div class="mp-label-row"><div class="mp-name">V</div><span class="mp-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;border:1px solid rgba(168,85,247,0.35);">Worm</span></div>
+    <div class="mp-desc" id="mp-desc-V">Smart. Uncensored.</div>
+  </div>
 </div>
 
 <div id="sidebar-ov" onclick="closeSidebar()"></div>
@@ -736,8 +741,9 @@ const MODELS={
   '0'  :{key:'0',  label:'0',  placeholder:'Message 0...',  hasThink:false,temp:0.5},
   '00' :{key:'00', label:'00', placeholder:'Message 00...', hasThink:false, temp:0.1},
   '000':{key:'000',label:'000',placeholder:'Message 000...',hasThink:true, temp:0.6},
+  'V'  :{key:'V',  label:'V',  placeholder:'Message V...',  hasThink:false, temp:0.9},
 };
-const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. Thinking.'};
+const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. Thinking.','V':'Smart. Uncensored'};
 
 const C={
   grey:  {
@@ -780,16 +786,26 @@ const C={
     accent:'#ef4444',accentDim:'rgba(239,68,68,0.15)',accentSubtle:'rgba(239,68,68,0.07)',accentBorder:'rgba(239,68,68,0.3)',
     themed:true
   },
+  violet:{
+    border:'#a855f7', text:'#a855f7', glow:'none',
+    bg:'#160d22', bgFocus:'#a855f7',
+    send:'#a855f7',sendTxt:'#fff', sendDis:'#200d35',sendDisTxt:'#6a3a9a',
+    modeBorder:'#a855f7',modeText:'#a855f7',modeBg:'#0d0618',
+    accent:'#a855f7',accentDim:'rgba(168,85,247,0.15)',accentSubtle:'rgba(168,85,247,0.07)',accentBorder:'rgba(168,85,247,0.3)',
+    themed:true
+  },
 };
 
 function resolveModelColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
+  if(S.model==='V')   return C.violet;
   return C.grey;
 }
 function resolveInputColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
+  if(S.model==='V')   return C.violet;
   if(modeOn('code'))  return C.green;
   if(modeOn('web'))   return C.blue;
   if(modeOn('image')) return C.yellow;
@@ -901,12 +917,12 @@ function selectModel(key){
   S.model=key;
   document.getElementById('model-btn').textContent=m.label;
   document.getElementById('user-input').placeholder=modeOn('code')?'Code with '+key+'...':m.placeholder;
-  ['0','00','000'].forEach(k=>document.getElementById('mp-item-'+k)?.classList.toggle('sel',k===key));
+  ['0','00','000','V'].forEach(k=>document.getElementById('mp-item-'+k)?.classList.toggle('sel',k===key));
   applyColors();updateModelDescs();
 }
 function updateModelDescs(){
   const isCode=modeOn('code');
-  ['0','00','000'].forEach(k=>{const el=document.getElementById('mp-desc-'+k);if(el)el.textContent=isCode?'CODE: '+BASE_DESCS[k]:BASE_DESCS[k];});
+  ['0','00','000','V'].forEach(k=>{const el=document.getElementById('mp-desc-'+k);if(el)el.textContent=isCode?'CODE: '+BASE_DESCS[k]:BASE_DESCS[k];});
   const head=document.getElementById('mp-head-lbl');
   if(head)head.textContent=isCode?'Select Model — CODING':'Select Model';
 }
@@ -974,7 +990,29 @@ function renderSB(filter=''){
       <button class="chat-del" onclick="delConvo('${id}',event)"><svg width="12" height="12" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="1" width="7" height="1"/><rect x="2" y="0" width="3" height="1"/><rect x="1" y="2" width="1" height="5"/><rect x="5" y="2" width="1" height="5"/><rect x="2" y="6" width="3" height="1"/></svg></button>
     </div>`;}).join('');
 }
-function filterSB(v){renderSB(v);}
+function filterSB(v){
+  const ct=document.getElementById('chat-list');if(!ct)return;
+  const lq=(v||'').toLowerCase().trim();
+  if(!lq){renderSB();return;}
+  const scored=Object.values(S.convos).map(c=>{
+    const title=(c.title||'').toLowerCase();
+    const body=c.msgs.map(m=>(m.content||'').toLowerCase()).join(' ');
+    const escaped=lq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re=new RegExp(escaped,'g');
+    let score=0;
+    if(title.includes(lq))score+=10;
+    score+=(body.match(re)||[]).length;
+    return{c,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+  if(!scored.length){ct.innerHTML='<div class="empty-list">No results</div>';return;}
+  ct.innerHTML=scored.map(({c})=>{const act=c.id===S.activeId?'active':'';
+    return`<div class="chat-item ${act}" onclick="switchConvo('${c.id}');closeSidebar()">
+      <svg width="14" height="14" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="0" width="6" height="1"/><rect x="0" y="1" width="1" height="5"/><rect x="7" y="1" width="1" height="5"/><rect x="1" y="6" width="3" height="1"/><rect x="0" y="7" width="1" height="1"/></svg>
+      <span class="chat-item-txt">${esc(c.title||'Untitled')}</span>
+      <button class="chat-del" onclick="delConvo('${c.id}',event)"><svg width="12" height="12" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="1" width="7" height="1"/><rect x="2" y="0" width="3" height="1"/><rect x="1" y="2" width="1" height="5"/><rect x="5" y="2" width="1" height="5"/><rect x="2" y="6" width="3" height="1"/></svg></button>
+    </div>`;
+  }).join('');
+}
 
 function uid(){return'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,9);}
 function newChat(){S.activeId=null;showEmpty();renderSB();setTitle('');const inp=document.getElementById('user-input');if(inp){inp.value='';autoGrow(inp);inp.focus();}const sb=document.getElementById('send-btn');if(sb){sb.disabled=true;applyColors();}}
@@ -1476,7 +1514,18 @@ async function genImage(convo,prompt){
     if(imgData.error)throw new Error(imgData.error);
     const imageUrl=imgData.url;
     if(!imageUrl)throw new Error('No image returned.');
-    convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:imageUrl,ts:Date.now(),truncated:false,modelKey:S.model});
+    let savedUrl=imageUrl;
+    try{
+      const imgFetch=await fetch(imageUrl);
+      const blob=await imgFetch.blob();
+      await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>{savedUrl=reader.result;resolve();};
+        reader.onerror=reject;
+        reader.readAsDataURL(blob);
+      });
+    }catch(e){savedUrl=imageUrl;}
+    convo.msgs.push({role:'assistant',content:`Generated image for: *"${prompt}"*`,imageUrl:savedUrl,ts:Date.now(),truncated:false,modelKey:S.model});
   }catch(err){convo.msgs.push({role:'assistant',content:`Couldn't generate that image. ${err.message||'Try again.'}`,ts:Date.now(),truncated:false,modelKey:S.model});}
   document.getElementById(aiId)?.remove();renderMsgs();saveStore();S.busy=false;
   stopSpeedTimer();
