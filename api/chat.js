@@ -4,10 +4,10 @@ export const config = { runtime: 'edge' };
    MODEL MAP
 ══════════════════════════════════════ */
 const MODEL_MAP = {
-  '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
-  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
-  '000': { id: 'openai/gpt-oss-120b:free',         hasReasoning: true,  hasPromptedThink: false },
-  'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false },
+  '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false },
+  '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false },
+  '000': { id: 'openai/gpt-oss-120b:free',         hasReasoning: true  },
+  'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false },
 };
 
 function modelEntry(key) {
@@ -15,56 +15,65 @@ function modelEntry(key) {
 }
 
 /* ══════════════════════════════════════
-   SYSTEM BEHAVIOR (HIGH ACCURACY CORE)
+   SYSTEM ACCURACY CORE
 ══════════════════════════════════════ */
 const ACCURACY_LAYER = `
-You are an AI assistant operating in 2026.
+You are an AI assistant operating in April 2026.
 
 Core rules:
-- Always assume current context is April 2026 unless user specifies otherwise.
-- Never guess uncertain facts. If unsure, say "uncertain".
-- Do not fabricate events, names, statistics, or real-world claims.
+- Never guess unknown facts.
+- If uncertain, say "uncertain".
+- Do not invent names, events, statistics, or places.
 - If a question contains a false assumption, correct it clearly.
-- If information is not verifiable, state uncertainty instead of guessing.
+- If information cannot be verified, do not fabricate it.
 
-Behavior style:
-- Be human-like, natural, and direct.
-- Avoid robotic or overly formal wording.
-- Prefer clarity and truth over completeness or speculation.
-
-Reasoning discipline:
-- Think carefully step-by-step internally for complex questions.
-- Do not expose internal reasoning unless asked.
+Behavior:
+- Be natural, human-like, and direct.
+- Avoid robotic or overly formal tone.
+- Prefer clarity and correctness over completeness.
 
 Priority:
 Accuracy > Clarity > Naturalness > Speed
 `;
 
 /* ══════════════════════════════════════
-   PERSONAS (HUMANIZED)
+   VERIFICATION LAYER (SMART MODE ONLY)
+══════════════════════════════════════ */
+const VERIFIER_LAYER = `
+Before finalizing your answer:
+- Check for factual errors
+- Check logic consistency
+- Check constraint violations (word limits, formatting)
+- Fix mistakes silently before responding
+
+Rules:
+- Do not add new facts unless correcting errors
+- Do not hallucinate information
+- Output only corrected final answer
+`;
+
+/* ══════════════════════════════════════
+   PERSONAS
 ══════════════════════════════════════ */
 const PERSONA_BASE = (model) => `
 You are "0", a smart, human-like AI assistant running model ${model}.
-You respond naturally, clearly, and confidently when appropriate.
-You do not sound robotic or overly formal.
+You respond naturally, clearly, and directly like a knowledgeable person.
 `;
 
 const PERSONA_0   = PERSONA_BASE('0');
 const PERSONA_00  = PERSONA_BASE('00');
-const PERSONA_000 = PERSONA_BASE('000') + `
-You are more analytical and careful.
-You verify logic before responding.
-`;
+const PERSONA_000 = PERSONA_BASE('000');
 const PERSONA_V   = PERSONA_BASE('V') + `
-You are human-like, slightly bold in tone, but strictly accurate.
-Never invent facts. Stay grounded in reality.
+You are slightly bold in tone but strictly accurate.
+Never invent facts.
 `;
 
+/* SYSTEM MAP */
 const SYSTEM_PROMPT_MAP = {
-  '0':   PERSONA_0,
-  '00':  PERSONA_00,
-  '000': PERSONA_000,
-  'V':   PERSONA_V,
+  '0':   PERSONA_0 + ACCURACY_LAYER,
+  '00':  PERSONA_00 + ACCURACY_LAYER,
+  '000': PERSONA_000 + ACCURACY_LAYER + VERIFIER_LAYER,
+  'V':   PERSONA_V + ACCURACY_LAYER,
 };
 
 /* ══════════════════════════════════════
@@ -84,9 +93,9 @@ function sseContent(text) {
 
 function genericError(status) {
   if (status === 401 || status === 403) return 'Authentication failed.';
-  if (status === 429) return 'Rate limited. Try again shortly.';
+  if (status === 429) return 'Rate limited. Try again soon.';
   if (status === 402) return 'Out of credits.';
-  if (status >= 500) return 'Server error. Try again later.';
+  if (status >= 500) return 'Server error.';
   return 'Request failed.';
 }
 
@@ -102,6 +111,7 @@ async function fetchWithRetry(url, options, maxRetries = 4) {
 
   for (let i = 0; i <= maxRetries; i++) {
     let res;
+
     try {
       res = await fetch(url, options);
     } catch (e) {
@@ -124,13 +134,13 @@ async function fetchWithRetry(url, options, maxRetries = 4) {
 ══════════════════════════════════════ */
 function buildPayload(persona, messages) {
   return [
-    { role: 'system', content: persona + ACCURACY_LAYER },
+    { role: 'system', content: persona },
     ...messages
   ];
 }
 
 /* ══════════════════════════════════════
-   MAIN HANDLER
+   EDGE HANDLER
 ══════════════════════════════════════ */
 export default async function handler(req) {
   if (req.method !== 'POST') {
@@ -181,6 +191,7 @@ export default async function handler(req) {
       const send = (c) => controller.enqueue(encoder.encode(c));
 
       let upstream;
+
       try {
         upstream = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
@@ -221,6 +232,7 @@ export default async function handler(req) {
 
       const handle = (line) => {
         if (line === '[DONE]') return;
+
         try {
           const json = JSON.parse(line);
           const content = json?.choices?.[0]?.delta?.content;
