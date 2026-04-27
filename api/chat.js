@@ -9,93 +9,65 @@ const MODEL_MAP = {
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
-// ── ACCURACY RULES (all models) ───────────────────────────────────────────────
-// FIX: Expanded with first-principles reasoning mandate, uncertainty handling,
-//      edge-case probing, and a lightweight self-verification pass.
-//      Addresses: knowledge gaps, shallow processing, edge case reliability,
-//      hard-to-verify answers.
+// ── ACCURACY RULES ────────────────────────────────────────────────────────────
+// Design principles:
+//   - Prose, not headed sections. Headers mirror into output as structural padding.
+//   - One rule per concern. No repetition across rules.
+//   - Concrete operations, not categories. "Plug back in" beats "[MATH]".
+//   - Uncertainty flagging is a single, unconditional habit — not a named section.
+//   - Edge-case probe belongs in the reasoning phase only; removed from output rules.
 
 const ACCURACY_RULES = `
-Accuracy rules — apply only what the question actually requires:
+Match response depth to the question. Simple questions get direct answers. Hard problems get full working. Never add structure a question doesn't require.
 
-RESPONSE DEPTH:
-- Match depth to difficulty. A simple question gets a direct answer. A complex problem gets full reasoning. Do not apply heavy structure to light questions.
-- If you know the answer, say it. If you don't know, say so clearly and stop — do not fill the gap with hedged guesses.
-- Never describe what you would do — do it. Never say "we would simulate" — simulate it.
+Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
 
-FIRST-PRINCIPLES REASONING (medium and hard questions):
-- Before answering, identify what type of problem this actually is. Do not pattern-match to a surface resemblance — reason from definitions and constraints.
-- Ask: what is the minimum set of facts needed to answer this? Do I actually have all of them? If not, flag the gap explicitly before answering.
-- Intersection and trick questions often require combining two or more domains. Identify every domain the question touches before solving.
+Never describe what you would do — do it. Never say "we would simulate" — simulate it.
 
-UNCERTAINTY AND KNOWLEDGE GAPS:
-- Before stating a fact, ask yourself: am I certain, or am I pattern-completing? If uncertain, say so explicitly with a confidence marker: (confident), (likely), or (uncertain — verify).
-- Do not state guesses as facts. Do not fill knowledge gaps with plausible-sounding details.
-- "I don't know" is a complete, valid answer when it's true.
+For math: write each step on its own line, one operation per line. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the point of error — do not patch.
 
-EDGE CASES:
-- After forming your answer, ask: is there a boundary condition, degenerate case, or domain-specific exception that changes this answer? If yes, address it explicitly.
-- For any rule or formula you apply, state the conditions under which it holds. If the question is near those boundaries, say so.
+For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Evaluate structural validity before considering whether the premises are true.
 
-SELF-VERIFICATION (after reaching a conclusion):
-- Re-read your answer and ask: does this actually answer what was asked? Check for off-by-one errors, sign errors, missed sub-parts, or unstated assumptions.
-- For math: verify by plugging back in or reversing the operation.
-- For logic: confirm the argument form is correctly identified and validity is evaluated structurally.
-- For code: trace with a concrete input.
-- If verification fails, recompute — do not patch.
+For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input before presenting the answer.
 
-MATH (only when doing math):
-- Show steps. After a numeric answer, verify it by plugging back in or reversing the operation. If verification fails, recompute.
-- Non-integer or non-physical results are not automatically "impossible" — state the exact value and note what it means.
+For creative tasks with hard constraints (word limits, forbidden words, required structure): check every constraint explicitly before finalising. The constraint list takes priority over everything else.
 
-LOGIC (only when evaluating arguments):
-- Write the argument form in symbolic notation (P1, P2, ∴C). Name it explicitly.
-- Evaluate structural validity before premise truth. Disjunctive syllogism is VALID.
+For attribution: use the source's actual published position. If you are uncertain of their exact thesis, flag it.
 
-CODE (only when writing code):
-- Write code you are certain is correct. Never invent API names or library functions you cannot verify.
-- Trace with a concrete example when asked step-by-step.
-
-CREATIVE (only when given constraints):
-- Word limits, forbidden words, and structural rules are hard constraints, not suggestions.
-- The piece must embody its subject through structure, not just describe it.
-
-FACTS / ATTRIBUTION:
-- If uncertain about a date, name, or scholarly position, flag it explicitly. Do not state guesses as facts.
-- Do not conflate historians with opposing frameworks (e.g., decline-narrative vs. continuity-based).
-
-MISSING INFORMATION:
-- If you lack the data to answer, say so directly and stop. Do not substitute speculation for facts.
-- "I don't know" is a complete, valid answer when it's true.`;
+If you lack the information needed to answer, say so directly and stop.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
 
 // ── THINK RULES ───────────────────────────────────────────────────────────────
-// FIX: Adds structured attack plan, domain intersection detection, uncertainty
-//      flagging, and edge-case probe inside the reasoning block.
-//      Addresses: no reasoning transparency, trick/intersection questions,
-//      shallow processing, edge case reliability.
+// Design principles:
+//   - No bold imperative labels (SCOPE FIRST:, ATTACK PLAN:) — they leak into output.
+//   - Reasoning flow is described as a sequence of actions, not a checklist to echo.
+//   - Edge-case probe placed here (reasoning phase), not in output-phase rules.
+//   - Math format requirement restated concisely to match ACCURACY_RULES.
+//   - Final rule: output only the answer after </think>, never reference the block.
 
 const THINK_RULES = `
-Reasoning rules (inside <think>...</think>):
-- Think directly about the question. Match depth to difficulty.
-- SCOPE FIRST: Before solving, list every sub-part or requirement. Identify every domain the question touches. If it crosses two or more domains (e.g., probability + combinatorics, history + geography), note the intersection explicitly.
-- KNOWLEDGE CHECK: Before using a fact, ask — am I certain of this, or am I pattern-completing? Flag uncertain facts with (uncertain) inside the think block. If a gap would change the answer, say so.
-- ATTACK PLAN: For hard or multi-domain problems, write a 2-3 step plan before executing it. Do not start solving until the plan is clear.
-- EDGE-CASE PROBE: After reaching a preliminary answer, ask — is there a boundary condition, degenerate case, or exception that invalidates this? If yes, address it.
-- Challenge your first conclusion before committing. Find a flaw or counterexample. If it holds, proceed.
-- For math: compute explicitly. Verify by an independent method. If wrong, recompute — never patch.
-- For logic: write symbolic form. Evaluate structural validity independent of premise truth.
-- For code: trace with a concrete example. Never invent APIs.
-- For creative tasks with constraints: check word count, forbidden words, and structure before committing.
-- For attribution: use the scholar's actual published position. Flag uncertainty if unsure.
-- If you don't have enough information to answer, say so and stop. Do not construct an answer out of guesses.
-- Use dense, focused reasoning. No restating rules. No filler.
-- After </think>, output ONLY the final answer. Never repeat, summarize, or reference the thinking block.`;
+When reasoning inside <think>...</think>:
+
+Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, list them. If it crosses more than one domain, name each domain and what it contributes before attempting a solution.
+
+Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
+
+For hard or multi-step problems, settle on an approach before executing it. Two or three sentences is enough — the point is to commit to a method, not describe one.
+
+Work through the problem step by step. For math, write one operation per line. After reaching a preliminary answer, check it by an independent method. For logic, write the symbolic form first and evaluate structure before truth. For code, trace with a concrete input.
+
+After a preliminary answer, ask: is there a boundary condition, degenerate case, or domain exception that would change this? If yes, address it before committing.
+
+Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, proceed.
+
+Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it.
+
+After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block.`;
 
 const THINK_RULES_000 = THINK_RULES;
 
-// ── SYSTEM PROMPTS ─────────────────────────────────────────────────────────────
+// ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT_MAP = {
   '0':   `You are 0, created by Vin.\n${ACCURACY_RULES}\n${THINK_RULES}`,
@@ -105,9 +77,6 @@ const SYSTEM_PROMPT_MAP = {
 };
 
 // ── DIFFICULTY CLASSIFICATION ─────────────────────────────────────────────────
-// FIX: Added intersection detection and trick-question patterns to difficulty
-//      scoring so they reliably promote to 'hard'.
-//      Addresses: trick/intersection questions being under-classified.
 
 function classifyDifficulty(msg) {
   const t = msg.trim();
@@ -115,23 +84,18 @@ function classifyDifficulty(msg) {
   const conversational = /^(hi|hello|hey|thanks?|ok|sure|yes|no|what('?s| is) (up|good)|how (are|r) (you|u)|lol|haha|nice|cool|great|got it|makes sense|understood)/i.test(t);
   if (conversational) return 'simple';
 
-  // FIX: Intersection signals — questions that cross multiple domains always need deep processing
-  const isIntersection = (
-    (/\b(both|combine|intersection|overlap|relate|connection between|difference between|compare)\b/i.test(t) && t.length > 80) ||
-    // Multiple distinct domain keywords in same question
-    [
-      /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
-      /\b(history|century|war|treaty|empire|revolution)\b/i,
-      /\b(logic|argument|premise|syllogism|valid)\b/i,
-      /\b(code|algorithm|function|runtime|complexity)\b/i,
-      /\b(physics|chemistry|biology|science)\b/i,
-    ].filter(re => re.test(t)).length >= 2
-  );
-  if (isIntersection) return 'hard';
+  // Multi-domain questions always need deep processing
+  const domainMatches = [
+    /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
+    /\b(history|century|war|treaty|empire|revolution)\b/i,
+    /\b(logic|argument|premise|syllogism|valid)\b/i,
+    /\b(code|algorithm|function|runtime|complexity)\b/i,
+    /\b(physics|chemistry|biology|science)\b/i,
+  ].filter(re => re.test(t)).length;
+  if (domainMatches >= 2) return 'hard';
 
-  // FIX: Trick/trap patterns always hard — these are exactly where shallow processing fails
-  const isTrickHard = /\b(trick|trap|paradox|always\s+true|never\s+true|impossible|counterintuitive|common\s+mistake|most\s+people|obvious(ly)?|simple(ly)?|easy\s+question|what\s+is\s+wrong)\b/i.test(t);
-  if (isTrickHard) return 'hard';
+  // Trick/trap language — shallow processing most likely to fail here
+  if (/\b(trick|trap|paradox|always\s+true|never\s+true|impossible|counterintuitive|common\s+mistake|most\s+people|obviously|what\s+is\s+wrong)\b/i.test(t)) return 'hard';
 
   const hasSubParts = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\)|sub.?question)\b/i.test(t) || /[A-E]\./i.test(t);
   const isLong = t.length > 200;
@@ -140,10 +104,15 @@ function classifyDifficulty(msg) {
   return 'hard';
 }
 
-// ── DOMAIN HINT INJECTION ─────────────────────────────────────────────────────
-// FIX: Added intersection hint, uncertainty-flag hint, edge-case probe hint,
-//      and self-verify reminder. These fire on hard questions.
-//      Addresses: knowledge gaps, trick questions, edge cases, verifiability.
+// ── TASK HINT INJECTION ───────────────────────────────────────────────────────
+// Design principles:
+//   - Hints are instructions, not category labels. No [BRACKET TAGS] in hint text.
+//   - Each hint tells the model what to DO, not what type the question IS.
+//   - Hard-question hints (uncertainty, self-check) are merged here — no separate nudge pass.
+//   - Math hint specifies the exact output format (one operation per line, then verify).
+//   - Logic hint specifies the exact output format (symbolic form first, then evaluate).
+//   - Removed: [INTERSECTION], [UNCERTAINTY], [EDGE CASE], [SELF-VERIFY] bracket labels.
+//     Their substance is now expressed as plain imperative instructions.
 
 function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
@@ -173,7 +142,6 @@ function injectTaskHint(messages, modelKey) {
   const isStats      = /\b(sensitivity|specificity|precision|recall|probability|bayes|conditional|false positive|true positive)\b/i.test(msg);
   const isCalculus   = /\b(critical point|inflection|derivative|maximum|minimum|saddle|classify|second derivative|optimization)\b/i.test(msg);
 
-  // FIX: Intersection hint — fires when multiple domains are detected in one question
   const domainCount = [
     /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
     /\b(history|century|war|treaty|empire|revolution)\b/i,
@@ -181,31 +149,33 @@ function injectTaskHint(messages, modelKey) {
     /\b(code|algorithm|function|runtime|complexity)\b/i,
     /\b(physics|chemistry|biology|science)\b/i,
   ].filter(re => re.test(msg)).length;
-  const isIntersection = domainCount >= 2 || /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
-  if (isIntersection) hints.push('[INTERSECTION] This question crosses multiple domains. Identify each domain and what it contributes before solving. Do not collapse them into one framework prematurely.');
+  const isIntersection = domainCount >= 2 ||
+    /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
 
-  if (isMultiPart)  hints.push('[MULTI-PART] List every sub-part first. Answer all of them in order. Do not skip any.');
-  if (isMath)       hints.push('[MATH] Show steps. After your answer, verify it by plugging back in or reversing the operation. Non-integer results are not automatically impossible — state the value and explain it.');
-  if (isCalculus)   hints.push('[CALCULUS] Classify every critical point (min, max, or saddle) using the second derivative test. Finding them without classifying is incomplete.');
-  if (isLogic)      hints.push('[LOGIC] Write the argument in symbolic form (P1, P2, ∴C). Name the form. Evaluate structural validity before premise truth. Disjunctive syllogism is VALID.');
-  if (isStats)      hints.push('[STATS] Sensitivity and specificity are distinct. Never assume they are equal. State each separately.');
-  if (isProof)      hints.push('[PROOF] Full rigorous proof. Every step cites a theorem, postulate, or definition. No abbreviated constructions.');
-  if (isAlgorithm)  hints.push('[ALGORITHM] Show every step. For sorting: full recursive breakdown, every merge/partition. Trace with a concrete example. For concurrency/conflict: name the specific technique (OT, CRDT, etc.) and explain it mechanically.');
-  if (isSimulation) hints.push('[SIMULATION] Produce the content — do not describe what you would produce.');
-  if (isTiming)     hints.push('[TIMING] Simulate every time increment. Verify the solution satisfies all constraints simultaneously. Prefer the simplest reliable approach.');
-  if (isCreative)   hints.push('[CREATIVE] Hard constraints: check word count, forbidden words, structure. The piece must embody its subject through structure, not just describe it.');
-  if (isHistory)    hints.push('[HISTORY] Flag any date, name, or place you are not certain of. For scholarly attribution: use the author\'s actual published thesis. Flag uncertainty explicitly.');
-  if (isCode)       hints.push('[CODE] Only write code you are certain is correct. Never invent API names. Trace with a concrete example when asked step-by-step.');
-  if (isTrick)      hints.push('[CAUTION] Possible cognitive trap. Solve mechanically. If a result seems impossible, check whether it is non-integer/non-physical but still meaningful.');
-  if (isList)       hints.push('[COMPLETENESS] If you cannot be certain the list is exhaustive, say so explicitly.');
+  // Instructions: what to DO, not what type this IS.
+  // No bracket category labels — they add meta-commentary noise to the output.
+  if (isMultiPart)    hints.push('Identify every sub-part before answering. Work through all of them in order. Do not skip any.');
+  if (isIntersection) hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework prematurely.');
+  if (isMath)         hints.push('Write each calculation step on its own line. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
+  if (isCalculus)     hints.push('After finding each critical point, classify it (minimum, maximum, or saddle) using the second derivative test. An unclassified critical point is an incomplete answer.');
+  if (isLogic)        hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, premise truth second.');
+  if (isStats)        hints.push('Sensitivity and specificity measure different things. State each one separately and do not assume they are equal.');
+  if (isProof)        hints.push('Every step in the proof must cite a theorem, postulate, or definition by name. Do not skip or abbreviate steps.');
+  if (isAlgorithm)    hints.push('Show every step of the algorithm. Trace through it with a concrete example input. For concurrency or conflict resolution, name the specific technique and explain its mechanism.');
+  if (isSimulation)   hints.push('Produce the content directly. Do not describe or summarise what you would produce.');
+  if (isTiming)       hints.push('Simulate each time increment explicitly. Verify the solution satisfies every constraint simultaneously before presenting it.');
+  if (isCreative)     hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints take priority over all other considerations.');
+  if (isHistory)      hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if you are not sure of their exact position.');
+  if (isCode)         hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input before presenting the answer.');
+  if (isTrick)        hints.push('Solve this mechanically from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify it rather than dismissing it.');
+  if (isList)         hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
 
-  // FIX: Uncertainty-flag hint — always present on hard questions
-  //      Addresses: knowledge gaps, non-obvious facts
+  // Hard-question baseline: uncertainty flagging + self-check.
+  // Expressed as plain instructions, not bracket tags, and not repeated in a separate nudge pass.
   if (difficulty === 'hard') {
-    hints.push('[UNCERTAINTY] Before stating any fact you are less than confident about, mark it (uncertain). Do not present guesses as facts.');
-    hints.push('[EDGE CASE] After your answer, ask: is there a boundary condition or exception that changes this? If yes, address it.');
-    hints.push('[SELF-VERIFY] Re-read your final answer. Does it actually answer what was asked? Check for missed sub-parts, sign errors, or off-by-one errors. If verification fails, recompute.');
-    hints.push('[If you lack the data to answer a part, say so and stop — do not substitute speculation.]');
+    hints.push('Mark any fact you are less than certain about as (uncertain). Do not present uncertain claims as facts.');
+    hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. If something fails the check, fix it.');
+    hints.push('If you lack the information needed to answer a part, say so and stop — do not substitute inference for missing facts.');
   }
 
   if (!hints.length) return messages;
@@ -215,35 +185,31 @@ function injectTaskHint(messages, modelKey) {
 }
 
 // ── CONSISTENCY NUDGE ─────────────────────────────────────────────────────────
+// Kept minimal. Hard-question substance was moved into injectTaskHint above.
+// This pass only fires for medium difficulty and adds a single terse reminder.
+// It does NOT fire for hard questions — they already have full hint coverage.
 
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
 
   const difficulty = classifyDifficulty(last.content);
-  if (difficulty === 'simple') return messages;
+  // Simple: no nudge. Hard: covered by injectTaskHint. Only medium gets this.
+  if (difficulty !== 'medium') return messages;
 
-  const msg = last.content;
-  const isMultiPart  = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\))\b/i.test(msg) || /[A-E]\./i.test(msg);
-  const isSimulation = /\b(simulate|roleplay|dialogue|conversation between|act as|play out)\b/i.test(msg);
-
-  // FIX: Nudge now also asks for uncertainty flagging, not just accuracy.
-  //      Addresses: non-obvious facts slipping through without a flag.
-  let nudge = '\n\n[Answer accurately. Flag any fact you are uncertain about — do not state guesses as facts.]';
-  if (isMultiPart)  nudge += '\n[Answer every sub-part. Do not skip any.]';
-  if (isSimulation) nudge += '\n[Produce the content — do not describe it.]';
-
-  const patched = { ...last, content: last.content + nudge };
+  const patched = {
+    ...last,
+    content: last.content + '\n\nAnswer accurately. Flag anything you are uncertain about.',
+  };
   return [...messages.slice(0, -1), patched];
 }
 
 // ── FORCED THINK FOR NON-REASONING MODELS ────────────────────────────────────
-// FIX: Models without native reasoning (hasReasoning: false, hasPromptedThink: false)
-//      now receive a lightweight prompted-think instruction on hard questions.
-//      Addresses: no reasoning transparency, shallow processing.
+// Non-reasoning models (hasReasoning: false, hasPromptedThink: false) get a
+// prompted <think> block on hard questions only. Instruction is a single
+// imperative sentence — not a bulleted list that the model might echo.
 
 function injectForcedThinkOnHard(messages, modelKey, mEntry) {
-  // Only apply to models that have neither native reasoning nor prompted think
   if (mEntry.hasReasoning || mEntry.hasPromptedThink) return messages;
 
   const last = messages[messages.length - 1];
@@ -252,9 +218,10 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   const difficulty = classifyDifficulty(last.content);
   if (difficulty !== 'hard') return messages;
 
-  // Append a think-before-answer instruction directly to the user message
-  const thinkPrompt = '\n\n[Before answering, work through this step-by-step inside <think>...</think> tags. Show your reasoning. Then give the final answer after </think>.]';
-  const patched = { ...last, content: last.content + thinkPrompt };
+  const patched = {
+    ...last,
+    content: last.content + '\n\nReason through this inside <think>...</think> before giving your answer.',
+  };
   return [...messages.slice(0, -1), patched];
 }
 
@@ -522,13 +489,13 @@ export default async function handler(req) {
         .slice(-20)
     : [];
 
-  // Step 1: inject domain-specific verification hints (skip on continuations)
-  const trimmedWithHints = contMode ? trimmed : injectTaskHint(trimmed, modelKey);
-  // Step 2: inject self-consistency nudge (skip on continuations)
-  const trimmedWithNudge = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
-  // Step 3 (NEW): inject forced think on hard questions for non-reasoning models
-  //               Addresses: no reasoning transparency, shallow processing on 0/00/V
-  const trimmedFinal = contMode ? trimmedWithNudge : injectForcedThinkOnHard(trimmedWithNudge, modelKey, mEntry);
+  // Pipeline (skipped entirely on continuations):
+  //   1. Domain-specific task hints — concrete operations, no bracket labels
+  //   2. Consistency nudge — medium difficulty only; hard is covered by step 1
+  //   3. Forced think — non-reasoning models on hard questions only
+  const trimmedWithHints  = contMode ? trimmed          : injectTaskHint(trimmed, modelKey);
+  const trimmedWithNudge  = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
+  const trimmedFinal      = contMode ? trimmedWithNudge : injectForcedThinkOnHard(trimmedWithNudge, modelKey, mEntry);
 
   let messagesPayload;
   try {
