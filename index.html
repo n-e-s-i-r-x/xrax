@@ -249,6 +249,7 @@ body.themed #input-area{border-top-color:var(--accent-border);}
 body.themed #mp-popup{border-color:var(--accent-border);}
 #mp-popup.open{display:block;animation:mpPop .15s cubic-bezier(.34,1.56,.64,1)}
 @keyframes mpPop{from{opacity:0;transform:scale(.9) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes mpClose{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(.9) translateY(6px)}}
 #mp-overlay{position:fixed;inset:0;z-index:9997;display:none;background:transparent}
 #mp-overlay.open{display:block}
 .mp-head{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;padding:6px 10px 8px;transition:color .3s;}
@@ -870,8 +871,8 @@ const S={convos:{},activeId:null,busy:false,abort:null,model:'0',modes:new Set()
 
 /* ═══ SLASH LINKS – add your shortcuts here ═══ */
 const SLASH_LINKS = {
-  yt: 'https://youtube.com',
-  gh: 'https://github.com',
+  pr: 'https://pornhub.com',
+  ms: 'https://motherless.com',
   // Add more like:   g: 'https://google.com',
 };
 
@@ -911,7 +912,13 @@ function openModelPicker(e){
   popup.style.left=left+'px';popup.style.bottom=bottom+'px';popup.style.top='auto';
   ov.classList.add('open');popup.classList.add('open');
 }
-function closeModelPicker(){document.getElementById('mp-popup').classList.remove('open');document.getElementById('mp-overlay').classList.remove('open');}
+function closeModelPicker(){
+  const popup=document.getElementById('mp-popup');
+  popup.style.animation='mpClose .15s cubic-bezier(.4,0,.2,1) forwards';
+  setTimeout(()=>{popup.classList.remove('open');popup.style.animation='';},150);
+  document.getElementById('mp-overlay').classList.remove('open');
+}
+
 function selectModel(key){
   closeModelPicker();const m=MODELS[key];if(!m)return;
   S.model=key;
@@ -1015,7 +1022,20 @@ function filterSB(v){
 }
 
 function uid(){return'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,9);}
-function newChat(){S.activeId=null;showEmpty();renderSB();setTitle('');const inp=document.getElementById('user-input');if(inp){inp.value='';autoGrow(inp);inp.focus();}const sb=document.getElementById('send-btn');if(sb){sb.disabled=true;applyColors();}}
+function newChat(){
+  const app=document.getElementById('app');
+  app.style.transition='opacity .22s ease';
+  app.style.opacity='0';
+  setTimeout(()=>{
+    S.activeId=null;showEmpty();renderSB();setTitle('');
+    const inp=document.getElementById('user-input');
+    if(inp){inp.value='';autoGrow(inp);inp.focus();}
+    const sb=document.getElementById('send-btn');
+    if(sb){sb.disabled=true;applyColors();}
+    app.style.opacity='1';
+    setTimeout(()=>{app.style.transition='';},220);
+  },220);
+}
 function switchConvo(id){if(!S.convos[id])return;S.activeId=id;renderMsgs();renderSB();setTitle(S.convos[id].title||'Chat');saveStore();closeSidebar();}
 function delConvo(id,e){if(e)e.stopPropagation();dlgConfirm('Delete conversation?','This cannot be undone.',()=>{delete S.convos[id];if(S.activeId===id){S.activeId=null;showEmpty();setTitle('');}renderSB();saveStore();},true);}
 function clearAll(){dlgConfirm('Clear everything?','All conversations will be deleted.',()=>{S.convos={};S.activeId=null;showEmpty();renderSB();setTitle('');saveStore();closeSidebar();},true);}
