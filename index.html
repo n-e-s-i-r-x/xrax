@@ -200,6 +200,10 @@ body.themed .copy-code{border-color:var(--accent-border);background:var(--accent
 
 /* ── MESSAGE ACTIONS ── */
 .msg-acts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.msg-copy-btn{display:none;padding:4px 10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:6px;color:#888;font-size:11px;align-items:center;gap:4px;transition:background .15s,transform .1s,border-color .3s;margin-top:4px;}
+body.themed .msg-copy-btn{border-color:var(--accent-border);color:var(--accent);background:var(--accent-subtle);}
+.msg-copy-btn:active{background:#1a1a1a;transform:scale(.94)}
+.msg-copy-btn.show{display:flex;}
 .ma-btn{padding:5px 10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:6px;color:#888;font-size:11px;display:flex;align-items:center;gap:4px;transition:background .15s,transform .1s,border-color .3s;}
 body.themed .ma-btn{border-color:var(--accent-border);color:var(--accent);background:var(--accent-subtle);}
 .ma-btn:active{background:#1a1a1a;transform:scale(.94)}
@@ -1070,7 +1074,7 @@ function toggleSources(el){el.closest('.sources-wrap')?.classList.toggle('open')
 
 function buildMsg(msg,idx){
   const ts=S.settings.timestamps&&msg.ts?`<div class="msg-ts">${new Date(msg.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>`:'';
-  if(msg.role==='user'){return`<div class="msg-row user"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}</div></div>`;}
+  if(msg.role==='user'){return`<div class="msg-row user" onclick="toggleMsgCopy(this)"><div class="msg-in"><div class="u-bubble">${esc(msg.content)}</div>${ts}<button class="msg-copy-btn" style="align-self:flex-end" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div>`;}
   const cma=msg.codeMode?'data-codemode="true"':'';
   const badge=msg.userSearched?`<div class="web-badge"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="2" height="1"/><rect x="1" y="1" width="4" height="1"/><rect x="0" y="2" width="6" height="1"/><rect x="1" y="3" width="4" height="1"/><rect x="0" y="3" width="1" height="2"/><rect x="5" y="3" width="1" height="2"/><rect x="1" y="5" width="4" height="1"/></svg>Searched the web</div>`:'';
   let thinkHtml='';
@@ -1095,7 +1099,7 @@ function buildMsg(msg,idx){
   let acts='';
   if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">Continue</button>`;
   if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
-  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma}><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div></div></div></div></div>`;
+  return`<div class="msg-row ai" data-msg-index="${idx}" ${cma} onclick="toggleMsgCopy(this)"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div><button class="msg-copy-btn" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div></div></div>`;
 }
 
 function attachCodeBtns(){
@@ -1573,6 +1577,29 @@ async function genImage(convo,prompt){
 }
 
 function stopGen(){if(S.abort)S.abort.abort();}
+function toggleMsgCopy(row){
+  const btn=row.querySelector('.msg-copy-btn');
+  if(!btn)return;
+  const isShow=btn.classList.contains('show');
+  document.querySelectorAll('.msg-copy-btn.show').forEach(b=>b.classList.remove('show'));
+  if(!isShow)btn.classList.add('show');
+}
+function copyMsgTxt(btn,e){
+  e.stopPropagation();
+  const row=btn.closest('.msg-row');
+  let text='';
+  if(row.classList.contains('user')){
+    text=row.querySelector('.u-bubble')?.innerText||'';
+  }else{
+    text=row.querySelector('.ai-txt')?.innerText||'';
+  }
+  copyText(text.trim(),()=>{
+    const orig=btn.innerHTML;
+    btn.innerHTML='Copied';
+    setTimeout(()=>{btn.innerHTML=orig;btn.classList.remove('show');},1500);
+  });
+}
+
 function setStopMode(active){
   const sb=document.getElementById('send-btn');
   const stopBtn=document.getElementById('inline-stop-btn');
