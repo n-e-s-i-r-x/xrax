@@ -700,6 +700,8 @@ body.themed .speed-timer {
 <script>
 "use strict";
 if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")};
+
+function throttle(fn,ms){let t=0,pending=false;return function(...a){const now=Date.now();if(now-t>=ms){t=now;fn.apply(this,a);}else if(!pending){pending=true;setTimeout(()=>{pending=false;t=Date.now();fn.apply(this,a);},ms-(now-t));}};}
 if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
 /* ══════════════════════════════════════
@@ -1562,13 +1564,14 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     if(S.settings.autoscroll)scrollBot();
   };
 
-  const renderAnswer=()=>{
+  const _renderAnswerNow=()=>{
     if(!txtEl)return;
     const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
     txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
     attachCodeBtns();
     if(S.settings.autoscroll)scrollBot();
   };
+  const renderAnswer=throttle(_renderAnswerNow,150);
 
   const renderThink=(text)=>{
     thinkText+=text;
@@ -1642,9 +1645,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         answerText+=txt;
         if(txtEl){
           const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-          txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
-          attachCodeBtns();
-          if(S.settings.autoscroll)scrollBot();
+          throttle(()=>{txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';attachCodeBtns();if(S.settings.autoscroll)scrollBot();},150)();
         }
       }
       if(!wasTruncated&&answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')&&detectUncertainty(answerText)){
@@ -1660,7 +1661,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
             if(S.abort?.signal?.aborted)break;
             const txt=(chunk&&chunk.text)||'';if(!txt)continue;
             answerText+=txt;
-            if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';attachCodeBtns();if(S.settings.autoscroll)scrollBot();}
+            if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();throttle(()=>{txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';attachCodeBtns();if(S.settings.autoscroll)scrollBot();},150)();}
           }
         }
       }
