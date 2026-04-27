@@ -1459,9 +1459,9 @@ function appendPending(id,isCodeMode){
   setStopMode(true);scrollBot();
 }
 
-async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal){
+async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode){
   const mDef=MODELS[modelKey]||MODELS['0'];let res;
-  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey}),signal:abortSignal});}
+  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode}),signal:abortSignal});}
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
@@ -1483,10 +1483,10 @@ const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];
 const MAX_TAG_LEN=22;
 function findFirst(buf,tags){let best=-1,bestTag=null;for(const t of tags){const i=buf.indexOf(t);if(i!==-1&&(best===-1||i<best)){best=i;bestTag=t;}}return{idx:best,tag:bestTag};}
 
-async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,isThinkModel){
+async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,isThinkModel,contMode){
   if(isThinkModel===undefined)isThinkModel=true;
   let inThink=false,thinkSeen=false,buffer='';
-  for await(const delta of streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal)){
+  for await(const delta of streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode)){
     if(delta&&typeof delta==='object'){yield delta;continue;}
     if(!isThinkModel){
       if(delta.length)yield{type:'answer',text:delta};
@@ -1546,7 +1546,9 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   let extraCtx=dtCtx();
   if(isCodeMode)extraCtx+=CODE_MODE_EXTRA;
   if(userSearchData&&(userSearchData.results?.length||userSearchData.answer))extraCtx+=buildSearchCtx(userSearchData);
-  if(contMode)extraCtx+='\n\nResume the previous response without repeating any prior text.';
+  if(contMode)extraCtx+='\n\nThe previous response was cut off mid-generation. Resume seamlessly from exactly where it stopped. Do NOT repeat any text already written. Do NOT start with a preamble or transition sentence.';
+  // Never fire internal smart search on continuation — context is already established
+  const allowSmartSearch=!contMode;
   S.abort=new AbortController();
 
   const enterAnswerPhase=()=>{
@@ -1596,7 +1598,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
               answerText+=chunk.text;renderAnswer();
             }else{
               renderThink(chunk.text);
-              if(firstPass&&!internalSearchFired&&S.settings.webSearchAuto&&!userSearchData&&thinkText.length>80&&detectUncertainty(thinkText)){
+              if(firstPass&&!internalSearchFired&&allowSmartSearch&&S.settings.webSearchAuto&&!userSearchData&&thinkText.length>80&&detectUncertainty(thinkText)){
                 internalSearchFired=true;runWithSmartSearch=true;if(S.abort)S.abort.abort();break;
               }
             }
@@ -1645,14 +1647,14 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         attachCodeBtns();
         if(S.settings.autoscroll)scrollBot();
       },150);
-      for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,4096,S.abort.signal,false)){
+      for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false)){
         if(S.abort?.signal?.aborted)break;
         if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
         const txt=(chunk&&chunk.text)||'';if(!txt)continue;
         answerText+=txt;
         if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderNonThink();}
       }
-      if(!wasTruncated&&answerText&&!userSearchData&&S.settings.webSearchAuto&&!modeOn('image')&&detectUncertainty(answerText)){
+      if(!wasTruncated&&answerText&&!userSearchData&&allowSmartSearch&&S.settings.webSearchAuto&&!modeOn('image')&&detectUncertainty(answerText)){
         showUserSearchInd();
         const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
         const sd=await doSearch(q);hideUserSearchInd();
@@ -1667,7 +1669,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
             txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
             attachCodeBtns();if(S.settings.autoscroll)scrollBot();
           },150);
-          for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,4096,S.abort.signal,false)){
+          for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,8000,S.abort.signal,false)){
             if(S.abort?.signal?.aborted)break;
             const txt=(chunk&&chunk.text)||'';if(!txt)continue;
             answerText+=txt;
@@ -1680,12 +1682,15 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   }catch(err){
     if(err.name!=='AbortError'){
       document.getElementById(aiId)?.remove();
-setStopMode(false);
+      setStopMode(false);
       showErr(err.message||null);S.busy=false;S.abort=null;
       const inp=document.getElementById('user-input');const sb=document.getElementById('send-btn');
       if(sb){sb.disabled=!inp||!inp.value.trim();applyColors();}
       stopSpeedTimer();
       return;
+    }else{
+      // Aborted by user: fall through to finalize so UI state resets cleanly
+      setStopMode(false);
     }
   }
 
@@ -1769,6 +1774,8 @@ async function retryEmpty(idx){const c=curConvo();if(!c||S.busy)return;const msg
 async function continueMsg(idx){
   const c=curConvo();if(!c||S.busy)return;
   const msg=c.msgs[idx];if(!msg||msg.role!=='assistant')return;
+  // Safety guard: prevent runaway continuation chains
+  if((msg._contCount||0)>=5){showErr('Max continuations reached for this message.');return;}
   msg.truncated=false;
   const actsEl=document.getElementById(`msg-${idx}-acts`);
   if(actsEl){actsEl.innerHTML='';}
@@ -1782,7 +1789,9 @@ async function continueMsg(idx){
   let ctx=dtCtx();
   if(isCodeMode)ctx+=CODE_MODE_EXTRA;
   if(msg.sources&&msg.sources.length)ctx+=buildSearchCtx({results:msg.sources});
-  ctx+='\n\nResume the previous response without repeating any prior text.';
+  // Include the exact cutoff point so the model knows where to resume
+  ctx+='\n\nThe previous response was cut off. Resume seamlessly from exactly where it stopped. Do NOT repeat any text that was already written. Do NOT add a preamble or transition. Continue mid-sentence or mid-word if that is where it cut off.';
+  // Send full history including the partial assistant turn so context is complete
   const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
   let full=msg.content;
   txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
@@ -1791,9 +1800,10 @@ async function continueMsg(idx){
     attachCodeBtns();
     if(S.settings.autoscroll)scrollBot();
   },150);
-  const cleanup=()=>{
+  const cleanup=(newlyContinued)=>{
     txtEl.innerHTML=renderMd(full);
     msg.content=full;msg.truncated=false;msg.ts=Date.now();
+    if(newlyContinued)msg._contCount=(msg._contCount||0)+1;
     if(actsEl)actsEl.innerHTML='';
     attachCodeBtns();
     saveStore();S.busy=false;S.abort=null;
@@ -1804,13 +1814,15 @@ async function continueMsg(idx){
     scrollBot();
     stopSpeedTimer();
   };
+  let didContinue=false;
   try{
-    for await(const chunk of streamParsed(msgs,ctx,modelKey,4096,S.abort.signal,mDef.hasThink)){
+    for await(const chunk of streamParsed(msgs,ctx,modelKey,8000,S.abort.signal,mDef.hasThink)){
       if(S.abort?.signal?.aborted)break;
-      if(chunk&&chunk.type==='finish')continue;
+      if(chunk&&chunk.type==='finish'){if(chunk.reason==='length'){msg.truncated=true;}continue;}
       const txt=(chunk&&chunk.text)||'';if(!txt)continue;
       if(chunk.type==='answer'||!mDef.hasThink){
         full+=txt;
+        didContinue=true;
         _renderContinue();
       }
     }
@@ -1819,7 +1831,7 @@ async function continueMsg(idx){
       showErr(e.message||'Continue failed.');
     }
   }finally{
-    cleanup();
+    cleanup(didContinue);
   }
 }
 
@@ -1898,7 +1910,7 @@ function setStopMode(active){
     stopBtn.style.display='none';
     if(ab)ab.style.display='';
     const inp=document.getElementById('user-input');
-    sb.disabled=!inp||!inp.value.trim();
+    sb.disabled=!(inp&&inp.value.trim())&&!(_attachedFiles&&_attachedFiles.length);
     applyColors();
   }
 }
