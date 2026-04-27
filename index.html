@@ -1029,7 +1029,7 @@ function newChat(){
   setTimeout(()=>{
     S.activeId=null;showEmpty();renderSB();setTitle('');
     const inp=document.getElementById('user-input');
-    if(inp){inp.value='';autoGrow(inp);inp.focus();}
+    if(inp){inp.value='';autoGrow(inp);}
     const sb=document.getElementById('send-btn');
     if(sb){sb.disabled=true;applyColors();}
     app.style.opacity='1';
