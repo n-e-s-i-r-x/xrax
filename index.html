@@ -2127,22 +2127,45 @@ function _pollinationsAudioUrl(prompt){
   return`https://audio.pollinations.ai/${encodedPrompt}`;
 }
 
+async function _fetchMusicBlob(prompt){
+  const musicPrompt=prompt.replace(/[*_`#>]/g,'').replace(/\s+/g,' ').trim().slice(0,200);
+  const resp=await fetch('/api/music.js',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prompt:musicPrompt})
+  });
+  if(!resp.ok){
+    let msg='Music API error '+resp.status;
+    try{const t=await resp.text();if(t)msg=t.slice(0,120);}catch(_){}
+    throw new Error(msg);
+  }
+  const blob=await resp.blob();
+  if(!blob||blob.size<200)throw new Error('Empty audio returned');
+  return URL.createObjectURL(blob);
+}
+
 async function genMusicForMsg(prompt,msgIdx){
   const txtEl=document.getElementById('msg-'+msgIdx+'-text');
   if(!txtEl)return;
-  const audioUrl=_pollinationsAudioUrl(prompt);
-  // Swap pending → player immediately; browser streams natively
-  const existing=document.getElementById('music-player-'+msgIdx);
-  if(existing){
-    const newDiv=document.createElement('div');
-    newDiv.innerHTML=buildMusicPlayerHtml(audioUrl,msgIdx,false);
-    existing.replaceWith(newDiv.firstElementChild);
-    renderMusicWave(msgIdx);
-  }else{
-    const pd=document.createElement('div');
-    pd.innerHTML=buildMusicPlayerHtml(audioUrl,msgIdx,false);
-    txtEl.appendChild(pd.firstElementChild);
-    renderMusicWave(msgIdx);
+  // Show pending state
+  const pendingDiv=document.createElement('div');
+  pendingDiv.innerHTML=buildMusicPlayerHtml(null,msgIdx,true);
+  txtEl.appendChild(pendingDiv.firstElementChild);
+  if(S.settings.autoscroll)scrollBot();
+  try{
+    const blobUrl=await _fetchMusicBlob(prompt);
+    const existing=document.getElementById('music-player-'+msgIdx);
+    if(existing){
+      const newDiv=document.createElement('div');
+      newDiv.innerHTML=buildMusicPlayerHtml(blobUrl,msgIdx,false);
+      existing.replaceWith(newDiv.firstElementChild);
+      renderMusicWave(msgIdx);
+    }
+  }catch(err){
+    const existing=document.getElementById('music-player-'+msgIdx);
+    if(existing){
+      existing.innerHTML=`<div style="padding:10px 12px;font-size:12px;color:#e06060;background:#1a0a0a;border-radius:12px;">Music generation failed: ${esc(err.message||'Try again.')}</div>`;
+    }
   }
   if(S.settings.autoscroll)scrollBot();
 }
@@ -2151,8 +2174,7 @@ async function genMusicDirect(convo,prompt){
   S.busy=true;
   const aiId='mus'+Date.now();
   const ca=document.getElementById('chat-area');
-  const msgIdx_user=convo.msgs.length-1;
-  // Add a placeholder assistant message row
+  // Show loading row
   const row=document.createElement('div');
   row.className='msg-row ai';
   row.id=aiId;
@@ -2169,32 +2191,39 @@ async function genMusicDirect(convo,prompt){
   </div></div></div></div>`;
   ca.appendChild(row);
   setStopMode(true);scrollBot();
-  const audioUrl=_pollinationsAudioUrl(prompt);
-  const errMsg=null;
-  // Push assistant message to convo
-  const savedContent=prompt?`Music generated for: *"${prompt.slice(0,80)}"*`:'Generated music';
-  convo.msgs.push({role:'assistant',content:savedContent,ts:Date.now(),truncated:false,modelKey:S.model,musicMode:true});
+
+  // Try to actually fetch the audio before committing anything to the convo
+  let blobUrl=null;
+  let errMsg=null;
+  try{
+    blobUrl=await _fetchMusicBlob(prompt);
+  }catch(err){
+    errMsg=err.message||'Try again.';
+  }
+
+  // Push assistant message (no "generated for" text — just empty content so the player is the focus)
+  convo.msgs.push({role:'assistant',content:'',ts:Date.now(),truncated:false,modelKey:S.model,musicMode:true});
   const msgIdx=convo.msgs.length-1;
-  // Replace pending row with final message
+
+  // Replace loading row with final message shell
   const finalHtml=buildMsg(convo.msgs[msgIdx],msgIdx);
   const tmp=document.createElement('div');tmp.innerHTML=finalHtml;
   const finalRow=tmp.firstElementChild;
   row.replaceWith(finalRow);
   attachCodeBtns();
-  // Now inject the player into the rendered message
+
   const txtEl=document.getElementById('msg-'+msgIdx+'-text');
   if(txtEl){
-    if(audioUrl){
+    if(blobUrl){
       const pd=document.createElement('div');
-      pd.innerHTML=buildMusicPlayerHtml(audioUrl,msgIdx,false);
+      pd.innerHTML=buildMusicPlayerHtml(blobUrl,msgIdx,false);
       txtEl.appendChild(pd.firstElementChild);
       renderMusicWave(msgIdx);
     }else{
-      const ed=document.createElement('div');
-      ed.innerHTML=`<div style="margin:10px 0;padding:10px 12px;background:#1a0a0a;border:1px solid rgba(244,114,182,0.3);border-radius:10px;font-size:12px;color:#e06060;">Music generation failed: ${esc(errMsg)}</div>`;
-      txtEl.appendChild(ed.firstElementChild);
+      txtEl.innerHTML=`<div style="margin:4px 0;padding:10px 12px;background:#1a0a0a;border:1px solid rgba(244,114,182,0.3);border-radius:10px;font-size:12px;color:#e06060;">Music generation failed: ${esc(errMsg)}</div>`;
     }
   }
+
   saveStore();S.busy=false;
   setStopMode(false);scrollBot();
   stopSpeedTimer();
