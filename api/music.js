@@ -17,21 +17,14 @@ export default async function handler(req) {
     return new Response('Missing prompt', { status: 400 });
   }
 
-  const encodedPrompt = encodeURIComponent(prompt);
-  const audioUrl = `https://audio.pollinations.ai/${encodedPrompt}`;
+  // Correct Pollinations audio endpoint per their API docs
+  const apiUrl = 'https://audio.api.pollinations.ai/generateAudio';
 
-  async function tryFetch() {
+  async function tryFetch(url, opts) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 55000);
     try {
-      const resp = await fetch(audioUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'audio/mpeg, audio/*',
-          'User-Agent': 'Mozilla/5.0',
-        },
-        signal: controller.signal,
-      });
+      const resp = await fetch(url, { ...opts, signal: controller.signal });
       clearTimeout(timer);
       return resp;
     } catch (err) {
@@ -45,15 +38,20 @@ export default async function handler(req) {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      if (attempt > 0) {
-        await new Promise(r => setTimeout(r, attempt * 5000));
-      }
-      const resp = await tryFetch();
-      if (resp.ok) {
-        audioResp = resp;
-        break;
-      }
-      lastErr = new Error('Provider returned ' + resp.status);
+      if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 4000));
+
+      const resp = await tryFetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          model: 'musicgen-medium',
+          duration: 15,
+        }),
+      });
+
+      if (resp.ok) { audioResp = resp; break; }
+      lastErr = new Error('Provider returned ' + resp.status + ': ' + await resp.text().catch(() => ''));
     } catch (err) {
       lastErr = err;
     }
@@ -61,17 +59,14 @@ export default async function handler(req) {
 
   if (!audioResp) {
     const msg = lastErr?.name === 'AbortError'
-      ? 'Music generation timed out — try a shorter prompt'
+      ? 'Music generation timed out'
       : (lastErr?.message || 'Music generation failed');
     return new Response(msg, { status: 502 });
   }
 
   let audioBuffer;
-  try {
-    audioBuffer = await audioResp.arrayBuffer();
-  } catch (err) {
-    return new Response('Failed to read audio data', { status: 502 });
-  }
+  try { audioBuffer = await audioResp.arrayBuffer(); }
+  catch (err) { return new Response('Failed to read audio data', { status: 502 }); }
 
   if (!audioBuffer || audioBuffer.byteLength < 200) {
     return new Response('Empty audio from provider', { status: 502 });
