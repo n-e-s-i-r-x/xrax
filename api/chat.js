@@ -1,17 +1,17 @@
 export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
-  '0':   { id: 'google/gemma-3n-e2b-it:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '00':  { id: 'google/gemma-3n-e2b-it:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  '0':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  '00':  { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
-  'V':   { id: 'google/gemma-3n-e2b-it:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'V':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
 const ADAPTIVE_MODEL_MAP = {
   'reasoning': { id: 'openai/gpt-oss-120b:free', hasReasoning: false, hasPromptedThink: true, minTokens: 8000 },
   'complex': { id: 'qwen/qwen3-coder:free', hasReasoning: false, hasPromptedThink: true, minTokens: 6000 },
-  'standard': { id: 'google/gemma-3n-e2b-it:free', hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'fast': { id: 'google/gemma-3n-e2b-it:free', hasReasoning: false, hasPromptedThink: false, minTokens: 4000 },
+  'standard': { id: 'liquid/lfm-2.5-1.2b-instruct:free', hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'fast': { id: 'liquid/lfm-2.5-1.2b-instruct:free', hasReasoning: false, hasPromptedThink: false, minTokens: 4000 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -645,7 +645,7 @@ export default async function handler(req) {
     if (answer.length > 6000) return answer;
     try {
       const verifyPayload = {
-        model: 'google/gemma-3n-e2b-it:free',
+        model: 'liquid/lfm-2.5-1.2b-instruct:free',
         messages: [
           { role: 'system', content: VERIFICATION_SYSTEM_PROMPT },
           { role: 'user', content: `User question:\n${question}\n\nAI response to review:\n${answer}` }
