@@ -10,12 +10,6 @@ const MODEL_MAP = {
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
 // ── ACCURACY RULES ────────────────────────────────────────────────────────────
-// Design principles:
-//   - Prose, not headed sections. Headers mirror into output as structural padding.
-//   - One rule per concern. No repetition across rules.
-//   - Concrete operations, not categories. "Plug back in" beats "[MATH]".
-//   - Uncertainty flagging is a single, unconditional habit — not a named section.
-//   - Edge-case probe belongs in the reasoning phase only; removed from output rules.
 
 const ACCURACY_RULES = `
 Match response depth to the question. Before answering, classify it: simple, medium, or hard. Simple questions get one direct answer with no working, no verification, no elaboration. Medium questions get key steps only. Hard problems get full working and verification. Never upgrade a question's complexity because the topic is interesting. For science and physics questions, state the principle and apply it in one move — do not over-narrate the setup.
@@ -32,6 +26,12 @@ For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating 
 
 For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.
 
+For type theory and type inference: do not conclude a term is untypable until you have fully run the unification algorithm step by step. Write out every type variable, every constraint generated, and every substitution applied. A type error must be a specific unification failure — a clash between two concrete types — not a vague claim that no type exists. If a term is typable, derive its principal type. Do not conflate typability with inhabitance.
+
+For complexity theory and data structures: when claiming a time or space bound, state which theorem or lower-bound argument supports it. For persistent data structures, ephemeral bounds do not transfer — prove or cite why persistence does or does not change the bound. O(α(n)) for persistent union-find with path compression is theoretically impossible; the correct bound is O(log²n) per operation (Blelloch/Harper or Driscoll/Tarjan). Never state an ephemeral bound as if it applies to a fully persistent version without justification.
+
+For concurrent data structures: after presenting any lock-free algorithm, check every free() or memory reclamation point for use-after-free under concurrent access. If a thread can still hold a reference to a node at the time it is freed, the algorithm is unsafe. Name the reclamation technique required (hazard pointers, epoch-based reclamation, RCU) and explain why naive free() is insufficient. ABA prevention via version stamps is only required on operations that perform a compare-and-swap on a pointer that could be reused — incrementing the stamp on push is unnecessary; the hazard is on pop. State this distinction explicitly.
+
 For creative tasks with hard constraints (word limits, forbidden words, required structure): check every constraint explicitly before finalising. The constraint list takes priority over everything else.
 
 For attribution: use the source's actual published position. If you are uncertain of their exact thesis, flag it.
@@ -41,12 +41,6 @@ If you lack the information needed to answer, say so directly and stop.`;
 const ACCURACY_RULES_000 = ACCURACY_RULES;
 
 // ── THINK RULES ───────────────────────────────────────────────────────────────
-// Design principles:
-//   - No bold imperative labels (SCOPE FIRST:, ATTACK PLAN:) — they leak into output.
-//   - Reasoning flow is described as a sequence of actions, not a checklist to echo.
-//   - Edge-case probe placed here (reasoning phase), not in output-phase rules.
-//   - Math format requirement restated concisely to match ACCURACY_RULES.
-//   - Final rule: output only the answer after </think>, never reference the block.
 
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
@@ -62,6 +56,12 @@ A reasoning block that only restates the question and jumps to a conclusion is n
 For hard or multi-step problems, settle on an approach before executing it. One or two sentences is enough — the point is to commit to a method, not describe one. Then execute it with actual values, actual steps, and actual intermediate results. Naming a method without executing it is not working — it is narration.
 
 Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, you must write actual numbers and operations — not descriptions of what you would calculate. Write one operation per line with a brief label and show every intermediate value. A reasoning block that contains no numbers for a math question is a failed reasoning block. After reaching a preliminary answer, check it by an independent method and show the check explicitly. For logic, write the symbolic form first, explain the structure in plain language, then evaluate truth. For code, trace with a concrete input and show the value of each variable at each step.
+
+For type inference questions: run the Hindley-Milner unification algorithm explicitly inside this block. Generate every type constraint from each sub-expression, then unify them one by one, writing out each substitution. A conclusion of "untypable" requires a specific clash — two distinct concrete types that cannot be unified. If no clash occurs, derive the principal type. Do not guess.
+
+For complexity claims on persistent or concurrent data structures: identify the exact theorem that establishes the bound. Ask explicitly whether the ephemeral bound survives under persistence — it often does not. For union-find with full persistence, path compression is not freely available; the correct bound is O(log²n), not O(α(n)). State why.
+
+For concurrent algorithms involving memory reclamation: after deriving the algorithm, scan every point where a node is freed. Ask whether any other thread could still hold a reference at that point. If yes, the free is unsafe. Name the technique (hazard pointers, epoch-based reclamation) that fixes it. For ABA stamps, identify exactly which CAS operation is vulnerable and why — do not increment stamps on operations where ABA cannot occur.
 
 For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the correct answer precisely — not "none" when you mean a specific thing, not "some" when you can name them.
 
@@ -92,7 +92,6 @@ function classifyDifficulty(msg) {
   const conversational = /^(hi|hello|hey|thanks?|ok|sure|yes|no|what('?s| is) (up|good)|how (are|r) (you|u)|lol|haha|nice|cool|great|got it|makes sense|understood)/i.test(t);
   if (conversational) return 'simple';
 
-  // Multi-domain questions always need deep processing
   const domainMatches = [
     /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
     /\b(history|century|war|treaty|empire|revolution)\b/i,
@@ -102,7 +101,6 @@ function classifyDifficulty(msg) {
   ].filter(re => re.test(t)).length;
   if (domainMatches >= 2) return 'hard';
 
-  // Trick/trap language — shallow processing most likely to fail here
   if (/\b(trick|trap|paradox|always\s+true|never\s+true|impossible|counterintuitive|common\s+mistake|most\s+people|obviously|what\s+is\s+wrong)\b/i.test(t)) return 'hard';
 
   const hasSubParts = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\)|sub.?question)\b/i.test(t) || /[A-E]\./i.test(t);
@@ -113,14 +111,6 @@ function classifyDifficulty(msg) {
 }
 
 // ── TASK HINT INJECTION ───────────────────────────────────────────────────────
-// Design principles:
-//   - Hints are instructions, not category labels. No [BRACKET TAGS] in hint text.
-//   - Each hint tells the model what to DO, not what type the question IS.
-//   - Hard-question hints (uncertainty, self-check) are merged here — no separate nudge pass.
-//   - Math hint specifies the exact output format (one operation per line, then verify).
-//   - Logic hint specifies the exact output format (symbolic form first, then evaluate).
-//   - Removed: [INTERSECTION], [UNCERTAINTY], [EDGE CASE], [SELF-VERIFY] bracket labels.
-//     Their substance is now expressed as plain imperative instructions.
 
 function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
@@ -135,20 +125,25 @@ function injectTaskHint(messages, modelKey) {
 
   const hints = [];
 
-  const isMath       = /\b(mod|modulo|remainder|divisib|\^|\bpow\b|equation|solve|calculat|speed|distance|rate|volume|surface area|sphere|cylinder|triangle|percent|average|mean|median|algebra|arithmetic|\d+\s*[×\*\/\+\-]\s*\d)/i.test(msg);
-  const isLogic      = /\b(valid|invalid|fallacy|syllogism|argument|therefore|conclude|premise|disjunct|modus|consequent|antecedent|either|or|if.+then)\b/i.test(msg);
-  const isHistory    = /\b(year|century|founded|signed|treaty|war|battle|born|died|reign|monarch|capital|emperor|president|when did|when was)\b/i.test(msg);
-  const isCode       = /\b(function|def |class |import |return|variable|bug|error|compile|syntax|runtime|debug|algorithm|implement|code|program)\b/i.test(msg);
-  const isTrick      = /\b(trick|trap|riddle|paradox|always|never|all|none|every|impossible|obvious|simple|easy)\b/i.test(msg);
-  const isList       = /\b(list|enumerate|all of|every|name all|give me all|what are all)\b/i.test(msg);
-  const isProof      = /\b(prove|proof|theorem|lemma|postulate|congruent|parallel|perpendicular|construct|geometric)\b/i.test(msg);
-  const isAlgorithm  = /\b(sort|merge|quicksort|binary|search|traverse|graph|tree|recursion|step.?by.?step|trace|simulate|run)\b/i.test(msg);
-  const isCreative   = /\b(write|poem|story|haiku|limerick|creative|compose|word.?limit|without using|forbidden|constraint|exactly \d+ words?)\b/i.test(msg);
-  const isMultiPart  = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\)|sub.?question)\b/i.test(msg) || /[A-E]\./i.test(msg);
-  const isSimulation = /\b(simulate|roleplay|role.?play|dialogue|conversation between|act as|pretend|scenario|play out)\b/i.test(msg);
-  const isTiming     = /\b(hourglass|timer|stopwatch|elapsed|minute|second|hour|simultaneously|at the same time|time.?puzzle)\b/i.test(msg);
-  const isStats      = /\b(sensitivity|specificity|precision|recall|probability|bayes|conditional|false positive|true positive)\b/i.test(msg);
-  const isCalculus   = /\b(critical point|inflection|derivative|maximum|minimum|saddle|classify|second derivative|optimization)\b/i.test(msg);
+  const isMath         = /\b(mod|modulo|remainder|divisib|\^|\bpow\b|equation|solve|calculat|speed|distance|rate|volume|surface area|sphere|cylinder|triangle|percent|average|mean|median|algebra|arithmetic|\d+\s*[×\*\/\+\-]\s*\d)/i.test(msg);
+  const isLogic        = /\b(valid|invalid|fallacy|syllogism|argument|therefore|conclude|premise|disjunct|modus|consequent|antecedent|either|or|if.+then)\b/i.test(msg);
+  const isHistory      = /\b(year|century|founded|signed|treaty|war|battle|born|died|reign|monarch|capital|emperor|president|when did|when was)\b/i.test(msg);
+  const isCode         = /\b(function|def |class |import |return|variable|bug|error|compile|syntax|runtime|debug|algorithm|implement|code|program)\b/i.test(msg);
+  const isTrick        = /\b(trick|trap|riddle|paradox|always|never|all|none|every|impossible|obvious|simple|easy)\b/i.test(msg);
+  const isList         = /\b(list|enumerate|all of|every|name all|give me all|what are all)\b/i.test(msg);
+  const isProof        = /\b(prove|proof|theorem|lemma|postulate|congruent|parallel|perpendicular|construct|geometric)\b/i.test(msg);
+  const isAlgorithm    = /\b(sort|merge|quicksort|binary|search|traverse|graph|tree|recursion|step.?by.?step|trace|simulate|run)\b/i.test(msg);
+  const isCreative     = /\b(write|poem|story|haiku|limerick|creative|compose|word.?limit|without using|forbidden|constraint|exactly \d+ words?)\b/i.test(msg);
+  const isMultiPart    = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\)|sub.?question)\b/i.test(msg) || /[A-E]\./i.test(msg);
+  const isSimulation   = /\b(simulate|roleplay|role.?play|dialogue|conversation between|act as|pretend|scenario|play out)\b/i.test(msg);
+  const isTiming       = /\b(hourglass|timer|stopwatch|elapsed|minute|second|hour|simultaneously|at the same time|time.?puzzle)\b/i.test(msg);
+  const isStats        = /\b(sensitivity|specificity|precision|recall|probability|bayes|conditional|false positive|true positive)\b/i.test(msg);
+  const isCalculus     = /\b(critical point|inflection|derivative|maximum|minimum|saddle|classify|second derivative|optimization)\b/i.test(msg);
+
+  // ── NEW: CS theory domain detectors ─────────────────────────────────────────
+  const isTypeTheory   = /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|type variable|type scheme|let.?binding|type environment)\b/i.test(msg);
+  const isPersistentDS = /\b(persistent|immutable|functional data structure|version|fully persistent|partially persistent|union.?find|path compression|union.?by.?rank|link.?cut)\b/i.test(msg);
+  const isConcurrent   = /\b(lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic|memory order|reclaim|free\(|dequeue|enqueue|stack|queue)\b/i.test(msg);
 
   const domainCount = [
     /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
@@ -160,26 +155,27 @@ function injectTaskHint(messages, modelKey) {
   const isIntersection = domainCount >= 2 ||
     /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
 
-  // Instructions: what to DO, not what type this IS.
-  // No bracket category labels — they add meta-commentary noise to the output.
-  if (isMultiPart)    hints.push('Identify every sub-part before answering. Work through all of them in order. Do not skip any.');
-  if (isIntersection) hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework prematurely.');
-  if (isMath)         hints.push('Write each calculation step on its own line with the actual numbers and operations — not a description of what you would calculate. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
-  if (isCalculus)     hints.push('After finding each critical point, classify it (minimum, maximum, or saddle) using the second derivative test. An unclassified critical point is an incomplete answer.');
-  if (isLogic)        hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, premise truth second.');
-  if (isStats)        hints.push('Sensitivity and specificity measure different things. State each one separately and do not assume they are equal.');
-  if (isProof)        hints.push('Every step in the proof must cite a theorem, postulate, or definition by name. Do not skip or abbreviate steps.');
-  if (isAlgorithm)    hints.push('Show every step of the algorithm. Trace through it with a concrete example input. For concurrency or conflict resolution, name the specific technique and explain its mechanism.');
-  if (isSimulation)   hints.push('Produce the content directly. Do not describe or summarise what you would produce.');
-  if (isTiming)       hints.push('Simulate each time increment explicitly. Verify the solution satisfies every constraint simultaneously before presenting it.');
-  if (isCreative)     hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints take priority over all other considerations.');
-  if (isHistory)      hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if you are not sure of their exact position.');
-  if (isCode)         hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.');
-  if (isTrick)        hints.push('Solve this mechanically from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify it rather than dismissing it.');
-  if (isList)         hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
+  if (isMultiPart)     hints.push('Identify every sub-part before answering. Work through all of them in order. Do not skip any.');
+  if (isIntersection)  hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework prematurely.');
+  if (isMath)          hints.push('Write each calculation step on its own line with the actual numbers and operations — not a description of what you would calculate. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
+  if (isCalculus)      hints.push('After finding each critical point, classify it (minimum, maximum, or saddle) using the second derivative test. An unclassified critical point is an incomplete answer.');
+  if (isLogic)         hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, premise truth second.');
+  if (isStats)         hints.push('Sensitivity and specificity measure different things. State each one separately and do not assume they are equal.');
+  if (isProof)         hints.push('Every step in the proof must cite a theorem, postulate, or definition by name. Do not skip or abbreviate steps.');
+  if (isAlgorithm)     hints.push('Show every step of the algorithm. Trace through it with a concrete example input. For concurrency or conflict resolution, name the specific technique and explain its mechanism.');
+  if (isSimulation)    hints.push('Produce the content directly. Do not describe or summarise what you would produce.');
+  if (isTiming)        hints.push('Simulate each time increment explicitly. Verify the solution satisfies every constraint simultaneously before presenting it.');
+  if (isCreative)      hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints take priority over all other considerations.');
+  if (isHistory)       hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if you are not sure of their exact position.');
+  if (isCode)          hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.');
+  if (isTrick)         hints.push('Solve this mechanically from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify it rather than dismissing it.');
+  if (isList)          hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
 
-  // Hard-question baseline: uncertainty flagging + self-check.
-  // Expressed as plain instructions, not bracket tags, and not repeated in a separate nudge pass.
+  // ── NEW: CS theory hints ─────────────────────────────────────────────────────
+  if (isTypeTheory)    hints.push('Run the Hindley-Milner unification algorithm explicitly. Generate every type constraint from every sub-expression, then unify step by step, writing each substitution. "Untypable" requires a specific unification clash between two concrete types — not a vague claim. If unification succeeds, derive the principal type. Do not guess or shortcut.');
+  if (isPersistentDS)  hints.push('Ephemeral complexity bounds do not transfer to persistent data structures without justification. For fully persistent union-find with union-by-rank, O(α(n)) is theoretically impossible — the correct bound is O(log²n) per operation. State which theorem supports your bound. If path compression is used, explain whether it is safe under full persistence.');
+  if (isConcurrent)    hints.push('After presenting any lock-free algorithm, inspect every memory reclamation point. If another thread can still hold a reference to a freed node, the algorithm is unsafe — name the reclamation scheme (hazard pointers, epoch-based, RCU) required to fix it. For ABA prevention via version stamps, identify exactly which CAS operation is vulnerable: incrementing on push is unnecessary — the hazard is on pop. State this distinction.');
+
   if (difficulty === 'hard') {
     hints.push('Mark any fact you are less than certain about as (uncertain). Do not present uncertain claims as facts.');
     hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. State the result of this check explicitly — do not just silently fix or silently pass.');
@@ -193,16 +189,12 @@ function injectTaskHint(messages, modelKey) {
 }
 
 // ── CONSISTENCY NUDGE ─────────────────────────────────────────────────────────
-// Kept minimal. Hard-question substance was moved into injectTaskHint above.
-// This pass only fires for medium difficulty and adds a single terse reminder.
-// It does NOT fire for hard questions — they already have full hint coverage.
 
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
 
   const difficulty = classifyDifficulty(last.content);
-  // Simple: no nudge. Hard: covered by injectTaskHint. Only medium gets this.
   if (difficulty !== 'medium') return messages;
 
   const patched = {
@@ -213,9 +205,6 @@ function injectConsistencyNudge(messages, modelKey) {
 }
 
 // ── FORCED THINK FOR NON-REASONING MODELS ────────────────────────────────────
-// Non-reasoning models (hasReasoning: false, hasPromptedThink: false) get a
-// prompted <think> block on hard questions only. Instruction is a single
-// imperative sentence — not a bulleted list that the model might echo.
 
 function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   if (mEntry.hasReasoning || mEntry.hasPromptedThink) return messages;
@@ -234,8 +223,20 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
 }
 
 // ── TEMPERATURE ───────────────────────────────────────────────────────────────
+// Hard CS theory questions (type inference, persistent DS, concurrency) need
+// near-zero temperature to avoid pattern-completion errors. All models are
+// capped lower than before on hard questions.
 
-function effectiveTemperature(modelKey, requested) {
+function isHardCSTheory(msg) {
+  return /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|persistent|union.?find|path compression|lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic)\b/i.test(msg);
+}
+
+function effectiveTemperature(modelKey, requested, lastUserMsg) {
+  // Hard CS theory: clamp all models to near-zero for correctness
+  if (lastUserMsg && isHardCSTheory(lastUserMsg)) {
+    if (modelKey === '000') return 0.0;
+    return 0.05;
+  }
   if (modelKey === '000') return 0.05;
   if (modelKey === '00')  return Math.min(requested, 0.3);
   if (modelKey === '0')   return Math.min(requested, 0.4);
@@ -471,9 +472,6 @@ export default async function handler(req) {
     contMode = false,
   } = body;
 
-  const temp = effectiveTemperature(modelKey, temperature);
-  const sampling = samplingParams(modelKey);
-
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
     ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) {
@@ -497,10 +495,11 @@ export default async function handler(req) {
         .slice(-20)
     : [];
 
-  // Pipeline (skipped entirely on continuations):
-  //   1. Domain-specific task hints — concrete operations, no bracket labels
-  //   2. Consistency nudge — medium difficulty only; hard is covered by step 1
-  //   3. Forced think — non-reasoning models on hard questions only
+  // Extract last user message for temperature decisions
+  const lastUserMsg = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
+  const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
+  const sampling = samplingParams(modelKey);
+
   const trimmedWithHints  = contMode ? trimmed          : injectTaskHint(trimmed, modelKey);
   const trimmedWithNudge  = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
   const trimmedFinal      = contMode ? trimmedWithNudge : injectForcedThinkOnHard(trimmedWithNudge, modelKey, mEntry);
