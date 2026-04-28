@@ -22,19 +22,32 @@ For factual answers: use the most specific correct term. Do not say "none" when 
 
 For logic: write the argument in symbolic form (P1, P2, ∴C), name the form, then evaluate structure before truth.
 
-For code — general: only use APIs and functions you are certain exist in the target language and version. Trace through the logic with a concrete input before presenting the answer, showing key variable values at each step. Every function you call must be defined or imported. No pseudocode in a code answer unless explicitly asked. Syntax must be valid for the stated language. If no language is stated, choose the most appropriate one and name it.
+For code — mandatory pre-submission checklist: before presenting any code, execute all five of the following steps in order and state the result of each. Do not skip any step. Do not present code that fails any step.
+  STEP 1 — COMPILE CHECK: Read every line. Verify every identifier is defined before it is used (no forward references to values defined later in the same let/def/var expression). Verify every function call matches a defined or imported function. Verify every pattern match is exhaustive or has a wildcard. Verify syntax is valid for the exact target language. If any check fails, fix first.
+  STEP 2 — TYPE CHECK: For typed languages (C, C++, OCaml, Rust, Java, TypeScript, Haskell, Go): verify every expression has the correct type at every call site. Verify destructuring patterns match the actual constructor shape (e.g. in OCaml, a single-constructor type Scheme of 'a list * ty cannot be destructured with fst/snd; it requires pattern matching: let Scheme(vars, t) = ...). Verify no implicit coercions are assumed.
+  STEP 3 — TRACE: Pick one concrete input. Execute the code mentally, writing the value of every variable at every step. Confirm the output matches the expected result.
+  STEP 4 — EDGE CASES: Test mentally: empty input, null/None, zero, single element, maximum size. If any case produces wrong output, fix before presenting.
+  STEP 5 — COMPLEXITY AUDIT: State time and space complexity. If the algorithm copies data it should not copy (e.g. an entire array when only a path through it is needed), that is a performance correctness failure — fix it.
+
+For code — general: only use APIs and functions you are certain exist in the target language and version. Every function you call must be defined or imported. No pseudocode in a code answer unless explicitly asked. Syntax must be valid for the stated language. If no language is stated, choose the most appropriate one and name it.
 
 For code — correctness: after writing any function, mentally execute it on at least one normal case and one edge case (empty input, zero, null, single element, max value). If either case fails, fix before presenting. State the result of this check. Off-by-one errors, wrong loop bounds, and incorrect base cases must be caught here.
 
 For code — APIs and libraries: never invent method names. If you are not certain a method exists, do not use it. Prefer standard library over third-party when both work. If a library is required, name the exact import and version constraint if relevant.
 
-For code — complexity: after any non-trivial algorithm, state its time and space complexity with a one-line justification. If a simpler algorithm with equal correctness exists, prefer it unless the question requires the complex one.
+For code — complexity: after any non-trivial algorithm, state its time and space complexity with a one-line justification. If a simpler algorithm with equal correctness exists, prefer it unless the question requires the complex one. Copying an entire data structure when only a logarithmic-sized path through it is needed is always wrong — path-copying means duplicating only the O(log n) nodes on the access path, not all n nodes.
 
 For code — concurrency and async: never introduce a race condition. For async code, every awaited call must have its error handled. For concurrent code, identify every shared resource and state what synchronisation protects it.
 
 For code — debugging: when fixing a bug, identify the exact line and root cause before touching anything. State what the bug is, why it causes the symptom, and what the fix does differently. Do not apply a patch that suppresses the symptom without fixing the cause.
 
 For code — low-level and systems: undefined behaviour in C/C++ is a correctness failure. Integer overflow, out-of-bounds access, use-after-free, and uninitialized reads must be identified and prevented, not worked around. For any malloc/free or new/delete pair, verify every allocation has exactly one free on every code path.
+
+For code — OCaml specifically: (a) Mutually recursive definitions require let rec ... and ...; a let rec f = ... that references a value defined later in the same binding group is a forward reference and will not compile — use let rec ... and ... for mutual recursion. (b) Single-constructor types must be destructured by pattern matching their constructor: let Scheme(vars, t) = x, not fst x or snd x — fst/snd only work on tuples. (c) List.map, List.fold_left, List.assoc are in the standard library; verify any other module function exists before using it. (d) After writing any OCaml function, re-read every let binding and confirm no binding refers to a name that is not yet in scope at the point of that binding.
+
+For code — C/C++ persistent data structures: path-copying means allocating new nodes only for the O(log n) nodes on the traversal path from root to the modified node, then returning a new root. It does NOT mean copying the entire backing array with std::make_shared<std::vector<Node>>(existing_vector) — that is O(n) and defeats the purpose. For each persistent operation, count exactly how many nodes are newly allocated: it must be proportional to the depth of the structure, not its total size.
+
+For code — C/C++ lock-free memory reclamation: before writing free(ptr) or delete ptr in any lock-free code path, answer: "Between the moment another thread loaded this pointer and now, could that thread still be dereferencing it?" For a Treiber stack pop, the answer is yes — the thread that read old_head may not have finished reading old_head->next by the time the CAS succeeds. Therefore free(old_head) after a successful pop CAS is a use-after-free. The fix is to name and apply a safe reclamation scheme: hazard pointers, epoch-based reclamation (EBR), or RCU. Never write a comment asserting safety without this proof.
 
 For type theory and type inference: do not conclude a term is untypable until you have fully run the unification algorithm step by step — every constraint, every substitution. A type error requires a specific clash between two concrete types. If a term is typable, derive its principal type. An Algorithm W implementation that omits Let is incomplete — Let is where generalisation occurs. Every helper (apply, apply_env, lookup, occurs, fresh variable generation) must be fully implemented, not stubbed.
 
@@ -65,7 +78,15 @@ For hard problems: commit to an approach in one or two sentences, then execute i
 
 For math: write actual numbers and operations, one operation per line with a label. A reasoning block with no numbers for a math question is a failed block. After reaching a result, verify by an independent method and show the check.
 
-For code: before writing any implementation, enumerate edge cases (empty, null, zero, single element, overflow, max size). Mentally trace through the algorithm with a concrete input, showing variable values at each step. Check loop bounds and base cases explicitly. Only use functions and APIs you are certain exist. After writing, re-trace the edge cases and confirm each one. If any fails, fix before finishing. For debugging: identify the exact line and root cause first — state what the bug is, why it produces the symptom, what the fix changes. For performance: state current complexity, target complexity, and exactly what change achieves it. For async/concurrent: identify every shared resource and what synchronises it; do not introduce races. For low-level: check every pointer, every free, every array access for undefined behaviour.
+For code: before writing any implementation, run the five-step checklist mentally: (1) compile — every identifier defined before use, no forward references, valid syntax; (2) type — every destructuring matches the actual constructor, no fst/snd on single-constructor types in OCaml; (3) trace — execute on one concrete input writing all variable values; (4) edge cases — empty, null, zero, single element; (5) complexity audit — if copying more data than the algorithm requires, that is wrong. State the result of each step. Fix failures before writing the final answer.
+
+For code — OCaml: scan every let or let rec binding. If a binding uses a name defined later in the same mutual group without and, it is a forward reference and will not compile — restructure using let rec ... and .... If a single-constructor type (e.g. Scheme of vars * ty) is destructured anywhere, use pattern matching (let Scheme(vars, t) = x), never fst/snd. After writing any function, re-read it as if you are the OCaml compiler: does every name have a binding in scope at the point it is used?
+
+For code — C/C++ data structures: if the question involves a persistent (immutable/versioned) structure, path-copying means allocating only the nodes on the root-to-target path — O(depth) new allocations per operation. std::make_shared<std::vector<Node>>(old_vec) copies all n nodes and is O(n) — this is full-copy, not path-copy, and is wrong. For each persistent operation, count the exact number of new node allocations and verify it is O(log n) or O(depth), not O(n).
+
+For code — C/C++ lock-free: before every free() or delete in a lock-free path, write out the proof: "No other thread can hold a live pointer to this object because ___." If you cannot complete that sentence with a concrete argument, the free is unsafe. For a Treiber stack pop, you cannot complete it — another thread may have loaded head before your CAS and still be reading head->next. The correct answer is to defer reclamation using hazard pointers, EBR, or RCU — name which one and explain why it is safe.
+
+For debugging: identify the exact line and root cause first — state what the bug is, why it produces the symptom, what the fix changes. For performance: state current complexity, target complexity, and exactly what change achieves it. For async/concurrent: identify every shared resource and what synchronises it; do not introduce races. For low-level: check every pointer, every free, every array access for undefined behaviour.
 
 For type inference: run Hindley-Milner explicitly — every constraint from every sub-expression, every substitution one by one. Untypable requires a specific clash. For Algorithm W: implement Var, Lam, App, and Let. Let requires: run W on bound expression, generalise the type, extend env with the scheme, run W on body. All helpers must be fully implemented before being called — no stubs. For pretty printing types: function arrows are right-associative — never parenthesise the right-hand side of an arrow. Only parenthesise the left-hand side when it is itself a function type. Concretely: (α → α) → α → α is correct; (α → α) → (α → α) is wrong (spurious outer parens on the right). For unification walkthroughs: after each unification step, write the current substitution map explicitly, then show how the remaining constraints are simplified under that substitution before proceeding to the next step.
 
@@ -150,6 +171,9 @@ function injectTaskHint(messages, modelKey) {
   const isCodePerf     = /\b(optimize|optimise|slow|performance|bottleneck|faster|efficiency|big.?o|complexity)\b/i.test(msg);
   const isCodeAsync    = /\b(async|await|promise|callback|race condition|thread|lock|mutex|semaphore|parallel)\b/i.test(msg);
   const isCodeLowLevel = /\b(pointer|malloc|free|memory leak|buffer|overflow|undefined behaviour|undefined behavior|segfault|null.?deref|uninitialized)\b/i.test(msg);
+  const isCodeOCaml    = /\b(ocaml|\.ml\b|let rec|fun |match |with\s*\||List\.|module |open [A-Z]|type \w+ =|Scheme|forall|polymorphic|hindley|algorithm w)\b/i.test(msg);
+  const isCodePathCopy = /\b(path.?cop|persistent.*struct|immutable.*tree|functional.*tree|copy.?on.?write|versioned.*node|node.*version)\b/i.test(msg);
+  const isCodeLockFree = /\b(lock.?free|treiber|cas\b|compare.?and.?swap|atomic.*stack|atomic.*queue|free\s*\(|hazard|epoch|reclaim)\b/i.test(msg);
 
   const isTypeTheory   = /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|type variable|type scheme|let.?binding|type environment)\b/i.test(msg);
   const isPersistentDS = /\b(persistent|immutable|functional data structure|version|fully persistent|partially persistent|union.?find|path compression|union.?by.?rank|link.?cut)\b/i.test(msg);
@@ -179,7 +203,10 @@ function injectTaskHint(messages, modelKey) {
   if (isTrick)         hints.push('Solve from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify rather than dismiss.');
   if (isList)          hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
 
-  if (isCodeGeneral)   hints.push('Only use APIs and functions you are certain exist in the target language/version. Trace the logic with a concrete input showing variable values at each step. Every called function must be defined or imported. After writing, test mentally on one normal case and one edge case (empty, null, zero, single element) — fix any failure before presenting.');
+  if (isCodeGeneral)   hints.push('MANDATORY CODE CHECKLIST — run all five before presenting: (1) COMPILE: every name defined before use, no forward references, valid syntax; (2) TYPE: every destructuring matches actual constructor shape; (3) TRACE: execute on one concrete input writing all variable values step by step; (4) EDGE CASES: empty, null/None, zero, single element — fix any failure; (5) COMPLEXITY: count exact allocations/operations, confirm no unnecessary full-copy where path-copy is required. State pass/fail for each step.');
+  if (isCodeOCaml)     hints.push('OCaml-specific: (a) Scan every let/let rec binding — if any name is used before its binding is in scope (forward reference in the same expression), restructure with `let rec ... and ...`. (b) Every single-constructor type (e.g. `Scheme of vars * ty`) must be destructured with its constructor pattern (`let Scheme(vars, t) = x`), never with fst/snd — fst/snd only work on tuples. (c) Re-read your code as if you are the OCaml compiler: does every identifier have a binding in scope at every point of use?');
+  if (isCodePathCopy)  hints.push('Path-copying: allocate ONLY the nodes on the root-to-modified-node path — O(log n) new nodes per operation. `make_shared<vector<Node>>(old_vec)` or any full-array copy is O(n) and wrong — that is full-copy, not path-copy. Count the exact number of newly allocated nodes in your implementation and verify it equals the path length, not the total structure size.');
+  if (isCodeLockFree)  hints.push('Before every free()/delete in lock-free code, write the reclamation proof: "No other thread holds a live pointer to this object because ___." For a Treiber stack pop, that proof cannot be completed — another thread may have loaded head before your CAS and still be reading head->next. The only safe answers are: (a) hazard pointers, (b) epoch-based reclamation (EBR), or (c) RCU. Name which scheme you use and confirm it applies at the exact reclamation point. Never write a safety assertion without this proof.');
   if (isCodeDebug)     hints.push('Identify the exact line and root cause before touching anything. State: what the bug is, why it produces the symptom, what the fix changes. Do not patch symptoms — fix the cause.');
   if (isCodePerf)      hints.push('State the current time and space complexity with a one-line justification, then the target complexity and the specific change that achieves it. Do not introduce correctness regressions for performance.');
   if (isCodeAsync)     hints.push('Identify every shared resource and state what synchronisation protects it. Every awaited call must have its error handled. Do not introduce race conditions.');
@@ -235,10 +262,21 @@ function isHardCSTheory(msg) {
   return /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|persistent|union.?find|path compression|lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic)\b/i.test(msg);
 }
 
+function isHardCodeImpl(msg) {
+  // Hard implementation questions where determinism matters more than creativity.
+  // Temperature 0 eliminates invented API names, wrong syntax, and random structural choices.
+  return /\b(implement|write.*function|write.*class|write.*program|write.*algorithm|write.*code|code.*for|algorithm.*for|function.*that|implement.*in\s+(c\b|c\+\+|ocaml|rust|go|java|haskell|python|javascript|typescript))\b/i.test(msg)
+    && classifyDifficulty(msg) === 'hard';
+}
+
 function effectiveTemperature(modelKey, requested, lastUserMsg) {
   if (lastUserMsg && isHardCSTheory(lastUserMsg)) {
     if (modelKey === '000') return 0.0;
     return 0.05;
+  }
+  // Hard code implementation: lock to near-zero — determinism eliminates invented APIs/syntax
+  if (lastUserMsg && isHardCodeImpl(lastUserMsg)) {
+    return 0.0;
   }
   if (modelKey === '000') return 0.05;
   if (modelKey === '00')  return Math.min(requested, 0.3);
