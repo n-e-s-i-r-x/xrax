@@ -667,7 +667,7 @@ export default async function handler(req) {
     if (answer.length > 6000) return answer;
     try {
       const verifyPayload = {
-        model: 'liquid/lfm-2.5-1.2b-instruct:free',
+        model: '',
         messages: [
           { role: 'system', content: VERIFICATION_SYSTEM_PROMPT },
           { role: 'user', content: `User question:\n${question}\n\nAI response to review:\n${answer}` }
