@@ -500,7 +500,7 @@ body.themed .speed-timer {
     </button>
   </div>
 
-  <input type="file" id="file-input" accept=".txt,.md,.log,.json,.xml,.yaml,.yml,.html,.css,.js,.py,.java,.c,.cpp,.cs,.csv,.tsv,.rtf,.pdf,.docx,.xlsx,.zip,.png,.jpg,.jpeg,.gif,.webp" multiple style="display:none" onchange="onFileSelected(event)"/>
+  <input type="file" id="file-input" accept=".txt,.md,.log,.json,.xml,.yaml,.yml,.html,.css,.js,.py,.java,.c,.cpp,.cs,.csv,.tsv,.rtf,.pdf,.docx,.xlsx,.zip,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.tiff,.mp3,.wav,.ogg,.mp4,.webm,.mov" multiple style="display:none" onchange="onFileSelected(event)"/>
 
   <div id="file-tray"></div>
   <div id="file-parse-progress"></div>
@@ -1232,9 +1232,25 @@ function closeView(){document.getElementById('view-frame').srcdoc='';document.ge
    FILE ATTACHMENT SYSTEM
 ══════════════════════════════════════ */
 const FILE_MAX_BYTES=20*1024*1024;
-const FILE_ACCEPT=['.txt','.md','.log','.json','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv','.rtf','.pdf','.docx','.xlsx','.zip','.png','.jpg','.jpeg','.gif','.webp'];
-const IMAGE_EXTS=['.png','.jpg','.jpeg','.gif','.webp'];
-let _attachedFiles=[]; // [{name, ext, text}]
+const FILE_ACCEPT=['.txt','.md','.log','.json','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv','.rtf','.pdf','.docx','.xlsx','.zip','.png','.jpg','.jpeg','.gif','.webp','.svg','.bmp','.tiff'];
+const IMAGE_EXTS=['.png','.jpg','.jpeg','.gif','.webp','.bmp','.tiff'];
+const SVG_CONVERT_EXTS=['.png','.jpg','.jpeg','.gif','.webp','.bmp','.tiff']; // images that get SVG conversion
+let _attachedFiles=[]; // [{name, ext, text, isImage, dataUrl, mimeType, svgData?}]
+
+// Convert a raster image dataUrl to an SVG wrapper (embeds as base64 <image> tag)
+async function _convertImageToSVG(dataUrl, mimeType, width, height){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const w=img.naturalWidth||width||512;
+      const h=img.naturalHeight||height||512;
+      const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><image href="${dataUrl}" width="${w}" height="${h}"/></svg>`;
+      resolve(svg);
+    };
+    img.onerror=()=>resolve(null);
+    img.src=dataUrl;
+  });
+}
 
 function _fileExtOf(name){return('.'+name.split('.').pop().toLowerCase());}
 function _fmtLabel(ext){return ext.replace('.','').toUpperCase();}
@@ -1271,7 +1287,12 @@ async function _parseFiles(files){
       if(IMAGE_EXTS.includes(ext)){
         // Vision: convert image to base64 data URL
         const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});
-        _attachedFiles.push({name:file.name,ext,text:'',isImage:true,dataUrl:b64,mimeType:file.type||'image/jpeg'});
+        const mimeType=file.type||'image/jpeg';
+        let svgData=null;
+        if(SVG_CONVERT_EXTS.includes(ext)){
+          svgData=await _convertImageToSVG(b64,mimeType,null,null);
+        }
+        _attachedFiles.push({name:file.name,ext,text:'',isImage:true,dataUrl:b64,mimeType,svgData});
       } else {
       if(['.txt','.md','.log','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv'].includes(ext)){text=await file.text();if(!text.trim())throw new Error('"'+file.name+'" is empty.');}
       else if(ext==='.rtf'){text=await file.text();text=text.replace(/\{\\[a-z]+\d*\s?|\}|\\[a-z]+\d*\s?/g,' ').replace(/\s+/g,' ').trim();if(!text.trim())throw new Error('"'+file.name+'" is empty.');}
@@ -1364,7 +1385,7 @@ function _renderTray(){
     if(ab)ab.classList.remove('has-file');
     return;
   }
-  tray.innerHTML=_attachedFiles.map((f,i)=>`<div class="file-chip">${f.isImage?`<img src="${f.dataUrl}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;flex-shrink:0;" alt=""/>`:_chipSVG}<span>${esc(f.isImage?f.name.slice(0,12):_fmtLabel(f.ext))}</span><button class="file-chip-remove" onclick="_removeFile(${i})" title="Remove"><svg width="8" height="8" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/></svg></button></div>`).join('');
+  tray.innerHTML=_attachedFiles.map((f,i)=>`<div class="file-chip">${_chipSVG}<span>${esc(_fmtLabel(f.ext))}</span><button class="file-chip-remove" onclick="_removeFile(${i})" title="Remove"><svg width="8" height="8" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/></svg></button></div>`).join('');
   tray.classList.add('show');
   if(ab)ab.classList.add('has-file');
   const sb=document.getElementById('send-btn');
@@ -1500,18 +1521,35 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode){
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
+  let pendingReplace=false;let replaceBuf='';
   try{while(true){const{done,value}=await reader.read();if(done)break;
     buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
     for(const line of lines){
       const l=line.trim();if(!l.startsWith('data:'))continue;
-      const raw=l.slice(5).trim();if(raw==='[DONE]')return;
+      const raw=l.slice(5).trim();if(raw==='[DONE]'){
+        if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:replaceBuf};
+        return;
+      }
       try{const d=JSON.parse(raw);const choice=d.choices?.[0];if(!choice)continue;
         if(choice.finish_reason)yield{type:'finish',reason:choice.finish_reason};
         const text=choice.delta?.content;
-        if(typeof text==='string'&&text.length)yield text;
+        if(typeof text==='string'&&text.length){
+          if(pendingReplace){
+            replaceBuf+=text;
+          }else{
+            const sentinelIdx=text.indexOf('\x00VERIFY_REPLACE\x00');
+            if(sentinelIdx!==-1){
+              pendingReplace=true;
+              replaceBuf=text.slice(sentinelIdx+'\x00VERIFY_REPLACE\x00'.length);
+            }else{
+              yield text;
+            }
+          }
+        }
       }catch(_){}
     }
   }}catch(e){if(e.name!=='AbortError')throw e;}
+  if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:replaceBuf};
 }
 const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];
 const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];
@@ -1688,7 +1726,19 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       },150);
       for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false)){
         if(S.abort?.signal?.aborted)break;
-        if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
+        if(chunk&&chunk.type==='verify_replace'){
+  answerText=chunk.text;
+  if(txtEl){
+    txtEl.style.transition='opacity .2s';
+    txtEl.style.opacity='0';
+    setTimeout(()=>{
+      txtEl.innerHTML=renderMd(answerText);
+      attachCodeBtns();
+      txtEl.style.opacity='1';
+    },200);
+  }
+  continue;
+}
         const txt=(chunk&&chunk.text)||'';if(!txt)continue;
         answerText+=txt;
         if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderNonThink();}
