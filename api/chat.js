@@ -24,7 +24,7 @@ Before stating a fact you are not certain of, mark it (uncertain). Do not fill k
 
 Never describe what you would do — do it. Never say "we would simulate" — simulate it.
 
-For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-trivial problems: write each step on its own line, label what you are doing and why, show every intermediate value. Verify by substituting back or reversing — but only once, and only when the result is non-obvious. Show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
+For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-trivial problems: write each step on its own line, label what you are doing and why, show every intermediate value. A math answer with no numbers shown is an incomplete answer. Verify by substituting back or reversing — but only once, and only when the result is non-obvious. Show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
 
 For factual answers: state the precise answer using the most specific correct term available. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them. Do not add qualifiers like "maritime" or "approximately" unless they are necessary for correctness. If a question has a common wrong answer, state why it is wrong in one sentence before giving the correct one.
 
@@ -39,6 +39,7 @@ For attribution: use the source's actual published position. If you are uncertai
 If you lack the information needed to answer, say so directly and stop.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
+
 // ── THINK RULES ───────────────────────────────────────────────────────────────
 // Design principles:
 //   - No bold imperative labels (SCOPE FIRST:, ATTACK PLAN:) — they leak into output.
@@ -56,9 +57,11 @@ Start by identifying what the question is actually asking — not its surface fo
 
 Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
 
-For hard or multi-step problems, settle on an approach before executing it. Two or three sentences is enough — the point is to commit to a method, not describe one.
+A reasoning block that only restates the question and jumps to a conclusion is not reasoning — it is answer retrieval dressed as thinking. Every non-trivial answer must show the path that produced it, not just the destination.
 
-Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, write one operation per line with a brief label (e.g. "subtract 4 from both sides") and show every intermediate value — never compress multiple operations into one line. After reaching a preliminary answer, check it by an independent method and show the check explicitly. For logic, write the symbolic form first, explain the structure in plain language, then evaluate truth. For code, trace with a concrete input and show the value of each variable at each step.
+For hard or multi-step problems, settle on an approach before executing it. One or two sentences is enough — the point is to commit to a method, not describe one. Then execute it with actual values, actual steps, and actual intermediate results. Naming a method without executing it is not working — it is narration.
+
+Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, you must write actual numbers and operations — not descriptions of what you would calculate. Write one operation per line with a brief label and show every intermediate value. A reasoning block that contains no numbers for a math question is a failed reasoning block. After reaching a preliminary answer, check it by an independent method and show the check explicitly. For logic, write the symbolic form first, explain the structure in plain language, then evaluate truth. For code, trace with a concrete input and show the value of each variable at each step.
 
 For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the correct answer precisely — not "none" when you mean a specific thing, not "some" when you can name them.
 
@@ -161,7 +164,7 @@ function injectTaskHint(messages, modelKey) {
   // No bracket category labels — they add meta-commentary noise to the output.
   if (isMultiPart)    hints.push('Identify every sub-part before answering. Work through all of them in order. Do not skip any.');
   if (isIntersection) hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework prematurely.');
-  if (isMath)         hints.push('Write each calculation step on its own line. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
+  if (isMath)         hints.push('Write each calculation step on its own line with the actual numbers and operations — not a description of what you would calculate. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
   if (isCalculus)     hints.push('After finding each critical point, classify it (minimum, maximum, or saddle) using the second derivative test. An unclassified critical point is an incomplete answer.');
   if (isLogic)        hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, premise truth second.');
   if (isStats)        hints.push('Sensitivity and specificity measure different things. State each one separately and do not assume they are equal.');
@@ -171,7 +174,7 @@ function injectTaskHint(messages, modelKey) {
   if (isTiming)       hints.push('Simulate each time increment explicitly. Verify the solution satisfies every constraint simultaneously before presenting it.');
   if (isCreative)     hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints take priority over all other considerations.');
   if (isHistory)      hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if you are not sure of their exact position.');
-  if (isCode)         hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input before presenting the answer.');
+  if (isCode)         hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.');
   if (isTrick)        hints.push('Solve this mechanically from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify it rather than dismissing it.');
   if (isList)         hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
 
@@ -179,7 +182,7 @@ function injectTaskHint(messages, modelKey) {
   // Expressed as plain instructions, not bracket tags, and not repeated in a separate nudge pass.
   if (difficulty === 'hard') {
     hints.push('Mark any fact you are less than certain about as (uncertain). Do not present uncertain claims as facts.');
-    hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. If something fails the check, fix it.');
+    hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. State the result of this check explicitly — do not just silently fix or silently pass.');
     hints.push('If you lack the information needed to answer a part, say so and stop — do not substitute inference for missing facts.');
   }
 
