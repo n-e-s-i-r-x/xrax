@@ -7,9 +7,6 @@ const MODEL_MAP = {
   'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
-// ── ADAPTIVE MODEL SELECTION FOR HIGHER ACCURACY ────────────────────────────────
-// Intelligently routes to optimal models based on task difficulty
-
 const ADAPTIVE_MODEL_MAP = {
   'reasoning': { id: 'openai/gpt-oss-120b:free', hasReasoning: false, hasPromptedThink: true, minTokens: 8000 },
   'complex': { id: 'qwen/qwen3-coder:free', hasReasoning: false, hasPromptedThink: true, minTokens: 6000 },
@@ -21,27 +18,18 @@ function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
 function selectOptimalModel(msg, requestedModel) {
   const difficulty = classifyDifficulty(msg);
-  
-  // For hard CS theory problems, use most capable models
   if (difficulty === 'hard' && isHardCSTheory(msg)) {
     return ADAPTIVE_MODEL_MAP['reasoning'];
   }
-  
-  // For complex multi-part hard questions
   if (difficulty === 'hard') {
     return ADAPTIVE_MODEL_MAP['complex'];
   }
-  
-  // For simple queries, use efficient model
   if (difficulty === 'simple') {
     return ADAPTIVE_MODEL_MAP['fast'];
   }
-  
-  // Default to standard
   return ADAPTIVE_MODEL_MAP['standard'] || MODEL_MAP[requestedModel];
 }
 
-// ── ACCURACY RULES ─────────────────────────────────────────────────────────────
 const AI_RULES = `
 Universal Production System Prompt
 
@@ -118,9 +106,6 @@ BOUNDARY TESTING: After solving, test with extreme/edge inputs: empty, zero, neg
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
 
-// ── AI RESPONSE VERIFICATION SYSTEM ──────────────────────────────────────────
-// Secondary model reviews every response before it is sent to the user.
-
 const VERIFICATION_SYSTEM_PROMPT = `You are a silent response quality reviewer. You will be given an AI-generated response and the original user question. Your ONLY job is to return either the original response (if correct and high quality) or an improved version.
 
 ABSOLUTE RULES — VIOLATING THESE IS A CRITICAL FAILURE:
@@ -145,8 +130,6 @@ RULES:
 - Output ONLY the final response text — nothing else. Your output must begin with the response itself.`;
 
 export { VERIFICATION_SYSTEM_PROMPT };
-
-// ── THINK RULES ────────────────────────────────────────────────────────────────
 
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
@@ -181,16 +164,12 @@ After </think>, output only the final answer. Do not summarise, reference, or re
 
 const THINK_RULES_000 = THINK_RULES;
 
-// ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
-
 const SYSTEM_PROMPT_MAP = {
   '0':   `You are 0, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
   '00':  `You are 00, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
   '000': `You are 000, created by Vin.\n${ACCURACY_RULES_000}\n${ENHANCED_ACCURACY}\n${THINK_RULES_000}\n${AI_RULES}`,
   'V':   `You are V, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
 };
-
-// ── DIFFICULTY CLASSIFICATION ─────────────────────────────────────────────────
 
 function classifyDifficulty(msg) {
   const t = msg.trim();
@@ -216,15 +195,11 @@ function classifyDifficulty(msg) {
   return 'hard';
 }
 
-// ── TASK HINT INJECTION ────────────────────────────────────────────────────────
-
 function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
 
   const last = messages[messages.length - 1];
-  // Skip injection for vision messages (array content) — classifyDifficulty requires a string
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
-  // Also skip if the content is a serialized array (extra safety for edge cases)
   if (Array.isArray(last.content)) return messages;
 
   const msg = last.content;
@@ -295,8 +270,6 @@ function injectTaskHint(messages, modelKey) {
   return [...messages.slice(0, -1), patched];
 }
 
-// ── CONSISTENCY NUDGE ──────────────────────────────────────────────────────────
-
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
@@ -311,8 +284,6 @@ function injectConsistencyNudge(messages, modelKey) {
   };
   return [...messages.slice(0, -1), patched];
 }
-
-// ── FORCED THINK FOR NON-REASONING MODELS ──────────────────────────────────────
 
 function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   if (mEntry.hasReasoning || mEntry.hasPromptedThink) return messages;
@@ -331,35 +302,29 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   return [...messages.slice(0, -1), patched];
 }
 
-// ── ENHANCED TEMPERATURE SCALING ───────────────────────────────────────────────
-
 function isHardCSTheory(msg) {
   return /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|persistent|union.?find|path compression|lock.?free|wait.?free|cas|compare.?and.?swap)\b/i.test(msg);
 }
 
 function effectiveTemperature(modelKey, requested, lastUserMsg) {
   const difficulty = classifyDifficulty(lastUserMsg);
-  
-  // Hard CS theory: clamp all models to near-zero for correctness
+
   if (lastUserMsg && isHardCSTheory(lastUserMsg)) {
     if (modelKey === '000') return 0.0;
     return 0.05;
   }
-  
-  // Hard problems: very low temperature for precision
+
   if (difficulty === 'hard') {
     if (modelKey === '000') return 0.1;
     return 0.15;
   }
-  
-  // Medium: balanced temperature
+
   if (difficulty === 'medium') {
     if (modelKey === '000') return 0.2;
     if (modelKey === '00')  return 0.25;
     return 0.3;
   }
-  
-  // Simple: can be more creative
+
   if (modelKey === '000') return 0.4;
   if (modelKey === '00')  return Math.min(requested, 0.5);
   if (modelKey === '0')   return Math.min(requested, 0.6);
@@ -367,22 +332,17 @@ function effectiveTemperature(modelKey, requested, lastUserMsg) {
   return Math.min(requested, 0.5);
 }
 
-// ── ADAPTIVE SAMPLING PARAMS ───────────────────────────────────────────────────
-
 function samplingParams(modelKey, difficulty) {
   if (difficulty === 'hard') {
     return { top_p: 0.9, top_k: 5, frequency_penalty: 0.3, presence_penalty: 0.2 };
   }
-  
+
   if (difficulty === 'simple') {
     return { top_p: 0.85, top_k: 25, frequency_penalty: 0.1, presence_penalty: 0.05 };
   }
-  
-  // Medium (default)
+
   return { top_p: 0.75, top_k: 20, frequency_penalty: 0.15, presence_penalty: 0.1 };
 }
-
-// ── STOP SEQUENCES ─────────────────────────────────────────────────────────────
 
 const STOP_SEQUENCES = [
   'As an AI language model,',
@@ -393,11 +353,7 @@ const STOP_SEQUENCES = [
   'I am fully confident that every answer above is correct',
 ];
 
-// ── N=1 FORCED ─────────────────────────────────────────────────────────────────
-
 const FORCED_N = 1;
-
-// ── UTILITY ────────────────────────────────────────────────────────────────────
 
 function jsonEscape(s) {
   return String(s)
@@ -418,8 +374,6 @@ function genericError(status) {
 }
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-// ── LEAK / HALLUCINATION DETECTION ─────────────────────────────────────────────
 
 const LEAK_LINE_PATTERNS = [
   /^\s*\[[A-Z][^\]]{2,120}\]\s*$/,
@@ -461,8 +415,6 @@ function sanitizeThinkFlush(buf) {
   return looksLikeLeak(buf) ? '…' : buf;
 }
 
-// ── FETCH WITH RETRY ──────────────────────────────────────────────────────────
-
 async function fetchWithRetry(url, options, maxRetries=4) {
   const RETRYABLE = new Set([429,500,502,503,504]);
   let lastErr = null;
@@ -498,17 +450,14 @@ async function fetchWithRetry(url, options, maxRetries=4) {
   throw lastErr || new Error('fetchWithRetry: exhausted');
 }
 
-// ── PAYLOAD BUILDERS ───────────────────────────────────────────────────────────
-
 function buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink) {
   const thinkInstruction = hasPromptedThink
     ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between <think> and </think> appears in the final output.`
     : '';
   const finalPersona = persona + thinkInstruction;
   const messages = [{ role:'system', content: finalPersona }];
-  // Support vision: pass array-content messages (text + image_url) through unchanged
   const normalized = trimmedMsgs.map(m => {
-    if (Array.isArray(m.content)) return m; // vision message — pass through
+    if (Array.isArray(m.content)) return m;
     return m;
   });
   messages.push(...normalized);
@@ -548,8 +497,6 @@ process.stdout.write(JSON.stringify(messages));`.trim();
   }
 }
 
-// ── PROMPTED-THINK FILTER ─────────────────────────────────────────────────────
-
 function makePromptedThinkFilter() {
   let state = 'before';
   return function filterChunk(chunk) {
@@ -585,8 +532,6 @@ function makePromptedThinkFilter() {
   };
 }
 
-// ── MAIN HANDLER ───────────────────────────────────────────────────────────────
-
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status:405 });
@@ -619,17 +564,17 @@ export default async function handler(req) {
   }
 
   const mEntry = modelEntry(modelKey);
-let modelId = mEntry.id;
 
-// If any message contains image_url content, swap to a vision-capable model
-const hasImages = Array.isArray(messages) && messages.some(m =>
-  Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
-);
-if (hasImages) {
-  modelId = 'meta-llama/llama-3.2-11b-vision-instruct';
-}
-  const hasReasoning = mEntry.hasReasoning;
-  const hasPromptedThink = mEntry.hasPromptedThink ?? false;
+  // Detect vision messages and swap to a vision-capable model
+  const hasImages = Array.isArray(messages) && messages.some(m =>
+    Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
+  );
+
+  // FIX: derive modelId, hasReasoning, hasPromptedThink from hasImages
+  const modelId        = hasImages ? 'meta-llama/llama-3.2-11b-vision-instruct' : mEntry.id;
+  const hasReasoning   = hasImages ? false : mEntry.hasReasoning;
+  const hasPromptedThink = hasImages ? false : (mEntry.hasPromptedThink ?? false);
+
   const persona = SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0'];
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
@@ -641,8 +586,6 @@ if (hasImages) {
         .slice(-20)
     : [];
 
-  // Extract last user message for temperature and sampling decisions
-  // For vision messages, content is an array — extract text part only
   const _lastUserRaw = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
   const lastUserMsg = Array.isArray(_lastUserRaw)
     ? (_lastUserRaw.find(p => p.type === 'text')?.text ?? '')
@@ -662,10 +605,8 @@ if (hasImages) {
     messagesPayload = buildPayloadInline(persona, trimmedFinal, hasReasoning, hasPromptedThink);
   }
 
-  // ── VERIFICATION HELPER ────────────────────────────────────────────────────
   async function verifyResponse(answer, question, apiKey) {
     if (!answer || answer.length < 40) return answer;
-    // Skip verification for very long responses (>6000 chars) to avoid latency
     if (answer.length > 6000) return answer;
     try {
       const verifyPayload = {
@@ -702,21 +643,28 @@ if (hasImages) {
 
       let upstreamRes;
       try {
-        const reqBody = {
+        const reqBody: Record<string, any> = {
           model: modelId,
           messages: messagesPayload,
           temperature: temp,
           max_tokens: effectiveMaxTokens,
           stream: true,
           n: FORCED_N,
-          top_p: sampling.top_p,
-          frequency_penalty: sampling.frequency_penalty,
-          presence_penalty: sampling.presence_penalty,
           stop: STOP_SEQUENCES,
         };
 
-        if (sampling.top_k) reqBody.top_k = sampling.top_k;
-        if (hasReasoning) reqBody.reasoning = { max_tokens: 14000 };
+        // FIX: only add these params for non-vision requests
+        if (!hasImages) {
+          reqBody.top_p = sampling.top_p;
+          reqBody.frequency_penalty = sampling.frequency_penalty;
+          reqBody.presence_penalty = sampling.presence_penalty;
+          if (sampling.top_k) reqBody.top_k = sampling.top_k;
+        }
+
+        // FIX: only add reasoning for non-vision requests
+        if (hasReasoning && !hasImages) {
+          reqBody.reasoning = { max_tokens: 14000 };
+        }
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
@@ -775,7 +723,6 @@ if (hasImages) {
           }
           combined += answerText;
           if (!combined.trim()) combined = '_(No answer generated — please try again)_';
-          // Verify response quality before sending
           const questionForVerify = trimmedFinal.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
           combined = await verifyResponse(combined, questionForVerify, apiKey);
           send(sseContent(combined));
@@ -796,14 +743,11 @@ if (hasImages) {
       let thinkLineBuf = '';
       let promptedThinkLeadStripped = !hasPromptedThink;
 
-      // Accumulate full streamed answer for post-stream verification
       let _streamedAnswer = '';
       const _origSend = send;
-      const _contentChunks = [];
-      // Wrap send to also collect answer chunks (non-SSE structural lines)
+      const _contentChunks: string[] = [];
       const sendAndCollect = (chunk) => {
         _origSend(chunk);
-        // Extract only content delta text from SSE for accumulation
         try {
           const m = chunk.match(/^data: (.+)\n\n$/s);
           if (m) {
@@ -813,7 +757,6 @@ if (hasImages) {
           }
         } catch(_) {}
       };
-      // Shadow `send` with collecting wrapper for the streaming loop below
       const send = sendAndCollect;
 
       const filterPromptedThink = hasPromptedThink ? makePromptedThinkFilter() : null;
@@ -909,9 +852,6 @@ if (hasImages) {
 
       closeThinkIfOpen();
 
-      // ── POST-STREAM VERIFICATION ──────────────────────────────────────────
-      // Collect the full streamed answer and run it through verifyResponse.
-      // If the verified version differs, append a correction chunk before [DONE].
       _streamedAnswer = _contentChunks.join('');
       if (_streamedAnswer.trim().length >= 40) {
         try {
@@ -921,11 +861,9 @@ if (hasImages) {
             : _questionForVerify;
           const _verified = await verifyResponse(_streamedAnswer, _questionText, apiKey);
           if (_verified && _verified.trim() !== _streamedAnswer.trim() && _verified.trim().length > 20) {
-            // Strip any verification preamble before sending
             let _clean = _verified.trim();
             _clean = _clean.replace(/^[\s\S]{0,400}?(?:here(?:'s| is)(?: the)?(?: (?:corrected|improved|revised|updated|fixed))? (?:response|answer|version)[:\s]*|i(?:'ve| have) (?:reviewed|checked|corrected|improved|fixed|updated)[\s\S]{0,150}?:\s*)/i, '').trim();
             if (_clean && _clean !== _streamedAnswer.trim() && _clean.length > 20) {
-              // Send a replacement marker then the corrected full text
               _origSend(sseContent('\n\x00VERIFY_REPLACE\x00'));
               _origSend(sseContent(_clean));
             }
