@@ -1238,9 +1238,9 @@ function closeView(){document.getElementById('view-frame').srcdoc='';document.ge
    FILE ATTACHMENT SYSTEM
 ══════════════════════════════════════ */
 const FILE_MAX_BYTES=20*1024*1024;
-const FILE_ACCEPT=['.txt','.md','.log','.json','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv','.rtf','.pdf','.docx','.xlsx','.zip','.png','.jpg','.jpeg','.gif','.webp','.svg','.bmp','.tiff'];
-const IMAGE_EXTS=['.png','.jpg','.jpeg','.gif','.webp','.bmp','.tiff'];
-const SVG_CONVERT_EXTS=['.png','.jpg','.jpeg','.gif','.webp','.bmp','.tiff']; // images that get SVG conversion
+const FILE_ACCEPT=['.txt','.md','.log','.json','.xml','.yaml','.yml','.html','.css','.js','.py','.java','.c','.cpp','.cs','.csv','.tsv','.rtf','.pdf','.docx','.xlsx','.zip','.png','.jpg','.jpeg','.webp','.svg'];
+const IMAGE_EXTS=['.png','.jpg','.jpeg','.gif','webp'];
+const SVG_CONVERT_EXTS=['.png','.jpg','.jpeg','.gif','.webp']; // images that get SVG conversion
 let _attachedFiles=[]; // [{name, ext, text, isImage, dataUrl, mimeType, svgData?}]
 
 // Convert a raster image dataUrl to an SVG wrapper (embeds as base64 <image> tag)
