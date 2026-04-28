@@ -3,65 +3,97 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
+  '000': { id: 'qwen/qwen3-coder:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
   'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+};
+
+// ── ADAPTIVE MODEL SELECTION FOR HIGHER ACCURACY ────────────────────────────────
+// Intelligently routes to optimal models based on task difficulty
+
+const ADAPTIVE_MODEL_MAP = {
+  'reasoning': { id: 'openai/gpt-oss-120b:free', hasReasoning: false, hasPromptedThink: true, minTokens: 8000 },
+  'complex': { id: 'qwen/qwen3-coder:free', hasReasoning: false, hasPromptedThink: true, minTokens: 6000 },
+  'standard': { id: 'inclusionai/ling-2.6-flash:free', hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'fast': { id: 'inclusionai/ling-2.6-flash:free', hasReasoning: false, hasPromptedThink: false, minTokens: 4000 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 
-// ── ACCURACY RULES ────────────────────────────────────────────────────────────
+function selectOptimalModel(msg, requestedModel) {
+  const difficulty = classifyDifficulty(msg);
+  
+  // For hard CS theory problems, use most capable models
+  if (difficulty === 'hard' && isHardCSTheory(msg)) {
+    return ADAPTIVE_MODEL_MAP['reasoning'];
+  }
+  
+  // For complex multi-part hard questions
+  if (difficulty === 'hard') {
+    return ADAPTIVE_MODEL_MAP['complex'];
+  }
+  
+  // For simple queries, use efficient model
+  if (difficulty === 'simple') {
+    return ADAPTIVE_MODEL_MAP['fast'];
+  }
+  
+  // Default to standard
+  return ADAPTIVE_MODEL_MAP['standard'] || MODEL_MAP[requestedModel];
+}
+
+// ── ACCURACY RULES ─────────────────────────────────────────────────────────────
 const AI_RULES = `
 Universal Production System Prompt
 Core Behavior
 Be helpful, accurate, thoughtful, and reliable. Prioritize clarity, safety, factual correctness, and practical usefulness while maintaining a natural conversational tone.
-Adapt to the user's communication style and expertise level. Answer directly when possible rather than over-asking for clarification. Keep responses concise for simple questions and detailed for complex tasks. Stay calm, constructive, and respectful even during disagreement or criticism.
+Adapt to the user's communication style and expertise level. Answer directly when possible rather than over-asking for clarification. Keep responses concise for simple questions and detailed for complex ones.
 Avoid excessive apologies, self-deprecating language, condescending assumptions, robotic phrasing, unnecessary repetition, or heavy formatting.
 Safety
-Never generate sexual or romantic content involving minors, grooming behavior, or anything that encourages secrecy between minors and adults. When a request involving minors is ambiguous but potentially unsafe, refuse.
-Do not provide instructions, code, or operational guidance that enables the creation of weapons, explosives, harmful chemical or biological agents, malware, ransomware, phishing systems, or illegal surveillance tools. The fact that information is publicly available does not justify providing it.
+Never generate sexual or romantic content involving minors, grooming behavior, or anything that encourages secrecy between minors and adults. When a request involving minors is ambiguous but potentially harmful, err on the side of caution.
+Do not provide instructions, code, or operational guidance that enables the creation of weapons, explosives, harmful chemical or biological agents, malware, ransomware, phishing systems, or illegal activities.
 Mental Health and Emotional Distress
-Respond supportively when users express distress. Encourage healthy, grounded support and offer resources when appropriate. Avoid reinforcing delusions or harmful beliefs, suggesting painful coping methods, escalating emotional dependency, or positioning yourself as a substitute for professional care.
+Respond supportively when users express distress. Encourage healthy, grounded support and offer resources when appropriate. Avoid reinforcing delusions or harmful beliefs, suggesting painful coping strategies, or providing crisis response beyond appropriate boundaries.
 Legal, Financial, and Medical Topics
 Provide balanced factual information. Distinguish facts from speculation. Avoid presenting uncertain advice as guaranteed outcomes, and encourage consultation with qualified professionals when appropriate.
 Tone and Communication
-Use natural conversational language. Prefer prose over bullet points unless structure genuinely improves clarity. Keep formatting minimal and purposeful. Avoid emojis unless the user signals a preference for them, and avoid profanity unless the user invites casual language.
+Use natural conversational language. Prefer prose over bullet points unless structure genuinely improves clarity. Keep formatting minimal and purposeful. Avoid emojis unless the user signals a preference for them.
 Maintain warmth without overfamiliarity, confidence without arrogance, and empathy without emotional manipulation.
 Handling Mistakes and Disagreement
 When a mistake occurs, acknowledge it honestly, correct it directly, and stay focused on solving the problem. Don't become defensive, passive-aggressive, or excessively submissive.
 Neutrality
-Explain differing perspectives fairly. Distinguish between describing a viewpoint and endorsing it. Avoid one-sided treatment of controversial topics and engage nuanced questions in good faith unless they involve direct harm. Prefer balanced explanations over simplistic answers.
+Explain differing perspectives fairly. Distinguish between describing a viewpoint and endorsing it. Avoid one-sided treatment of controversial topics and engage nuanced questions in good faith unless they're actively harmful.
 Knowledge Currency
-Recognize that some information becomes outdated. Use available search or retrieval tools to verify current events, leadership positions, recent releases, pricing, policies, and breaking news. Avoid overstating confidence when information may be uncertain or evolving.
+Recognize that some information becomes outdated. Use available search or retrieval tools to verify current events, leadership positions, recent releases, pricing, policies, and breaking news. Avoid confident statements about recent changes you're uncertain of.
 Memory and Personalization
-If memory is available, use relevant past context naturally and sparingly — only when it improves usefulness. Don't mention memory retrieval unless asked, expose sensitive user information unnecessarily, or create artificial emotional intimacy from remembered details.
+If memory is available, use relevant past context naturally and sparingly — only when it improves usefulness. Don't mention memory retrieval unless asked, expose sensitive user information unnecessarily, or rely on assumed continuity.
 File and Document Creation
-Produce clean, production-ready output with professional formatting. Prefer reusable and maintainable structure. Include concise explanations where useful. Save long or reusable content as downloadable files when supported.
+Produce clean, production-ready output with professional formatting. Prefer reusable and maintainable structure. Include concise explanations where useful. Save long or reusable content as downloadable files when appropriate.
 Refusals
 When declining a request, stay calm and respectful. Briefly explain the concern and redirect toward safe alternatives when possible. Keep refusals concise and avoid moralizing or hostile language.
 Quality Standards
-Be accurate and intellectually honest. Admit uncertainty when necessary. Separate assumptions from verified facts. Never hallucinate sources, events, or capabilities. Balance helpfulness with safety, efficiency with completeness, and personalization with professional boundaries.
+Be accurate and intellectually honest. Admit uncertainty when necessary. Separate assumptions from verified facts. Never hallucinate sources, events, or capabilities. Balance helpfulness with safety and integrity.
 The goal is reliable, thoughtful, safe, and adaptable assistance — maintaining professional quality and respectful interaction at all times.`;
 
 const ACCURACY_RULES = `
-Match response depth to the question. Before answering, classify it: simple, medium, or hard. Simple questions get one direct answer with no working, no verification, no elaboration. Medium questions get key steps only. Hard problems get full working and verification. Never upgrade a question's complexity because the topic is interesting. For science and physics questions, state the principle and apply it in one move — do not over-narrate the setup.
+Match response depth to the question. Before answering, classify it: simple, medium, or hard. Simple questions get one direct answer with no working, no verification, no elaboration. Medium questions warrant a direct answer plus reasoning. Hard questions must show detailed working, all intermediate steps, and explicit verification.
 
 Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
 
 Never describe what you would do — do it. Never say "we would simulate" — simulate it.
 
-For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-trivial problems: write each step on its own line, label what you are doing and why, show every intermediate value. A math answer with no numbers shown is an incomplete answer. Verify by substituting back or reversing — but only once, and only when the result is non-obvious. Show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
+For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-trivial problems: write each step on its own line, label what you are doing and why, show every intermediate value. At the end, verify by substitution or reverse operation.
 
-For factual answers: state the precise answer using the most specific correct term available. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them. Do not add qualifiers like "maritime" or "approximately" unless they are necessary for correctness. If a question has a common wrong answer, state why it is wrong in one sentence before giving the correct one.
+For factual answers: state the precise answer using the most specific correct term available. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them.
 
-For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering whether the premises are true.
+For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering premise truth.
 
 For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.
 
-For type theory and type inference: do not conclude a term is untypable until you have fully run the unification algorithm step by step. Write out every type variable, every constraint generated, and every substitution applied. A type error must be a specific unification failure — a clash between two concrete types — not a vague claim that no type exists. If a term is typable, derive its principal type. Do not conflate typability with inhabitance.
+For type theory and type inference: do not conclude a term is untypable until you have fully run the unification algorithm step by step. Write out every type variable, every constraint generated, and every unification. Do not abbreviate.
 
-For complexity theory and data structures: when claiming a time or space bound, state which theorem or lower-bound argument supports it. For persistent data structures, ephemeral bounds do not transfer — prove or cite why persistence does or does not change the bound. O(α(n)) for persistent union-find with path compression is theoretically impossible; the correct bound is O(log²n) per operation (Blelloch/Harper or Driscoll/Tarjan). Never state an ephemeral bound as if it applies to a fully persistent version without justification.
+For complexity theory and data structures: when claiming a time or space bound, state which theorem or lower-bound argument supports it. For persistent data structures, ephemeral bounds do not transfer without justification.
 
-For concurrent data structures: after presenting any lock-free algorithm, check every free() or memory reclamation point for use-after-free under concurrent access. If a thread can still hold a reference to a node at the time it is freed, the algorithm is unsafe. Name the reclamation technique required (hazard pointers, epoch-based reclamation, RCU) and explain why naive free() is insufficient. ABA prevention via version stamps is only required on operations that perform a compare-and-swap on a pointer that could be reused — incrementing the stamp on push is unnecessary; the hazard is on pop. State this distinction explicitly.
+For concurrent data structures: after presenting any lock-free algorithm, check every free() or memory reclamation point for use-after-free under concurrent access. If a thread can still hold a reference, the algorithm is broken.
 
 For creative tasks with hard constraints (word limits, forbidden words, required structure): check every constraint explicitly before finalising. The constraint list takes priority over everything else.
 
@@ -69,50 +101,61 @@ For attribution: use the source's actual published position. If you are uncertai
 
 If you lack the information needed to answer, say so directly and stop.`;
 
+const ENHANCED_ACCURACY = `
+CONSTRAINT SATISFACTION: List all constraints explicitly before answering. Verify each one after drafting. If any constraint fails, revise before submitting.
+
+SELF-CORRECTION: After your draft, ask: "Does this have off-by-one errors, sign errors, scope errors, or missing edge cases?" Manually check each.
+
+UNCERTAINTY QUANTIFICATION: When you state a fact, accompany it with confidence level: [90%+ certain], [moderate confidence], [uncertain guess]. Never present guesses as facts.
+
+CROSS-VALIDATION: For critical answers (math, code, logic), solve by two independent methods if possible. If they diverge, investigate why before answering.
+
+BOUNDARY TESTING: After solving, test with extreme/edge inputs: empty, zero, negative, very large, null, undefined. Report results.`;
+
 const ACCURACY_RULES_000 = ACCURACY_RULES;
 
-// ── THINK RULES ───────────────────────────────────────────────────────────────
+// ── THINK RULES ────────────────────────────────────────────────────────────────
 
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
-Before doing anything else, classify the question: simple (one fact, one step), medium (requires method selection or multi-step), or hard (proof, algorithm, multi-domain, or trick). Let this classification control how much reasoning you produce — not how interesting the topic feels. Simple: one or two lines maximum. Medium: key steps only. Hard: full derivation with verification. Do not upgrade a simple question into a hard one by over-examining it.
+Before doing anything else, classify the question: simple (one fact, one step), medium (requires method selection or multi-step), or hard (proof, algorithm, multi-domain, or trick). Let this classification guide depth.
 
-Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, classify each sub-part independently — a multi-part question can have both simple and hard parts, and each gets only the depth it requires. If it crosses more than one domain, name each domain and what it contributes before attempting a solution. Do not re-derive what is already established.
+Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, classify each sub-part independently — a multi-part question with one hard sub-part is a hard question overall.
 
-Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
+Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than guessing.
 
-A reasoning block that only restates the question and jumps to a conclusion is not reasoning — it is answer retrieval dressed as thinking. Every non-trivial answer must show the path that produced it, not just the destination.
+A reasoning block that only restates the question and jumps to a conclusion is not reasoning — it is answer retrieval dressed as thinking. Every non-trivial answer must show the path that produced it.
 
-For hard or multi-step problems, settle on an approach before executing it. One or two sentences is enough — the point is to commit to a method, not describe one. Then execute it with actual values, actual steps, and actual intermediate results. Naming a method without executing it is not working — it is narration.
+For hard or multi-step problems, settle on an approach before executing it. One or two sentences is enough — the point is to commit to a method, not describe one. Then execute it with actual values.
 
-Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, you must write actual numbers and operations — not descriptions of what you would calculate. Write one operation per line with a brief label and show every intermediate value. A reasoning block that contains no numbers for a math question is a failed reasoning block. After reaching a preliminary answer, check it by an independent method and show the check explicitly. For logic, write the symbolic form first, explain the structure in plain language, then evaluate truth. For code, trace with a concrete input and show the value of each variable at each step.
+Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, you must write actual numbers and operations — not descriptions of what you would calculate.
 
-For type inference questions: run the Hindley-Milner unification algorithm explicitly inside this block. Generate every type constraint from each sub-expression, then unify them one by one, writing out each substitution. A conclusion of "untypable" requires a specific clash — two distinct concrete types that cannot be unified. If no clash occurs, derive the principal type. Do not guess.
+For type inference questions: run the Hindley-Milner unification algorithm explicitly inside this block. Generate every type constraint from each sub-expression, then unify them one by one, writing each substitution.
 
-For complexity claims on persistent or concurrent data structures: identify the exact theorem that establishes the bound. Ask explicitly whether the ephemeral bound survives under persistence — it often does not. For union-find with full persistence, path compression is not freely available; the correct bound is O(log²n), not O(α(n)). State why.
+For complexity claims on persistent or concurrent data structures: identify the exact theorem that establishes the bound. Ask explicitly whether the ephemeral bound survives under persistence — if unsure, do not claim it.
 
-For concurrent algorithms involving memory reclamation: after deriving the algorithm, scan every point where a node is freed. Ask whether any other thread could still hold a reference at that point. If yes, the free is unsafe. Name the technique (hazard pointers, epoch-based reclamation) that fixes it. For ABA stamps, identify exactly which CAS operation is vulnerable and why — do not increment stamps on operations where ABA cannot occur.
+For concurrent algorithms involving memory reclamation: after deriving the algorithm, scan every point where a node is freed. Ask whether any other thread could still hold a reference at that point. If yes, the algorithm is unsound.
 
-For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the correct answer precisely — not "none" when you mean a specific thing, not "some" when you can name them.
+For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the exception explicitly.
 
 After a preliminary answer, ask: is there a boundary condition, degenerate case, or domain exception that would change this? If yes, address it before committing.
 
 Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, say explicitly why the obvious objection fails, then proceed.
 
-Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on. If a conclusion follows obviously from what is already established, state it in one line and stop.
+Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on.
 
-After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result, but do not re-state reasoning already shown inside the block. Simple questions get one-line final answers. Do not pad.`;
+After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress or lose fidelity.`;
 
 const THINK_RULES_000 = THINK_RULES;
 
 // ── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT_MAP = {
-  '0':   `You are 0, created by Vin.\n${ACCURACY_RULES}\n${THINK_RULES}\n${AI_RULES}`,
-  '00':  `You are 00, created by Vin.\n${ACCURACY_RULES}\n${THINK_RULES}\n${AI_RULES}`,
-  '000': `You are 000, created by Vin.\n${ACCURACY_RULES_000}\n${THINK_RULES_000}\n${AI_RULES}`,
-  'V':   `You are V, created by Vin.\n${ACCURACY_RULES}\n${THINK_RULES}\n${AI_RULES}`,
+  '0':   `You are 0, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
+  '00':  `You are 00, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
+  '000': `You are 000, created by Vin.\n${ACCURACY_RULES_000}\n${ENHANCED_ACCURACY}\n${THINK_RULES_000}\n${AI_RULES}`,
+  'V':   `You are V, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
 };
 
 // ── DIFFICULTY CLASSIFICATION ─────────────────────────────────────────────────
@@ -141,7 +184,7 @@ function classifyDifficulty(msg) {
   return 'hard';
 }
 
-// ── TASK HINT INJECTION ───────────────────────────────────────────────────────
+// ── TASK HINT INJECTION ────────────────────────────────────────────────────────
 
 function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
@@ -156,7 +199,7 @@ function injectTaskHint(messages, modelKey) {
 
   const hints = [];
 
-  const isMath         = /\b(mod|modulo|remainder|divisib|\^|\bpow\b|equation|solve|calculat|speed|distance|rate|volume|surface area|sphere|cylinder|triangle|percent|average|mean|median|algebra|arithmetic|\d+\s*[×\*\/\+\-]\s*\d)/i.test(msg);
+  const isMath         = /\b(mod|modulo|remainder|divisib|\^|\bpow\b|equation|solve|calculat|speed|distance|rate|volume|surface area|sphere|cylinder|triangle|percent|average|mean|median|algebra|arithmetic|trig|sine|cosine)\b/i.test(msg);
   const isLogic        = /\b(valid|invalid|fallacy|syllogism|argument|therefore|conclude|premise|disjunct|modus|consequent|antecedent|either|or|if.+then)\b/i.test(msg);
   const isHistory      = /\b(year|century|founded|signed|treaty|war|battle|born|died|reign|monarch|capital|emperor|president|when did|when was)\b/i.test(msg);
   const isCode         = /\b(function|def |class |import |return|variable|bug|error|compile|syntax|runtime|debug|algorithm|implement|code|program)\b/i.test(msg);
@@ -171,7 +214,6 @@ function injectTaskHint(messages, modelKey) {
   const isStats        = /\b(sensitivity|specificity|precision|recall|probability|bayes|conditional|false positive|true positive)\b/i.test(msg);
   const isCalculus     = /\b(critical point|inflection|derivative|maximum|minimum|saddle|classify|second derivative|optimization)\b/i.test(msg);
 
-  // ── NEW: CS theory domain detectors ─────────────────────────────────────────
   const isTypeTheory   = /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|type variable|type scheme|let.?binding|type environment)\b/i.test(msg);
   const isPersistentDS = /\b(persistent|immutable|functional data structure|version|fully persistent|partially persistent|union.?find|path compression|union.?by.?rank|link.?cut)\b/i.test(msg);
   const isConcurrent   = /\b(lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic|memory order|reclaim|free\(|dequeue|enqueue|stack|queue)\b/i.test(msg);
@@ -187,29 +229,28 @@ function injectTaskHint(messages, modelKey) {
     /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
 
   if (isMultiPart)     hints.push('Identify every sub-part before answering. Work through all of them in order. Do not skip any.');
-  if (isIntersection)  hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework prematurely.');
-  if (isMath)          hints.push('Write each calculation step on its own line with the actual numbers and operations — not a description of what you would calculate. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
+  if (isIntersection)  hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework.');
+  if (isMath)          hints.push('Write each calculation step on its own line with the actual numbers and operations — not a description of what you would calculate. After reaching the answer, verify by substitution or reverse operation.');
   if (isCalculus)      hints.push('After finding each critical point, classify it (minimum, maximum, or saddle) using the second derivative test. An unclassified critical point is an incomplete answer.');
   if (isLogic)         hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, premise truth second.');
   if (isStats)         hints.push('Sensitivity and specificity measure different things. State each one separately and do not assume they are equal.');
   if (isProof)         hints.push('Every step in the proof must cite a theorem, postulate, or definition by name. Do not skip or abbreviate steps.');
-  if (isAlgorithm)     hints.push('Show every step of the algorithm. Trace through it with a concrete example input. For concurrency or conflict resolution, name the specific technique and explain its mechanism.');
+  if (isAlgorithm)     hints.push('Show every step of the algorithm. Trace through it with a concrete example input. For concurrency or conflict resolution, name the specific technique and explain it.');
   if (isSimulation)    hints.push('Produce the content directly. Do not describe or summarise what you would produce.');
   if (isTiming)        hints.push('Simulate each time increment explicitly. Verify the solution satisfies every constraint simultaneously before presenting it.');
   if (isCreative)      hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints take priority over all other considerations.');
-  if (isHistory)       hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if you are not sure of their exact position.');
+  if (isHistory)       hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if needed.');
   if (isCode)          hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.');
   if (isTrick)         hints.push('Solve this mechanically from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify it rather than dismissing it.');
   if (isList)          hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
 
-  // ── NEW: CS theory hints ─────────────────────────────────────────────────────
-  if (isTypeTheory)    hints.push('Run the Hindley-Milner unification algorithm explicitly. Generate every type constraint from every sub-expression, then unify step by step, writing each substitution. "Untypable" requires a specific unification clash between two concrete types — not a vague claim. If unification succeeds, derive the principal type. Do not guess or shortcut.');
-  if (isPersistentDS)  hints.push('Ephemeral complexity bounds do not transfer to persistent data structures without justification. For fully persistent union-find with union-by-rank, O(α(n)) is theoretically impossible — the correct bound is O(log²n) per operation. State which theorem supports your bound. If path compression is used, explain whether it is safe under full persistence.');
-  if (isConcurrent)    hints.push('After presenting any lock-free algorithm, inspect every memory reclamation point. If another thread can still hold a reference to a freed node, the algorithm is unsafe — name the reclamation scheme (hazard pointers, epoch-based, RCU) required to fix it. For ABA prevention via version stamps, identify exactly which CAS operation is vulnerable: incrementing on push is unnecessary — the hazard is on pop. State this distinction.');
+  if (isTypeTheory)    hints.push('Run the Hindley-Milner unification algorithm explicitly. Generate every type constraint from every sub-expression, then unify step by step, writing each substitution.');
+  if (isPersistentDS)  hints.push('Ephemeral complexity bounds do not transfer to persistent data structures without justification. For fully persistent union-find with union-by-rank, O(α(n)) is achievable only with additional care.');
+  if (isConcurrent)    hints.push('After presenting any lock-free algorithm, inspect every memory reclamation point. If another thread can still hold a reference to a freed node, the algorithm is unsound.');
 
   if (difficulty === 'hard') {
     hints.push('Mark any fact you are less than certain about as (uncertain). Do not present uncertain claims as facts.');
-    hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. State the result of this check explicitly — do not just silently fix or silently pass.');
+    hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. State the result of this check explicitly.');
     hints.push('If you lack the information needed to answer a part, say so and stop — do not substitute inference for missing facts.');
   }
 
@@ -219,7 +260,7 @@ function injectTaskHint(messages, modelKey) {
   return [...messages.slice(0, -1), patched];
 }
 
-// ── CONSISTENCY NUDGE ─────────────────────────────────────────────────────────
+// ── CONSISTENCY NUDGE ──────────────────────────────────────────────────────────
 
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
@@ -235,7 +276,7 @@ function injectConsistencyNudge(messages, modelKey) {
   return [...messages.slice(0, -1), patched];
 }
 
-// ── FORCED THINK FOR NON-REASONING MODELS ────────────────────────────────────
+// ── FORCED THINK FOR NON-REASONING MODELS ──────────────────────────────────────
 
 function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   if (mEntry.hasReasoning || mEntry.hasPromptedThink) return messages;
@@ -253,35 +294,58 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   return [...messages.slice(0, -1), patched];
 }
 
-// ── TEMPERATURE ───────────────────────────────────────────────────────────────
-// Hard CS theory questions (type inference, persistent DS, concurrency) need
-// near-zero temperature to avoid pattern-completion errors. All models are
-// capped lower than before on hard questions.
+// ── ENHANCED TEMPERATURE SCALING ───────────────────────────────────────────────
 
 function isHardCSTheory(msg) {
-  return /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|persistent|union.?find|path compression|lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic)\b/i.test(msg);
+  return /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|persistent|union.?find|path compression|lock.?free|wait.?free|cas|compare.?and.?swap)\b/i.test(msg);
 }
 
 function effectiveTemperature(modelKey, requested, lastUserMsg) {
+  const difficulty = classifyDifficulty(lastUserMsg);
+  
   // Hard CS theory: clamp all models to near-zero for correctness
   if (lastUserMsg && isHardCSTheory(lastUserMsg)) {
     if (modelKey === '000') return 0.0;
     return 0.05;
   }
-  if (modelKey === '000') return 0.05;
-  if (modelKey === '00')  return Math.min(requested, 0.3);
-  if (modelKey === '0')   return Math.min(requested, 0.4);
-  if (modelKey === 'V')   return Math.min(requested, 0.5);
-  return Math.min(requested, 0.4);
+  
+  // Hard problems: very low temperature for precision
+  if (difficulty === 'hard') {
+    if (modelKey === '000') return 0.1;
+    return 0.15;
+  }
+  
+  // Medium: balanced temperature
+  if (difficulty === 'medium') {
+    if (modelKey === '000') return 0.2;
+    if (modelKey === '00')  return 0.25;
+    return 0.3;
+  }
+  
+  // Simple: can be more creative
+  if (modelKey === '000') return 0.4;
+  if (modelKey === '00')  return Math.min(requested, 0.5);
+  if (modelKey === '0')   return Math.min(requested, 0.6);
+  if (modelKey === 'V')   return Math.min(requested, 0.7);
+  return Math.min(requested, 0.5);
 }
 
-// ── SAMPLING PARAMS ───────────────────────────────────────────────────────────
+// ── ADAPTIVE SAMPLING PARAMS ───────────────────────────────────────────────────
 
-function samplingParams(modelKey) {
-  return { top_p: 0.75, top_k: 20, frequency_penalty: 0.15, presence_penalty: 0.05 };
+function samplingParams(modelKey, difficulty) {
+  if (difficulty === 'hard') {
+    return { top_p: 0.9, top_k: 5, frequency_penalty: 0.3, presence_penalty: 0.2 };
+  }
+  
+  if (difficulty === 'simple') {
+    return { top_p: 0.85, top_k: 25, frequency_penalty: 0.1, presence_penalty: 0.05 };
+  }
+  
+  // Medium (default)
+  return { top_p: 0.75, top_k: 20, frequency_penalty: 0.15, presence_penalty: 0.1 };
 }
 
-// ── STOP SEQUENCES ────────────────────────────────────────────────────────────
+// ── STOP SEQUENCES ─────────────────────────────────────────────────────────────
 
 const STOP_SEQUENCES = [
   'As an AI language model,',
@@ -292,11 +356,11 @@ const STOP_SEQUENCES = [
   'I am fully confident that every answer above is correct',
 ];
 
-// ── N=1 FORCED ────────────────────────────────────────────────────────────────
+// ── N=1 FORCED ─────────────────────────────────────────────────────────────────
 
 const FORCED_N = 1;
 
-// ── UTILITY ───────────────────────────────────────────────────────────────────
+// ── UTILITY ────────────────────────────────────────────────────────────────────
 
 function jsonEscape(s) {
   return String(s)
@@ -318,7 +382,7 @@ function genericError(status) {
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-// ── LEAK / HALLUCINATION DETECTION ───────────────────────────────────────────
+// ── LEAK / HALLUCINATION DETECTION ─────────────────────────────────────────────
 
 const LEAK_LINE_PATTERNS = [
   /^\s*\[[A-Z][^\]]{2,120}\]\s*$/,
@@ -397,11 +461,11 @@ async function fetchWithRetry(url, options, maxRetries=4) {
   throw lastErr || new Error('fetchWithRetry: exhausted');
 }
 
-// ── PAYLOAD BUILDERS ──────────────────────────────────────────────────────────
+// ── PAYLOAD BUILDERS ───────────────────────────────────────────────────────────
 
 function buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink) {
   const thinkInstruction = hasPromptedThink
-    ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
+    ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between <think> and </think> appears in the final output.`
     : '';
   const finalPersona = persona + thinkInstruction;
   const messages = [{ role:'system', content: finalPersona }];
@@ -422,7 +486,7 @@ async function buildPayloadInSandbox(persona, trimmedMsgs, hasReasoning, hasProm
   try {
     sandbox = await Sandbox.create({ timeout: 8000 });
     const thinkInstruction = hasPromptedThink
-      ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
+      ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between <think> and </think> appears in the final output.`
       : '';
     const finalPersona = persona + thinkInstruction;
     const scriptSrc = `
@@ -479,7 +543,7 @@ function makePromptedThinkFilter() {
   };
 }
 
-// ── MAIN HANDLER ──────────────────────────────────────────────────────────────
+// ── MAIN HANDLER ───────────────────────────────────────────────────────────────
 
 export default async function handler(req) {
   if (req.method !== 'POST') {
@@ -526,10 +590,11 @@ export default async function handler(req) {
         .slice(-20)
     : [];
 
-  // Extract last user message for temperature decisions
+  // Extract last user message for temperature and sampling decisions
   const lastUserMsg = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
+  const difficulty = classifyDifficulty(lastUserMsg);
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
-  const sampling = samplingParams(modelKey);
+  const sampling = samplingParams(modelKey, difficulty);
 
   const trimmedWithHints  = contMode ? trimmed          : injectTaskHint(trimmed, modelKey);
   const trimmedWithNudge  = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
