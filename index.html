@@ -1478,11 +1478,7 @@ async function sendMsg(){
   const isCodeMode=modeOn('code');
   appendPending(aiId,isCodeMode);
 
-  // Temporarily swap content to full model payload for the API call only
-  displayMsg.content=visionPayload||modelContent;
-  await generate(c,aiId,userSearchData,modelContent,userWantsSearch,false,isCodeMode);
-  // Restore display content so history renders cleanly
-  displayMsg.content=raw;
+  await generate(c,aiId,userSearchData,modelContent,userWantsSearch,false,isCodeMode,visionPayload);
 }
 function showUserSearchInd(){const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div></div>`;ca.appendChild(el);scrollBot();}
 function hideUserSearchInd(){document.getElementById('srch-ind')?.remove();}
@@ -1602,7 +1598,7 @@ async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,isThinkMo
   }
 }
 
-async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode,isCodeMode){
+async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode,isCodeMode,visionPayload){
   contMode=contMode||false;
   if(isCodeMode===undefined)isCodeMode=modeOn('code');
   S.busy=true;
@@ -1612,11 +1608,12 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const thLbl=document.getElementById(aiId+'thlbl');
   const awEl=document.getElementById(aiId+'aw');
   const modelKey=S.model;const mDef=MODELS[modelKey]||MODELS['0'];const useThink=mDef.hasThink;
-  // Support vision: preserve array-content (multipart) messages for image-capable models
-  const baseMsgs=convo.msgs.map(m=>({
-    role:m.role,
-    content:(Array.isArray(m.content)?m.content:m.content)||''
-  }));
+  // Build API messages: use plain text for history, only inject visionPayload for the last user turn
+  const baseMsgs=convo.msgs.map((m,i)=>{
+    const isLastUser=(i===convo.msgs.length-1&&m.role==='user');
+    const content=isLastUser&&visionPayload?visionPayload:(Array.isArray(m.content)?m.content:m.content)||'';
+    return{role:m.role,content};
+  });
   let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false;
   let wasTruncated=false;
   let internalSearchFired=false,internalSearchData=null;
@@ -1727,7 +1724,11 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false)){
         if(S.abort?.signal?.aborted)break;
         if(chunk&&chunk.type==='verify_replace'){
-  answerText=chunk.text;
+  // Strip any verification preamble the model may have leaked
+  let vText=chunk.text;
+  vText=vText.replace(/^[\s\S]{0,300}?(?:here(?:'s| is)(?: the)?(?: (?:corrected|improved|revised|updated|fixed))? (?:response|answer|version)[:\s]*|i(?:'ve| have) (?:reviewed|checked|corrected|improved|fixed|updated)[\s\S]{0,100}?:\s*)/i,'').trim();
+  if(!vText)continue;
+  answerText=vText;
   if(txtEl){
     txtEl.style.transition='opacity .2s';
     txtEl.style.opacity='0';
