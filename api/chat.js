@@ -626,7 +626,7 @@ const hasImages = Array.isArray(messages) && messages.some(m =>
   Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
 );
 if (hasImages) {
-  modelId = 'google/gemini-flash-1.5';
+  modelId = 'meta-llama/llama-3.2-11b-vision-instruct';
 }
   const hasReasoning = mEntry.hasReasoning;
   const hasPromptedThink = mEntry.hasPromptedThink ?? false;
