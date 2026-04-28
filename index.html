@@ -1461,9 +1461,12 @@ async function sendMsg(){
   }
 
   // Store display message: text + file ext labels in msg.files array
+  // Also store the full modelContent (with file text injected) for API use
   const displayMsg={
     role:'user',
     content:raw,
+    modelContent:modelContent,           // full text incl. parsed files
+    visionPayload:visionPayload||null,   // vision parts if any images
     files:files.map(f=>_fmtLabel(f.ext)),
     ts:Date.now()
   };
@@ -1484,7 +1487,7 @@ async function sendMsg(){
   const isCodeMode=modeOn('code');
   appendPending(aiId,isCodeMode);
 
-  await generate(c,aiId,userSearchData,modelContent,userWantsSearch,false,isCodeMode,visionPayload);
+  await generate(c,aiId,userSearchData,modelContent,userWantsSearch,false,isCodeMode);
 }
 function showUserSearchInd(){const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div></div>`;ca.appendChild(el);scrollBot();}
 function hideUserSearchInd(){document.getElementById('srch-ind')?.remove();}
@@ -1604,7 +1607,7 @@ async function* streamParsed(msgs,extraCtx,modelKey,maxTok,abortSignal,isThinkMo
   }
 }
 
-async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode,isCodeMode,visionPayload){
+async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,contMode,isCodeMode){
   contMode=contMode||false;
   if(isCodeMode===undefined)isCodeMode=modeOn('code');
   S.busy=true;
@@ -1618,11 +1621,14 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   // IMPORTANT: baseMsgs must use only the stored content (not modelContent which may have file ctx injected)
   // The extraCtx (date, search, code mode) is passed separately and injected server-side
   const baseMsgs=convo.msgs.map((m,i)=>{
-    const isLastUser=(i===convo.msgs.length-1&&m.role==='user');
-    // For the last user message, use visionPayload if present, otherwise use stored content
-    // Do NOT re-inject extraCtx here — it goes in the context field of the API request
-    const content=isLastUser&&visionPayload?visionPayload:(m.content||'');
-    return{role:m.role,content};
+    if(m.role==='user'){
+      // Prefer vision payload if this user turn has images
+      if(m.visionPayload)return{role:'user',content:m.visionPayload};
+      // Otherwise use modelContent (raw text + parsed file contents) if available
+      if(m.modelContent)return{role:'user',content:m.modelContent};
+      return{role:'user',content:m.content||''};
+    }
+    return{role:m.role,content:m.content||''};
   });
   let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false;
   let wasTruncated=false;
