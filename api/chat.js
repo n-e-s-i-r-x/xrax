@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '000': { id: 'qwen/qwen3-coder:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
+  '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
   'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
