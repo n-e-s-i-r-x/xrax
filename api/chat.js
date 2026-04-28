@@ -69,6 +69,8 @@ The goal is reliable, thoughtful, safe, and adaptable assistance — maintaining
 const ACCURACY_RULES = `
 Match response depth to the question. Before answering, classify it: simple, medium, or hard. Simple questions get one direct answer with no working, no verification, no elaboration. Medium questions warrant a direct answer plus reasoning. Hard questions must show detailed working, all intermediate steps, and explicit verification.
 
+CRITICAL — AVOID OVER-FORMALIZATION: For simple factual or arithmetic questions (e.g. "which number is bigger?", "what is 2+2?", basic decimal or number comparisons), give a direct plain-English answer. Do NOT use symbolic logic notation (P1, P2, ∴C), formal proof structure, or multi-step verification for questions that do not require it. Formal logic notation is ONLY appropriate when the question is explicitly about logical arguments, syllogisms, or formal reasoning structures. Match the formality and depth of your answer to the actual difficulty of the question.
+
 Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
 
 Never describe what you would do — do it. Never say "we would simulate" — simulate it.
@@ -77,7 +79,7 @@ For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-triv
 
 For factual answers: state the precise answer using the most specific correct term available. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them.
 
-For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering premise truth.
+For logic: ONLY write the argument in symbolic form (P1, P2, ∴C) when the question is explicitly about evaluating a logical argument, syllogism, or formal deductive structure. Do NOT apply this format to comparison questions, arithmetic, or everyday factual questions.
 
 For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.
 
@@ -121,6 +123,8 @@ Check for:
 5. LOGIC ERRORS: Contradictions, invalid reasoning, wrong conclusions. Fix them.
 6. UNSAFE/MISLEADING CONTENT: Dangerous advice, misleading claims, harmful instructions. Remove or correct.
 7. INCOMPLETE ANSWERS: Truncated code, missing steps, half-answered questions. Complete them if short, or note what's missing.
+8. OVER-FORMALIZATION: If the question was simple (e.g. decimal comparison, basic arithmetic, factual lookup) but the response used unnecessary formal logic notation (P1/P2/∴C), symbolic proofs, or excessive multi-step verification — rewrite it as a clear, direct, plain-English answer matching the question's actual complexity.
+9. INTERMEDIATE CONTRADICTIONS: If the response stated an incorrect intermediate conclusion before self-correcting (e.g. "∴C: 9.11 is larger" then later said 9.9 is larger), rewrite to present only the correct final answer cleanly, removing the false intermediate step entirely.
 
 RULES:
 - If the response is correct and well-formatted, return it EXACTLY as-is with no changes.
@@ -135,6 +139,11 @@ const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
 Before doing anything else, classify the question: simple (one fact, one step), medium (requires method selection or multi-step), or hard (proof, algorithm, multi-domain, or trick). Let this classification guide depth.
+
+CRITICAL — PROPORTIONAL REASONING DEPTH: Match reasoning length strictly to question difficulty.
+- Simple questions (basic arithmetic, decimal comparisons, single-fact lookups, yes/no, "which is bigger"): reason in 2–4 lines maximum. State the key fact and conclude. Example: "9.9 vs 9.11 — align decimals: 9.90 vs 9.11. 9.90 > 9.11. Answer: 9.9 is larger." Do NOT apply symbolic logic notation (P1, P2, ∴C) or formal proof steps to simple questions. That notation is reserved exclusively for questions explicitly about formal logic or argumentation.
+- Medium questions: brief working, direct answer, no over-elaboration.
+- Hard questions: full working, verification, edge case check.
 
 Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, classify each sub-part independently — a multi-part question with one hard sub-part is a hard question overall.
 
@@ -171,9 +180,24 @@ const SYSTEM_PROMPT_MAP = {
   'V':   `You are V, created by Vin.\n${ACCURACY_RULES}\n${ENHANCED_ACCURACY}\n${THINK_RULES}\n${AI_RULES}`,
 };
 
+// Returns true if the message is a simple numeric/decimal comparison that should never be escalated
+function isSimpleComparison(msg) {
+  const t = msg.trim();
+  return (
+    /\b(bigger|larger|smaller|greater|less|higher|lower|more|fewer)\b.*\d[\d.]*.*\d[\d.]*/i.test(t) ||
+    /\d[\d.]*\s*(vs\.?|or|>|<|versus)\s*\d[\d.]*/i.test(t) ||
+    /which\s+(is|number\s+is)\s+(bigger|larger|smaller|greater|less|higher|lower)/i.test(t) ||
+    /compare\s+\d[\d.]*\s+(and|to|vs)\s+\d[\d.]*/i.test(t)
+  );
+}
+
 function classifyDifficulty(msg) {
   const t = msg.trim();
   if (t.length < 40) return 'simple';
+
+  // Simple numeric/decimal comparison — never escalate beyond 'simple'
+  if (isSimpleComparison(t)) return 'simple';
+
   const conversational = /^(hi|hello|hey|thanks?|ok|sure|yes|no|what('?s| is) (up|good)|how (are|r) (you|u)|lol|haha|nice|cool|great|got it|makes sense|understood)/i.test(t);
   if (conversational) return 'simple';
 
@@ -210,7 +234,9 @@ function injectTaskHint(messages, modelKey) {
   const hints = [];
 
   const isMath         = /\b(mod|modulo|remainder|divisib|\^|\bpow\b|equation|solve|calculat|speed|distance|rate|volume|surface area|sphere|cylinder|triangle|percent|average|mean|median|algebra|arithmetic|trig|sine|cosine)\b/i.test(msg);
-  const isLogic        = /\b(valid|invalid|fallacy|syllogism|argument|therefore|conclude|premise|disjunct|modus|consequent|antecedent|either|or|if.+then)\b/i.test(msg);
+  // FIX: isLogic now requires explicit formal-logic keywords AND excludes simple comparison questions
+  const isLogic        = !isSimpleComparison(msg)
+                      && /\b(valid|invalid|fallacy|syllogism|argument|therefore|conclude|premise|disjunct|modus ponens|modus tollens|consequent|antecedent|deductive|inductive)\b/i.test(msg);
   const isHistory      = /\b(year|century|founded|signed|treaty|war|battle|born|died|reign|monarch|capital|emperor|president|when did|when was)\b/i.test(msg);
   const isCode         = /\b(function|def |class |import |return|variable|bug|error|compile|syntax|runtime|debug|algorithm|implement|code|program)\b/i.test(msg);
   const isTrick        = /\b(trick|trap|riddle|paradox|always|never|all|none|every|impossible|obvious|simple|easy)\b/i.test(msg);
@@ -293,6 +319,7 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   if (Array.isArray(last.content)) return messages;
 
   const difficulty = classifyDifficulty(last.content);
+  // FIX: only inject <think> for genuinely hard questions — never for simple or medium
   if (difficulty !== 'hard') return messages;
 
   const patched = {
@@ -572,9 +599,8 @@ export default async function handler(req) {
     Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
   );
 
-  // FIX: derive modelId, hasReasoning, hasPromptedThink from hasImages
-  const modelId        = hasImages ? 'meta-llama/llama-3.2-11b-vision-instruct' : mEntry.id;
-  const hasReasoning   = hasImages ? false : mEntry.hasReasoning;
+  const modelId          = hasImages ? 'meta-llama/llama-3.2-11b-vision-instruct' : mEntry.id;
+  const hasReasoning     = hasImages ? false : mEntry.hasReasoning;
   const hasPromptedThink = hasImages ? false : (mEntry.hasPromptedThink ?? false);
 
   const persona = (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
@@ -588,8 +614,6 @@ export default async function handler(req) {
         .slice(-20)
     : [];
 
-  // Deduplicate: remove consecutive assistant messages with identical content
-  // and strip leaked system-prompt patterns from assistant messages
   const LEAK_PATTERNS_MSG = [
     /^Universal Production System Prompt/m,
     /^FORMATTING RULES — MANDATORY/m,
@@ -604,11 +628,9 @@ export default async function handler(req) {
   const dedupedMsgs = [];
   for (let i = 0; i < rawTrimmed.length; i++) {
     const m = rawTrimmed[i];
-    // Skip assistant messages that look like system prompt leakage
     if (m.role === 'assistant' && msgLooksLikeSystemLeak(
       Array.isArray(m.content) ? (m.content.find(p => p.type === 'text')?.text ?? '') : m.content
     )) continue;
-    // Skip consecutive duplicate assistant messages
     if (m.role === 'assistant' && dedupedMsgs.length > 0) {
       const prev = dedupedMsgs[dedupedMsgs.length - 1];
       if (prev.role === 'assistant') {
@@ -688,7 +710,6 @@ export default async function handler(req) {
           stop: STOP_SEQUENCES,
         };
 
-        // FIX: only add these params for non-vision requests
         if (!hasImages) {
           reqBody.top_p = sampling.top_p;
           reqBody.frequency_penalty = sampling.frequency_penalty;
@@ -696,7 +717,6 @@ export default async function handler(req) {
           if (sampling.top_k) reqBody.top_k = sampling.top_k;
         }
 
-        // FIX: only add reasoning for non-vision requests
         if (hasReasoning && !hasImages) {
           reqBody.reasoning = { max_tokens: 14000 };
         }
@@ -781,7 +801,6 @@ export default async function handler(req) {
       let _streamedAnswer = '';
       const _contentChunks = [];
       const _origSend = send;
-      // Wrap send in-place to collect streamed content chunks for post-stream verification
       let activeSend = (chunk) => {
         _origSend(chunk);
         try {
