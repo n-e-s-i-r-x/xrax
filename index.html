@@ -1506,7 +1506,8 @@ async function sendMsg(){
   renderMsgs();renderSB();
   if(S.settings.speedTimer){startSpeedTimer();}
   if(modeOn('image')){await genImage(c,raw||'');S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
-  const _musicModeActive=modeOn('music');
+  if(modeOn('music')){await genMusicDirect(c,raw||'');S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
+  const _musicModeActive=false;
 
   let userSearchData=null;const userWantsSearch=queryNeedsSearch(modelContent);
   if(userWantsSearch){showUserSearchInd();userSearchData=await doSearch(modelContent);hideUserSearchInd();}
@@ -2120,40 +2121,83 @@ function seekMusic(msgIdx,e,bar){
   audio.currentTime=pct*audio.duration;
 }
 
+function _pollinationsAudioUrl(prompt){
+  const musicPrompt=prompt.replace(/[*_`#>]/g,'').replace(/\s+/g,' ').trim().slice(0,200);
+  const encodedPrompt=encodeURIComponent(musicPrompt);
+  return`https://audio.pollinations.ai/${encodedPrompt}`;
+}
+
 async function genMusicForMsg(prompt,msgIdx){
-  // Inject pending player UI into the existing message row
   const txtEl=document.getElementById('msg-'+msgIdx+'-text');
   if(!txtEl)return;
-  const pendingDiv=document.createElement('div');
-  pendingDiv.innerHTML=buildMusicPlayerHtml(null,msgIdx,true);
-  txtEl.appendChild(pendingDiv.firstElementChild);
+  const audioUrl=_pollinationsAudioUrl(prompt);
+  // Swap pending → player immediately; browser streams natively
+  const existing=document.getElementById('music-player-'+msgIdx);
+  if(existing){
+    const newDiv=document.createElement('div');
+    newDiv.innerHTML=buildMusicPlayerHtml(audioUrl,msgIdx,false);
+    existing.replaceWith(newDiv.firstElementChild);
+    renderMusicWave(msgIdx);
+  }else{
+    const pd=document.createElement('div');
+    pd.innerHTML=buildMusicPlayerHtml(audioUrl,msgIdx,false);
+    txtEl.appendChild(pd.firstElementChild);
+    renderMusicWave(msgIdx);
+  }
   if(S.settings.autoscroll)scrollBot();
+}
 
-  try{
-    // Build a clean music prompt from the AI's response text
-    const musicPrompt=prompt.replace(/[*_`#>]/g,'').replace(/\s+/g,' ').trim().slice(0,300);
-    const encodedPrompt=encodeURIComponent(musicPrompt);
-    const audioUrl=`https://audio.pollinations.ai/${encodedPrompt}`;
-
-    // Pre-fetch to trigger generation, then swap UI
-    const resp=await fetch(audioUrl);
-    if(!resp.ok)throw new Error('Pollinations API error: '+resp.status);
-    const blob=await resp.blob();
-    const localUrl=URL.createObjectURL(blob);
-
-    const existing=document.getElementById('music-player-'+msgIdx);
-    if(existing){
-      const newDiv=document.createElement('div');
-      newDiv.innerHTML=buildMusicPlayerHtml(localUrl,msgIdx,false);
-      existing.replaceWith(newDiv.firstElementChild);
+async function genMusicDirect(convo,prompt){
+  S.busy=true;
+  const aiId='mus'+Date.now();
+  const ca=document.getElementById('chat-area');
+  const msgIdx_user=convo.msgs.length-1;
+  // Add a placeholder assistant message row
+  const row=document.createElement('div');
+  row.className='msg-row ai';
+  row.id=aiId;
+  row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
+    <div class="ai-txt" id="${aiId}txt">
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 0 6px;">
+        <div class="activity-orb" style="width:28px;height:28px;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;">
+          <div class="activity-orb-ring" style="position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;border-top-color:#f472b6;border-right-color:rgba(244,114,182,0.4);animation:orbSpin 1.8s linear infinite;"></div>
+          <div style="width:6px;height:6px;border-radius:50%;background:#f472b6;position:relative;z-index:1;"></div>
+        </div>
+        <span style="font-size:12px;color:#f472b6;font-weight:600;" class="anim-dots">Generating music</span>
+      </div>
+    </div>
+  </div></div></div></div>`;
+  ca.appendChild(row);
+  setStopMode(true);scrollBot();
+  const audioUrl=_pollinationsAudioUrl(prompt);
+  const errMsg=null;
+  // Push assistant message to convo
+  const savedContent=prompt?`Music generated for: *"${prompt.slice(0,80)}"*`:'Generated music';
+  convo.msgs.push({role:'assistant',content:savedContent,ts:Date.now(),truncated:false,modelKey:S.model,musicMode:true});
+  const msgIdx=convo.msgs.length-1;
+  // Replace pending row with final message
+  const finalHtml=buildMsg(convo.msgs[msgIdx],msgIdx);
+  const tmp=document.createElement('div');tmp.innerHTML=finalHtml;
+  const finalRow=tmp.firstElementChild;
+  row.replaceWith(finalRow);
+  attachCodeBtns();
+  // Now inject the player into the rendered message
+  const txtEl=document.getElementById('msg-'+msgIdx+'-text');
+  if(txtEl){
+    if(audioUrl){
+      const pd=document.createElement('div');
+      pd.innerHTML=buildMusicPlayerHtml(audioUrl,msgIdx,false);
+      txtEl.appendChild(pd.firstElementChild);
       renderMusicWave(msgIdx);
-    }
-  }catch(err){
-    const existing=document.getElementById('music-player-'+msgIdx);
-    if(existing){
-      existing.innerHTML=`<div style="padding:10px 12px;font-size:12px;color:#e06060;">Music generation failed: ${esc(err.message||'Try again.')}</div>`;
+    }else{
+      const ed=document.createElement('div');
+      ed.innerHTML=`<div style="margin:10px 0;padding:10px 12px;background:#1a0a0a;border:1px solid rgba(244,114,182,0.3);border-radius:10px;font-size:12px;color:#e06060;">Music generation failed: ${esc(errMsg)}</div>`;
+      txtEl.appendChild(ed.firstElementChild);
     }
   }
+  saveStore();S.busy=false;
+  setStopMode(false);scrollBot();
+  stopSpeedTimer();
 }
 
 function stopGen(){if(S.abort)S.abort.abort();}
