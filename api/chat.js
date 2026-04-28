@@ -217,7 +217,10 @@ function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
 
   const last = messages[messages.length - 1];
+  // Skip injection for vision messages (array content) — classifyDifficulty requires a string
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
+  // Also skip if the content is a serialized array (extra safety for edge cases)
+  if (Array.isArray(last.content)) return messages;
 
   const msg = last.content;
   const difficulty = classifyDifficulty(msg);
@@ -292,6 +295,7 @@ function injectTaskHint(messages, modelKey) {
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
+  if (Array.isArray(last.content)) return messages;
 
   const difficulty = classifyDifficulty(last.content);
   if (difficulty !== 'medium') return messages;
@@ -310,6 +314,7 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
 
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
+  if (Array.isArray(last.content)) return messages;
 
   const difficulty = classifyDifficulty(last.content);
   if (difficulty !== 'hard') return messages;
@@ -624,7 +629,11 @@ export default async function handler(req) {
     : [];
 
   // Extract last user message for temperature and sampling decisions
-  const lastUserMsg = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
+  // For vision messages, content is an array — extract text part only
+  const _lastUserRaw = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
+  const lastUserMsg = Array.isArray(_lastUserRaw)
+    ? (_lastUserRaw.find(p => p.type === 'text')?.text ?? '')
+    : _lastUserRaw;
   const difficulty = classifyDifficulty(lastUserMsg);
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
   const sampling = samplingParams(modelKey, difficulty);
@@ -774,6 +783,26 @@ export default async function handler(req) {
       let thinkLineBuf = '';
       let promptedThinkLeadStripped = !hasPromptedThink;
 
+      // Accumulate full streamed answer for post-stream verification
+      let _streamedAnswer = '';
+      const _origSend = send;
+      const _contentChunks = [];
+      // Wrap send to also collect answer chunks (non-SSE structural lines)
+      const sendAndCollect = (chunk) => {
+        _origSend(chunk);
+        // Extract only content delta text from SSE for accumulation
+        try {
+          const m = chunk.match(/^data: (.+)\n\n$/s);
+          if (m) {
+            const parsed = JSON.parse(m[1]);
+            const txt = parsed?.choices?.[0]?.delta?.content;
+            if (typeof txt === 'string') _contentChunks.push(txt);
+          }
+        } catch(_) {}
+      };
+      // Shadow `send` with collecting wrapper for the streaming loop below
+      const send = sendAndCollect;
+
       const filterPromptedThink = hasPromptedThink ? makePromptedThinkFilter() : null;
 
       const closeThinkIfOpen = () => {
@@ -866,10 +895,30 @@ export default async function handler(req) {
       }
 
       closeThinkIfOpen();
-      if (finishReason) {
-        send(`data: {"choices":[{"delta":{},"finish_reason":"${finishReason}"}]}\n\n`);
+
+      // ── POST-STREAM VERIFICATION ──────────────────────────────────────────
+      // Collect the full streamed answer and run it through verifyResponse.
+      // If the verified version differs, append a correction chunk before [DONE].
+      _streamedAnswer = _contentChunks.join('');
+      if (_streamedAnswer.trim().length >= 40) {
+        try {
+          const _questionForVerify = trimmedFinal.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+          const _questionText = Array.isArray(_questionForVerify)
+            ? (_questionForVerify.find(p => p.type === 'text')?.text ?? '')
+            : _questionForVerify;
+          const _verified = await verifyResponse(_streamedAnswer, _questionText, apiKey);
+          if (_verified && _verified.trim() !== _streamedAnswer.trim() && _verified.trim().length > 20) {
+            // Send a replacement marker then the corrected full text
+            _origSend(sseContent('\n\x00VERIFY_REPLACE\x00'));
+            _origSend(sseContent(_verified));
+          }
+        } catch(_) {}
       }
-      send('data: [DONE]\n\n');
+
+      if (finishReason) {
+        _origSend(`data: {"choices":[{"delta":{},"finish_reason":"${finishReason}"}]}\n\n`);
+      }
+      _origSend('data: [DONE]\n\n');
       try { controller.close(); } catch(_) {}
     }
   });
