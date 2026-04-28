@@ -614,7 +614,15 @@ export default async function handler(req) {
   }
 
   const mEntry = modelEntry(modelKey);
-  const modelId = mEntry.id;
+let modelId = mEntry.id;
+
+// If any message contains image_url content, swap to a vision-capable model
+const hasImages = Array.isArray(messages) && messages.some(m =>
+  Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
+);
+if (hasImages) {
+  modelId = 'google/gemini-flash-1.5';
+}
   const hasReasoning = mEntry.hasReasoning;
   const hasPromptedThink = mEntry.hasPromptedThink ?? false;
   const persona = SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0'];
