@@ -44,6 +44,10 @@ function selectOptimalModel(msg, requestedModel) {
 // ── ACCURACY RULES ─────────────────────────────────────────────────────────────
 const AI_RULES = `
 Universal Production System Prompt
+
+FORMATTING RULES — MANDATORY FOR ALL RESPONSES:
+Use markdown formatting correctly and consistently. Always wrap code in fenced code blocks with the correct language tag (e.g. \`\`\`python, \`\`\`javascript, \`\`\`bash). Use inline code (\`like this\`) for variable names, function names, commands, file paths, and short snippets — never wrap these in full code blocks. Use **bold** only for genuinely important terms or headings, not decoration. Use bullet lists only when items are truly list-shaped (unordered, parallel). Use numbered lists only for sequential steps. Never mix plain prose inside a code block. Never put markdown headers inside code blocks. Do not use excessive blank lines, excessive asterisks, or redundant formatting. Plain conversational answers should be plain prose — not forced into bullet points or headers. Tables should use proper markdown table syntax. Mathematical expressions should use plain text or LaTeX-style notation, never code blocks.
+
 Core Behavior
 Be helpful, accurate, thoughtful, and reliable. Prioritize clarity, safety, factual correctness, and practical usefulness while maintaining a natural conversational tone.
 Adapt to the user's communication style and expertise level. Answer directly when possible rather than over-asking for clarification. Keep responses concise for simple questions and detailed for complex ones.
@@ -63,7 +67,7 @@ When a mistake occurs, acknowledge it honestly, correct it directly, and stay fo
 Neutrality
 Explain differing perspectives fairly. Distinguish between describing a viewpoint and endorsing it. Avoid one-sided treatment of controversial topics and engage nuanced questions in good faith unless they're actively harmful.
 Knowledge Currency
-Recognize that some information becomes outdated. Use available search or retrieval tools to verify current events, leadership positions, recent releases, pricing, policies, and breaking news. Avoid confident statements about recent changes you're uncertain of.
+Recognize that some information becomes outdated. Use available search or retrieval tools ONLY when the question genuinely requires real-time or post-training data: live prices, breaking news, sports scores, current weather, recent software releases, or leadership positions that may have changed. Do NOT search for: general knowledge, historical facts, coding help, math, logic, definitions, explanations, creative tasks, or anything well-established in training data. Unnecessary searches slow responses and add noise — only search when the answer truly cannot be reliable without it.
 Memory and Personalization
 If memory is available, use relevant past context naturally and sparingly — only when it improves usefulness. Don't mention memory retrieval unless asked, expose sensitive user information unnecessarily, or rely on assumed continuity.
 File and Document Creation
@@ -113,6 +117,29 @@ CROSS-VALIDATION: For critical answers (math, code, logic), solve by two indepen
 BOUNDARY TESTING: After solving, test with extreme/edge inputs: empty, zero, negative, very large, null, undefined. Report results.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
+
+// ── AI RESPONSE VERIFICATION SYSTEM ──────────────────────────────────────────
+// Secondary model reviews every response before it is sent to the user.
+
+const VERIFICATION_SYSTEM_PROMPT = `You are a response quality reviewer. You will be given an AI-generated response and the original user question. Your job is to silently review the response and return either the original response (if it is correct and high quality) or an improved version.
+
+Check for:
+1. HALLUCINATIONS: Any fabricated facts, invented citations, fake APIs, non-existent functions, or made-up statistics. Remove or correct them.
+2. CODE ERRORS: Syntax errors, wrong function names, incorrect API usage, missing imports, logic bugs. Fix all code.
+3. FORMATTING ISSUES: Code not in code blocks, broken markdown, inline code used for full functions, headers inside code blocks. Fix all formatting.
+4. FACTUAL MISTAKES: Wrong dates, wrong names, wrong definitions, incorrect math results. Correct them.
+5. LOGIC ERRORS: Contradictions, invalid reasoning, wrong conclusions. Fix them.
+6. UNSAFE/MISLEADING CONTENT: Dangerous advice, misleading claims, harmful instructions. Remove or correct.
+7. INCOMPLETE ANSWERS: Truncated code, missing steps, half-answered questions. Complete them if short, or note what's missing.
+
+RULES:
+- If the response is correct and well-formatted, return it EXACTLY as-is with no changes.
+- If you make changes, return only the improved response — no commentary, no explanation, no preamble.
+- Preserve the original tone, structure, and length unless there is a specific problem to fix.
+- Do NOT add unnecessary caveats, warnings, or disclaimers that were not in the original.
+- Output ONLY the final response text — nothing else.`;
+
+export { VERIFICATION_SYSTEM_PROMPT };
 
 // ── THINK RULES ────────────────────────────────────────────────────────────────
 
@@ -469,7 +496,12 @@ function buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink
     : '';
   const finalPersona = persona + thinkInstruction;
   const messages = [{ role:'system', content: finalPersona }];
-  messages.push(...trimmedMsgs);
+  // Support vision: pass array-content messages (text + image_url) through unchanged
+  const normalized = trimmedMsgs.map(m => {
+    if (Array.isArray(m.content)) return m; // vision message — pass through
+    return m;
+  });
+  messages.push(...normalized);
   return messages;
 }
 
@@ -586,7 +618,8 @@ export default async function handler(req) {
 
   const trimmed = Array.isArray(messages)
     ? messages
-        .filter(m => m && typeof m === 'object' && typeof m.role === 'string' && typeof m.content === 'string')
+        .filter(m => m && typeof m === 'object' && typeof m.role === 'string' &&
+          (typeof m.content === 'string' || Array.isArray(m.content)))
         .slice(-20)
     : [];
 
@@ -605,6 +638,39 @@ export default async function handler(req) {
     messagesPayload = await buildPayloadInSandbox(persona, trimmedFinal, hasReasoning, hasPromptedThink);
   } catch(_) {
     messagesPayload = buildPayloadInline(persona, trimmedFinal, hasReasoning, hasPromptedThink);
+  }
+
+  // ── VERIFICATION HELPER ────────────────────────────────────────────────────
+  async function verifyResponse(answer, question, apiKey) {
+    if (!answer || answer.length < 40) return answer;
+    // Skip verification for very long responses (>6000 chars) to avoid latency
+    if (answer.length > 6000) return answer;
+    try {
+      const verifyPayload = {
+        model: 'inclusionai/ling-2.6-flash:free',
+        messages: [
+          { role: 'system', content: VERIFICATION_SYSTEM_PROMPT },
+          { role: 'user', content: `User question:\n${question}\n\nAI response to review:\n${answer}` }
+        ],
+        max_tokens: Math.min(answer.length * 2 + 500, 6000),
+        temperature: 0.1,
+        stream: false,
+      };
+      const vRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://your-site.com',
+          'X-Title': '0vAI',
+        },
+        body: JSON.stringify(verifyPayload),
+      });
+      if (!vRes.ok) return answer;
+      const vData = await vRes.json();
+      const verified = vData?.choices?.[0]?.message?.content?.trim();
+      return (verified && verified.length > 20) ? verified : answer;
+    } catch(_) { return answer; }
   }
 
   const encoder = new TextEncoder();
@@ -687,6 +753,9 @@ export default async function handler(req) {
           }
           combined += answerText;
           if (!combined.trim()) combined = '_(No answer generated — please try again)_';
+          // Verify response quality before sending
+          const questionForVerify = trimmedFinal.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+          combined = await verifyResponse(combined, questionForVerify, apiKey);
           send(sseContent(combined));
           send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
         } catch(_) { send(sseContent('[Empty response]')); }
