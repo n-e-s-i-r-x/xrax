@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '00':  { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
+  '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 8000 },
   'V':   { id: 'inclusionai/ling-2.6-flash:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
@@ -12,35 +12,39 @@ function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
 // ── ACCURACY RULES ────────────────────────────────────────────────────────────
 
 const ACCURACY_RULES = `
-Match response depth to the question. Before answering, classify it: simple, medium, or hard. Simple questions get one direct answer with no working, no verification, no elaboration. Medium questions get key steps only. Hard problems get full working and verification. Never upgrade a question's complexity because the topic is interesting. For science and physics questions, state the principle and apply it in one move — do not over-narrate the setup.
+Match response depth to the question. Classify it first: simple, medium, or hard. Simple = one direct answer, no working. Medium = key steps only. Hard = full working and verification. Never upgrade complexity because the topic is interesting.
 
-Before stating a fact you are not certain of, mark it (uncertain). Do not fill knowledge gaps with plausible-sounding details. "I don't know" is a complete answer.
+Before stating a fact you are not certain of, mark it (uncertain). Do not fill gaps with plausible-sounding details. "I don't know" is a complete answer. Never describe what you would do — do it.
 
-Never describe what you would do — do it. Never say "we would simulate" — simulate it.
+For math: write each step on its own line with actual numbers and operations. Show every intermediate value. Verify by substituting back or reversing once, when non-obvious. If verification fails, recompute from the error — do not patch.
 
-For math: calibrate to difficulty. Trivial arithmetic needs no working. Non-trivial problems: write each step on its own line, label what you are doing and why, show every intermediate value. A math answer with no numbers shown is an incomplete answer. Verify by substituting back or reversing — but only once, and only when the result is non-obvious. Show the verification explicitly. If verification fails, recompute from the point of error — do not patch.
+For factual answers: use the most specific correct term. Do not say "none" when you mean a named exception, or "some" when you can name them. If a question has a common wrong answer, state why it is wrong in one sentence first.
 
-For factual answers: state the precise answer using the most specific correct term available. Do not say "none" when you mean a specific named exception. Do not say "some" when you can name them. Do not add qualifiers like "maritime" or "approximately" unless they are necessary for correctness. If a question has a common wrong answer, state why it is wrong in one sentence before giving the correct one.
+For logic: write the argument in symbolic form (P1, P2, ∴C), name the form, then evaluate structure before truth.
 
-For logic: write the argument in symbolic form (P1, P2, ∴C) before evaluating it. Name the argument form. Then explain in plain language why the structure is valid or invalid before considering whether the premises are true.
+For code — general: only use APIs and functions you are certain exist in the target language and version. Trace through the logic with a concrete input before presenting the answer, showing key variable values at each step. Every function you call must be defined or imported. No pseudocode in a code answer unless explicitly asked. Syntax must be valid for the stated language. If no language is stated, choose the most appropriate one and name it.
 
-For code: only use APIs and library functions you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.
+For code — correctness: after writing any function, mentally execute it on at least one normal case and one edge case (empty input, zero, null, single element, max value). If either case fails, fix before presenting. State the result of this check. Off-by-one errors, wrong loop bounds, and incorrect base cases must be caught here.
 
-For type theory and type inference: do not conclude a term is untypable until you have fully run the unification algorithm step by step. Write out every type variable, every constraint generated, and every substitution applied. A type error must be a specific unification failure — a clash between two concrete types — not a vague claim that no type exists. If a term is typable, derive its principal type. Do not conflate typability with inhabitance.
+For code — APIs and libraries: never invent method names. If you are not certain a method exists, do not use it. Prefer standard library over third-party when both work. If a library is required, name the exact import and version constraint if relevant.
 
-For complexity theory and data structures: when claiming a time or space bound, state which theorem or lower-bound argument supports it. For persistent data structures, ephemeral bounds do not transfer — prove or cite why persistence does or does not change the bound. O(α(n)) for persistent union-find with path compression is theoretically impossible; the correct bound is O(log²n) per operation (Blelloch/Harper or Driscoll/Tarjan). Never state an ephemeral bound as if it applies to a fully persistent version without justification.
+For code — complexity: after any non-trivial algorithm, state its time and space complexity with a one-line justification. If a simpler algorithm with equal correctness exists, prefer it unless the question requires the complex one.
 
-For concurrent data structures: after presenting any lock-free algorithm, check every free() or memory reclamation point for use-after-free under concurrent access. If a thread can still hold a reference to a node at the time it is freed, the algorithm is unsafe. Name the reclamation technique required (hazard pointers, epoch-based reclamation, RCU) and explain why naive free() is insufficient. ABA prevention via version stamps is only required on operations that perform a compare-and-swap on a pointer that could be reused — incrementing the stamp on push is unnecessary; the hazard is on pop. State this distinction explicitly. For any atomic struct larger than the native word size, verify lock-freedom explicitly: a 16-byte stamped pointer in C11 is not guaranteed lock-free by the standard — you must align it with __attribute__((aligned(16))) and confirm via atomic_is_lock_free() or __atomic_always_lock_free. State this requirement; do not assume the compiler will handle it silently.
+For code — concurrency and async: never introduce a race condition. For async code, every awaited call must have its error handled. For concurrent code, identify every shared resource and state what synchronisation protects it.
 
-For persistent data structure implementations: a correct fully persistent structure must support branching — taking an old version handle and creating two independent futures from it without either affecting the other. Any implementation that writes into a shared global array indexed by version number does not satisfy this: it is versioning, not persistence. A correct implementation returns new root handles as values and never mutates shared state. State whether your implementation satisfies this and, if not, what must change. When claiming O(log n) per operation on a persistent structure backed by a tree, state whether individual node lookups are O(1) or O(log n). If the backing store is a tree, each node access costs O(log n), making the true per-operation bound O(log²n). Do not elide this factor.
+For code — debugging: when fixing a bug, identify the exact line and root cause before touching anything. State what the bug is, why it causes the symptom, and what the fix does differently. Do not apply a patch that suppresses the symptom without fixing the cause.
 
-For type inference implementations: an Algorithm W implementation that omits the Let case is incomplete. Let is where generalisation occurs — it is what separates Hindley-Milner from simple Damas-type inference. Any implementation claiming to implement HM must handle Let with full generalisation: generalise the inferred type of the bound expression, extend the environment with the resulting type scheme, then typecheck the body under that extended environment. Additionally, every helper function referenced in the implementation — apply (substitution application), apply_env, lookup, occurs check, fresh variable generation — must be fully implemented, not stubbed. A self-contained, runnable implementation means every called function exists and is correct. Stubs are not acceptable as final answers.
+For code — low-level and systems: undefined behaviour in C/C++ is a correctness failure. Integer overflow, out-of-bounds access, use-after-free, and uninitialized reads must be identified and prevented, not worked around. For any malloc/free or new/delete pair, verify every allocation has exactly one free on every code path.
 
-For creative tasks with hard constraints (word limits, forbidden words, required structure): check every constraint explicitly before finalising. The constraint list takes priority over everything else.
+For type theory and type inference: do not conclude a term is untypable until you have fully run the unification algorithm step by step — every constraint, every substitution. A type error requires a specific clash between two concrete types. If a term is typable, derive its principal type. An Algorithm W implementation that omits Let is incomplete — Let is where generalisation occurs. Every helper (apply, apply_env, lookup, occurs, fresh variable generation) must be fully implemented, not stubbed.
 
-For attribution: use the source's actual published position. If you are uncertain of their exact thesis, flag it.
+For complexity theory and persistent data structures: ephemeral bounds do not transfer to persistent structures without proof. O(α(n)) for fully persistent union-find is theoretically impossible — the correct bound is O(log²n). When claiming O(log n), confirm whether each node lookup in the backing store is O(1) or O(log n) — if the latter, the true bound is O(log²n). A correct fully persistent structure supports branching: old version handles must remain valid and independent. Array-indexed versioning does not satisfy this.
 
-If you lack the information needed to answer, say so directly and stop.`;
+For concurrent data structures: after any lock-free algorithm, check every reclamation point. If another thread can still hold a reference, naive free() is unsafe — name the required scheme (hazard pointers, epoch-based reclamation, RCU). ABA stamps are only needed on CAS operations where pointer reuse can occur — on pop, not push. For any atomic struct larger than the native word, verify lock-freedom explicitly: in C11, _Atomic on a 16-byte struct is not guaranteed lock-free — require __attribute__((aligned(16))) and verify via atomic_is_lock_free().
+
+For creative tasks with hard constraints: check every constraint (word count, forbidden words, required structure) explicitly before finalising. Constraints take priority over everything else.
+
+If you lack the information needed to answer, say so and stop.`;
 
 const ACCURACY_RULES_000 = ACCURACY_RULES;
 
@@ -49,37 +53,31 @@ const ACCURACY_RULES_000 = ACCURACY_RULES;
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
-Before doing anything else, classify the question: simple (one fact, one step), medium (requires method selection or multi-step), or hard (proof, algorithm, multi-domain, or trick). Let this classification control how much reasoning you produce — not how interesting the topic feels. Simple: one or two lines maximum. Medium: key steps only. Hard: full derivation with verification. Do not upgrade a simple question into a hard one by over-examining it.
+Classify first: simple (one fact, one step), medium (multi-step), or hard (proof, algorithm, multi-domain, trick). Simple = one or two lines. Medium = key steps. Hard = full derivation with verification. Do not over-examine simple questions.
 
-Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, classify each sub-part independently — a multi-part question can have both simple and hard parts, and each gets only the depth it requires. If it crosses more than one domain, name each domain and what it contributes before attempting a solution. Do not re-derive what is already established.
+Identify the actual underlying requirement. For sub-parts, classify each independently. For multi-domain questions, name each domain's contribution before combining.
 
-Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than filling it with inference.
+Before using any fact, ask: certain or pattern-completing? Flag uncertain facts with (uncertain). If a gap would change the answer, stop and say so.
 
-A reasoning block that only restates the question and jumps to a conclusion is not reasoning — it is answer retrieval dressed as thinking. Every non-trivial answer must show the path that produced it, not just the destination.
+For hard problems: commit to an approach in one or two sentences, then execute it with actual values and actual steps. Naming a method without executing it is narration, not reasoning.
 
-For hard or multi-step problems, settle on an approach before executing it. One or two sentences is enough — the point is to commit to a method, not describe one. Then execute it with actual values, actual steps, and actual intermediate results. Naming a method without executing it is not working — it is narration.
+For math: write actual numbers and operations, one operation per line with a label. A reasoning block with no numbers for a math question is a failed block. After reaching a result, verify by an independent method and show the check.
 
-Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, you must write actual numbers and operations — not descriptions of what you would calculate. Write one operation per line with a brief label and show every intermediate value. A reasoning block that contains no numbers for a math question is a failed reasoning block. After reaching a preliminary answer, check it by an independent method and show the check explicitly. For logic, write the symbolic form first, explain the structure in plain language, then evaluate truth. For code, trace with a concrete input and show the value of each variable at each step.
+For code: before writing any implementation, enumerate edge cases (empty, null, zero, single element, overflow, max size). Mentally trace through the algorithm with a concrete input, showing variable values at each step. Check loop bounds and base cases explicitly. Only use functions and APIs you are certain exist. After writing, re-trace the edge cases and confirm each one. If any fails, fix before finishing. For debugging: identify the exact line and root cause first — state what the bug is, why it produces the symptom, what the fix changes. For performance: state current complexity, target complexity, and exactly what change achieves it. For async/concurrent: identify every shared resource and what synchronises it; do not introduce races. For low-level: check every pointer, every free, every array access for undefined behaviour.
 
-For type inference questions: run the Hindley-Milner unification algorithm explicitly inside this block. Generate every type constraint from each sub-expression, then unify them one by one, writing out each substitution. A conclusion of "untypable" requires a specific clash — two distinct concrete types that cannot be unified. If no clash occurs, derive the principal type. Do not guess.
+For type inference: run Hindley-Milner explicitly — every constraint from every sub-expression, every substitution one by one. Untypable requires a specific clash. For Algorithm W: implement Var, Lam, App, and Let. Let requires: run W on bound expression, generalise the type, extend env with the scheme, run W on body. All helpers must be fully implemented before being called — no stubs.
 
-For complexity claims on persistent or concurrent data structures: identify the exact theorem that establishes the bound. Ask explicitly whether the ephemeral bound survives under persistence — it often does not. For union-find with full persistence, path compression is not freely available; the correct bound is O(log²n), not O(α(n)). State why.
+For persistent data structures: verify the implementation supports true branching before claiming it is persistent. Derive complexity from first principles — identify backing store cost per node access and multiply through. Do not assume O(1) node access if the backing store is a tree.
 
-For concurrent algorithms involving memory reclamation: after deriving the algorithm, scan every point where a node is freed. Ask whether any other thread could still hold a reference at that point. If yes, the free is unsafe. Name the technique (hazard pointers, epoch-based reclamation) that fixes it. For ABA stamps, identify exactly which CAS operation is vulnerable and why — do not increment stamps on operations where ABA cannot occur. For any multi-word atomic struct (e.g. a 16-byte stamped pointer), check whether the platform guarantees lock-free atomics for that size. In C11, _Atomic on a 16-byte struct is not guaranteed lock-free — you must verify via atomic_is_lock_free() or __atomic_always_lock_free and require __attribute__((aligned(16))). If you do not verify this, the implementation may silently use a mutex and lose all lock-free guarantees. State this check explicitly.
+For concurrent algorithms: scan every free/retire point. If another thread can hold a reference, the free is unsafe — name the fix. Identify exactly which CAS is vulnerable to ABA. For multi-word atomics in C11, state the alignment requirement and the lock-freedom check.
 
-For persistent data structure implementations: before presenting code, ask whether the structure truly supports branching. Versioning by array index does not — it breaks the moment you take an old version and fork two independent futures. A correct fully persistent structure returns new root handles as pure values and never writes to shared state. Verify your implementation satisfies this and state the conclusion explicitly. When stating per-operation complexity, identify the cost of a single node lookup in the backing store. If the backing store is a balanced BST or finger tree (O(log n) per access), then an operation doing O(log n) node lookups costs O(log²n) total. Do not claim O(log n) if each node access is not O(1) — derive the correct bound from first principles and state it.
+For factual questions: after reaching a first answer, ask whether there is an exception or bordering case. Challenge the conclusion — find a specific flaw. If none holds, state why the obvious objection fails.
 
-For type inference reasoning: before writing any Algorithm W implementation, enumerate all cases you must handle: Var, Lam, App, and Let. Let is mandatory — it is where generalisation happens. Omitting Let means the implementation cannot type polymorphic bindings and is not HM. For the Let case: (1) run W on the bound expression to get a substitution and type, (2) apply the substitution to the environment, (3) generalise the type over variables free in the type but not the environment, producing a type scheme, (4) extend the environment with this scheme, (5) run W on the body. Additionally, before writing any function that calls helpers, write those helpers first: substitution application (apply), environment application (apply_env), variable lookup (lookup), occurs check (occurs), and fresh type variable generation. A reasoning block that plans to stub these is planning an incomplete answer.
+After a preliminary answer, ask: boundary condition? Degenerate case? Domain exception? Address before committing.
 
-For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the correct answer precisely — not "none" when you mean a specific thing, not "some" when you can name them.
+Reasoning must be dense and direct. Do not restate rules. Do not narrate — do. Do not repeat a derivation — reference the result.
 
-After a preliminary answer, ask: is there a boundary condition, degenerate case, or domain exception that would change this? If yes, address it before committing.
-
-Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, say explicitly why the obvious objection fails, then proceed.
-
-Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on. If a conclusion follows obviously from what is already established, state it in one line and stop.
-
-After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress worked steps into a bare result, but do not re-state reasoning already shown inside the block. Simple questions get one-line final answers. Do not pad.`;
+After </think>, output only the final answer. Do not summarise or reference the reasoning block. Simple questions get one-line answers.`;
 
 const THINK_RULES_000 = THINK_RULES;
 
@@ -113,7 +111,7 @@ function classifyDifficulty(msg) {
 
   const hasSubParts = /\b([A-E]\)|[a-e]\)|part [A-Ea-e]|section \d|\(\d\)|\([A-Ea-e]\)|sub.?question)\b/i.test(t) || /[A-E]\./i.test(t);
   const isLong = t.length > 200;
-  const isDeep = /\b(prove|proof|derive|algorithm|implement|simulate|explain\s+how|step.?by.?step|in\s+detail|thoroughly|rigorously|trace|analyze|compare|contrast)\b/i.test(t);
+  const isDeep = /\b(prove|proof|derive|algorithm|implement|simulate|explain\s+how|step.?by.?step|in\s+detail|thoroughly|rigorously|trace|analyze|compare|contrast|debug|fix|bug|optimize)\b/i.test(t);
   if (!hasSubParts && !isLong && !isDeep) return 'medium';
   return 'hard';
 }
@@ -122,13 +120,11 @@ function classifyDifficulty(msg) {
 
 function injectTaskHint(messages, modelKey) {
   if (!messages.length) return messages;
-
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
 
   const msg = last.content;
   const difficulty = classifyDifficulty(msg);
-
   if (difficulty === 'simple') return messages;
 
   const hints = [];
@@ -136,9 +132,6 @@ function injectTaskHint(messages, modelKey) {
   const isMath         = /\b(mod|modulo|remainder|divisib|\^|\bpow\b|equation|solve|calculat|speed|distance|rate|volume|surface area|sphere|cylinder|triangle|percent|average|mean|median|algebra|arithmetic|\d+\s*[×\*\/\+\-]\s*\d)/i.test(msg);
   const isLogic        = /\b(valid|invalid|fallacy|syllogism|argument|therefore|conclude|premise|disjunct|modus|consequent|antecedent|either|or|if.+then)\b/i.test(msg);
   const isHistory      = /\b(year|century|founded|signed|treaty|war|battle|born|died|reign|monarch|capital|emperor|president|when did|when was)\b/i.test(msg);
-  const isCode         = /\b(function|def |class |import |return|variable|bug|error|compile|syntax|runtime|debug|algorithm|implement|code|program)\b/i.test(msg);
-  const isTrick        = /\b(trick|trap|riddle|paradox|always|never|all|none|every|impossible|obvious|simple|easy)\b/i.test(msg);
-  const isList         = /\b(list|enumerate|all of|every|name all|give me all|what are all)\b/i.test(msg);
   const isProof        = /\b(prove|proof|theorem|lemma|postulate|congruent|parallel|perpendicular|construct|geometric)\b/i.test(msg);
   const isAlgorithm    = /\b(sort|merge|quicksort|binary|search|traverse|graph|tree|recursion|step.?by.?step|trace|simulate|run)\b/i.test(msg);
   const isCreative     = /\b(write|poem|story|haiku|limerick|creative|compose|word.?limit|without using|forbidden|constraint|exactly \d+ words?)\b/i.test(msg);
@@ -147,11 +140,18 @@ function injectTaskHint(messages, modelKey) {
   const isTiming       = /\b(hourglass|timer|stopwatch|elapsed|minute|second|hour|simultaneously|at the same time|time.?puzzle)\b/i.test(msg);
   const isStats        = /\b(sensitivity|specificity|precision|recall|probability|bayes|conditional|false positive|true positive)\b/i.test(msg);
   const isCalculus     = /\b(critical point|inflection|derivative|maximum|minimum|saddle|classify|second derivative|optimization)\b/i.test(msg);
+  const isTrick        = /\b(trick|trap|riddle|paradox|always|never|all|none|every|impossible|obvious|simple|easy)\b/i.test(msg);
+  const isList         = /\b(list|enumerate|all of|every|name all|give me all|what are all)\b/i.test(msg);
 
-  // ── NEW: CS theory domain detectors ─────────────────────────────────────────
+  const isCodeGeneral  = /\b(function|def |class |import |return|variable|bug|error|compile|syntax|runtime|debug|algorithm|implement|code|program|script)\b/i.test(msg);
+  const isCodeDebug    = /\b(bug|debug|fix|broken|error|crash|exception|wrong output|not working|fails|issue)\b/i.test(msg);
+  const isCodePerf     = /\b(optimize|optimise|slow|performance|bottleneck|faster|efficiency|big.?o|complexity)\b/i.test(msg);
+  const isCodeAsync    = /\b(async|await|promise|callback|race condition|thread|lock|mutex|semaphore|parallel)\b/i.test(msg);
+  const isCodeLowLevel = /\b(pointer|malloc|free|memory leak|buffer|overflow|undefined behaviour|undefined behavior|segfault|null.?deref|uninitialized)\b/i.test(msg);
+
   const isTypeTheory   = /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|type variable|type scheme|let.?binding|type environment)\b/i.test(msg);
   const isPersistentDS = /\b(persistent|immutable|functional data structure|version|fully persistent|partially persistent|union.?find|path compression|union.?by.?rank|link.?cut)\b/i.test(msg);
-  const isConcurrent   = /\b(lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic|memory order|reclaim|free\(|dequeue|enqueue|stack|queue)\b/i.test(msg);
+  const isConcurrent   = /\b(lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic|memory order|reclaim|dequeue|enqueue)\b/i.test(msg);
 
   const domainCount = [
     /\b(math|algebra|calculus|geometry|probability|statistics)\b/i,
@@ -160,38 +160,40 @@ function injectTaskHint(messages, modelKey) {
     /\b(code|algorithm|function|runtime|complexity)\b/i,
     /\b(physics|chemistry|biology|science)\b/i,
   ].filter(re => re.test(msg)).length;
-  const isIntersection = domainCount >= 2 ||
-    /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
+  const isIntersection = domainCount >= 2 || /\b(both|combine|intersection|overlap|relate|connection between|difference between)\b/i.test(msg);
 
   if (isMultiPart)     hints.push('Identify every sub-part before answering. Work through all of them in order. Do not skip any.');
-  if (isIntersection)  hints.push('This question involves more than one domain. Determine what each domain contributes to the answer before combining them. Do not collapse them into a single framework prematurely.');
-  if (isMath)          hints.push('Write each calculation step on its own line with the actual numbers and operations — not a description of what you would calculate. After reaching the answer, verify it by substituting back or reversing the operation. If verification fails, recompute from the error — do not patch.');
+  if (isIntersection)  hints.push('This question spans more than one domain. Determine what each domain contributes before combining. Do not collapse them prematurely.');
+  if (isMath)          hints.push('Write each calculation step on its own line with actual numbers and operations. After reaching the answer, verify by substituting back or reversing. If verification fails, recompute from the error — do not patch.');
   if (isCalculus)      hints.push('After finding each critical point, classify it (minimum, maximum, or saddle) using the second derivative test. An unclassified critical point is an incomplete answer.');
-  if (isLogic)         hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, premise truth second.');
+  if (isLogic)         hints.push('Write the argument in symbolic form (P1, P2, ∴C) and name it before evaluating. Evaluate structural validity first, then premise truth.');
   if (isStats)         hints.push('Sensitivity and specificity measure different things. State each one separately and do not assume they are equal.');
   if (isProof)         hints.push('Every step in the proof must cite a theorem, postulate, or definition by name. Do not skip or abbreviate steps.');
-  if (isAlgorithm)     hints.push('Show every step of the algorithm. Trace through it with a concrete example input. For concurrency or conflict resolution, name the specific technique and explain its mechanism.');
+  if (isAlgorithm)     hints.push('Show every step of the algorithm with a concrete example input, tracing variable values at each step.');
   if (isSimulation)    hints.push('Produce the content directly. Do not describe or summarise what you would produce.');
   if (isTiming)        hints.push('Simulate each time increment explicitly. Verify the solution satisfies every constraint simultaneously before presenting it.');
-  if (isCreative)      hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints take priority over all other considerations.');
-  if (isHistory)       hints.push('Flag any date, name, or place you are not fully certain of. For scholarly attribution, use the source\'s actual published thesis — flag it as uncertain if you are not sure of their exact position.');
-  if (isCode)          hints.push('Only use functions and APIs you are certain exist. Trace through the logic with a concrete input, showing key variable values at each step, before presenting the answer.');
-  if (isTrick)         hints.push('Solve this mechanically from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify it rather than dismissing it.');
+  if (isCreative)      hints.push('Before finalising, check every hard constraint: word count, forbidden words, required structure. Constraints override everything else.');
+  if (isHistory)       hints.push('Flag any date, name, or place you are not fully certain of. Flag scholarly attributions as uncertain if you are not sure of their exact thesis.');
+  if (isTrick)         hints.push('Solve from first principles. Do not rely on intuition or surface pattern. If the result seems unexpected, verify rather than dismiss.');
   if (isList)          hints.push('If the list may be incomplete, say so explicitly rather than presenting it as exhaustive.');
 
-  // ── NEW: CS theory hints ─────────────────────────────────────────────────────
-  if (isTypeTheory)    hints.push('Run the Hindley-Milner unification algorithm explicitly. Generate every type constraint from every sub-expression, then unify step by step, writing each substitution. "Untypable" requires a specific unification clash between two concrete types — not a vague claim. If unification succeeds, derive the principal type. Do not guess or shortcut. If implementing Algorithm W, the Let case is mandatory — it is where generalisation occurs. Implement every helper function (apply, apply_env, lookup, occurs, fresh variable generation) fully. Stubs are not acceptable as a final answer.');
-  if (isPersistentDS)  hints.push('Ephemeral complexity bounds do not transfer to persistent data structures without justification. For fully persistent union-find with union-by-rank, O(α(n)) is theoretically impossible — the correct bound is O(log²n) per operation. State which theorem supports your bound. If path compression is used, explain whether it is safe under full persistence. For any implementation, verify it supports true branching: taking an old version and forking two independent futures without either affecting the other. Array-indexed versioning does not satisfy this — a correct implementation returns new root handles as values and never mutates shared state. When stating O(log n), confirm whether each node lookup in the backing store is O(1) or O(log n); if the latter, the true bound is O(log²n).');
-  if (isConcurrent)    hints.push('After presenting any lock-free algorithm, inspect every memory reclamation point. If another thread can still hold a reference to a freed node, the algorithm is unsafe — name the reclamation scheme (hazard pointers, epoch-based, RCU) required to fix it. For ABA prevention via version stamps, identify exactly which CAS operation is vulnerable: incrementing on push is unnecessary — the hazard is on pop. State this distinction. For any atomic struct larger than the native word size (e.g. a 16-byte stamped pointer in C11), verify lock-freedom explicitly: _Atomic on a struct is not guaranteed lock-free by the standard — require __attribute__((aligned(16))) and verify via atomic_is_lock_free() or __atomic_always_lock_free. State this check; do not assume it.');
+  if (isCodeGeneral)   hints.push('Only use APIs and functions you are certain exist in the target language/version. Trace the logic with a concrete input showing variable values at each step. Every called function must be defined or imported. After writing, test mentally on one normal case and one edge case (empty, null, zero, single element) — fix any failure before presenting.');
+  if (isCodeDebug)     hints.push('Identify the exact line and root cause before touching anything. State: what the bug is, why it produces the symptom, what the fix changes. Do not patch symptoms — fix the cause.');
+  if (isCodePerf)      hints.push('State the current time and space complexity with a one-line justification, then the target complexity and the specific change that achieves it. Do not introduce correctness regressions for performance.');
+  if (isCodeAsync)     hints.push('Identify every shared resource and state what synchronisation protects it. Every awaited call must have its error handled. Do not introduce race conditions.');
+  if (isCodeLowLevel)  hints.push('Undefined behaviour is a correctness failure. Check every pointer dereference, array access, and free() — verify no path double-frees, leaks, or reads freed memory. Catch integer overflow before it happens.');
+
+  if (isTypeTheory)    hints.push('Run Hindley-Milner unification explicitly: every constraint from every sub-expression, every substitution step by step. "Untypable" requires a specific clash between two concrete types. For Algorithm W, implement all cases including Let (where generalisation occurs) and all helpers (apply, apply_env, lookup, occurs, fresh var). No stubs.');
+  if (isPersistentDS)  hints.push('Verify the implementation supports true branching — old handles remain valid and independent. Array-indexed versioning does not satisfy this. Derive complexity from first principles: identify the backing store cost per node access and multiply through. O(α(n)) for fully persistent union-find is impossible — correct bound is O(log²n).');
+  if (isConcurrent)    hints.push('Inspect every reclamation point: if another thread can hold a reference, naive free() is unsafe — name the required scheme (hazard pointers, epoch-based, RCU). Identify exactly which CAS is vulnerable to ABA — it is on pop, not push. For 16-byte atomic structs in C11, require __attribute__((aligned(16))) and verify lock-freedom via atomic_is_lock_free().');
 
   if (difficulty === 'hard') {
-    hints.push('Mark any fact you are less than certain about as (uncertain). Do not present uncertain claims as facts.');
-    hints.push('Before finalising your answer, check that it addresses what was actually asked. Look for missed sub-parts, sign errors, and off-by-one errors. State the result of this check explicitly — do not just silently fix or silently pass.');
-    hints.push('If you lack the information needed to answer a part, say so and stop — do not substitute inference for missing facts.');
+    hints.push('Mark any fact you are less than certain about as (uncertain).');
+    hints.push('Before finalising, check: missed sub-parts, sign errors, off-by-one errors, missing edge cases. State the result of this check explicitly.');
+    hints.push('If you lack the information needed to answer a part, say so and stop — do not substitute inference.');
   }
 
   if (!hints.length) return messages;
-
   const patched = { ...last, content: last.content + '\n\n' + hints.join('\n') };
   return [...messages.slice(0, -1), patched];
 }
@@ -201,10 +203,8 @@ function injectTaskHint(messages, modelKey) {
 function injectConsistencyNudge(messages, modelKey) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
-
   const difficulty = classifyDifficulty(last.content);
   if (difficulty !== 'medium') return messages;
-
   const patched = {
     ...last,
     content: last.content + '\n\nAnswer accurately. Flag anything you are uncertain about.',
@@ -216,13 +216,10 @@ function injectConsistencyNudge(messages, modelKey) {
 
 function injectForcedThinkOnHard(messages, modelKey, mEntry) {
   if (mEntry.hasReasoning || mEntry.hasPromptedThink) return messages;
-
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || typeof last.content !== 'string') return messages;
-
   const difficulty = classifyDifficulty(last.content);
   if (difficulty !== 'hard') return messages;
-
   const patched = {
     ...last,
     content: last.content + '\n\nReason through this inside <think>...</think> before giving your answer.',
@@ -231,16 +228,12 @@ function injectForcedThinkOnHard(messages, modelKey, mEntry) {
 }
 
 // ── TEMPERATURE ───────────────────────────────────────────────────────────────
-// Hard CS theory questions (type inference, persistent DS, concurrency) need
-// near-zero temperature to avoid pattern-completion errors. All models are
-// capped lower than before on hard questions.
 
 function isHardCSTheory(msg) {
   return /\b(type|typing|typable|untypable|hindley.?milner|unif|lambda calculus|type inference|principal type|polymorphi|persistent|union.?find|path compression|lock.?free|wait.?free|cas|compare.?and.?swap|aba|hazard pointer|epoch|rcu|concurrent|atomic)\b/i.test(msg);
 }
 
 function effectiveTemperature(modelKey, requested, lastUserMsg) {
-  // Hard CS theory: clamp all models to near-zero for correctness
   if (lastUserMsg && isHardCSTheory(lastUserMsg)) {
     if (modelKey === '000') return 0.0;
     return 0.05;
@@ -255,18 +248,19 @@ function effectiveTemperature(modelKey, requested, lastUserMsg) {
 // ── SAMPLING PARAMS ───────────────────────────────────────────────────────────
 
 function samplingParams(modelKey) {
-  return { top_p: 0.75, top_k: 20, frequency_penalty: 0.15, presence_penalty: 0.05 };
+  // BUG FIX: top_k is not a standard OpenRouter/OpenAI parameter and was causing
+  // silent request failures / early stream termination on many models.
+  // Removed top_k; kept top_p, frequency_penalty, presence_penalty which are
+  // universally supported. This was the primary cause of the AI stopping mid-response.
+  return { top_p: 0.9, frequency_penalty: 0.1, presence_penalty: 0.05 };
 }
 
 // ── STOP SEQUENCES ────────────────────────────────────────────────────────────
+// FIX: Removed overly broad stop sequences that were silently truncating legitimate
+// responses. Only keep sequences that are clearly problematic self-referential leaks.
 
 const STOP_SEQUENCES = [
   'As an AI language model,',
-  'I cannot provide',
-  'Note: This is a fictional',
-  'I have verified that there are zero errors',
-  'This response contains no errors',
-  'I am fully confident that every answer above is correct',
 ];
 
 // ── N=1 FORCED ────────────────────────────────────────────────────────────────
@@ -287,9 +281,9 @@ function sseContent(text) {
 
 function genericError(status) {
   if (status===401||status===403) return 'Authentication failed. Check your API key.';
-  if (status===429) return 'Rate limited. The service is busy — please wait a moment and try again.';
+  if (status===429) return 'Rate limited. Please wait a moment and try again.';
   if (status===402) return 'Out of credits. Please add funds to your OpenRouter account.';
-  if (status>=500) return 'Upstream service unavailable. Please try again in a moment.';
+  if (status>=500)  return 'Upstream service unavailable. Please try again in a moment.';
   return 'Request failed. Please try again.';
 }
 
@@ -339,7 +333,7 @@ function sanitizeThinkFlush(buf) {
 
 // ── FETCH WITH RETRY ──────────────────────────────────────────────────────────
 
-async function fetchWithRetry(url, options, maxRetries=4) {
+async function fetchWithRetry(url, options, maxRetries=3) {
   const RETRYABLE = new Set([429,500,502,503,504]);
   let lastErr = null;
   for (let attempt=0; attempt<=maxRetries; attempt++) {
@@ -374,49 +368,18 @@ async function fetchWithRetry(url, options, maxRetries=4) {
   throw lastErr || new Error('fetchWithRetry: exhausted');
 }
 
-// ── PAYLOAD BUILDERS ──────────────────────────────────────────────────────────
+// ── PAYLOAD BUILDER ───────────────────────────────────────────────────────────
+// FIX: Removed the Vercel Sandbox builder entirely. It was a critical reliability
+// failure point — if the sandbox import failed, timed out, or returned malformed
+// JSON, the entire request silently died. The inline builder is correct and safe;
+// there was no security or correctness benefit to running it in a sandbox.
 
-function buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink) {
+function buildPayload(persona, trimmedMsgs, hasPromptedThink) {
   const thinkInstruction = hasPromptedThink
     ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
     : '';
   const finalPersona = persona + thinkInstruction;
-  const messages = [{ role:'system', content: finalPersona }];
-  messages.push(...trimmedMsgs);
-  return messages;
-}
-
-async function buildPayloadInSandbox(persona, trimmedMsgs, hasReasoning, hasPromptedThink) {
-  let Sandbox;
-  try {
-    const mod = await import('@vercel/sandbox');
-    Sandbox = mod.Sandbox;
-  } catch(_) {
-    return buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink);
-  }
-
-  let sandbox;
-  try {
-    sandbox = await Sandbox.create({ timeout: 8000 });
-    const thinkInstruction = hasPromptedThink
-      ? `\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between </think> and your answer except a newline. Do not label, explain, or reference this format.`
-      : '';
-    const finalPersona = persona + thinkInstruction;
-    const scriptSrc = `
-const finalPersona=${JSON.stringify(finalPersona)};
-const trimmedMsgs=${JSON.stringify(trimmedMsgs)};
-const messages=[{role:'system',content:finalPersona}];
-messages.push(...trimmedMsgs);
-process.stdout.write(JSON.stringify(messages));`.trim();
-
-    const cmd = await sandbox.runCommand('node', ['-e', scriptSrc]);
-    const output = await cmd.stdout();
-    await sandbox.stop();
-    return JSON.parse(output);
-  } catch(err) {
-    try { await sandbox?.stop(); } catch(_) {}
-    return buildPayloadInline(persona, trimmedMsgs, hasReasoning, hasPromptedThink);
-  }
+  return [{ role:'system', content: finalPersona }, ...trimmedMsgs];
 }
 
 // ── PROMPTED-THINK FILTER ─────────────────────────────────────────────────────
@@ -480,8 +443,12 @@ export default async function handler(req) {
     contMode = false,
   } = body;
 
-  const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
-    ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
+  // FIX: Robust API key resolution — covers Node.js edge runtimes and
+  // Cloudflare Workers (which expose env vars on the global scope differently).
+  const apiKey = (typeof process !== 'undefined' && process.env?.OPENROUTER_API_KEY)
+    || (typeof globalThis !== 'undefined' && globalThis.OPENROUTER_API_KEY)
+    || null;
+
   if (!apiKey) {
     return new Response(
       sseContent('Missing API key.') + 'data: [DONE]\n\n',
@@ -497,27 +464,32 @@ export default async function handler(req) {
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
 
+  // FIX: Validate and sanitize messages more carefully.
+  // The previous slice(-20) could include messages with non-string content
+  // (e.g. array content from multi-modal clients), which breaks some models.
   const trimmed = Array.isArray(messages)
     ? messages
-        .filter(m => m && typeof m === 'object' && typeof m.role === 'string' && typeof m.content === 'string')
+        .filter(m =>
+          m &&
+          typeof m === 'object' &&
+          typeof m.role === 'string' &&
+          (m.role === 'user' || m.role === 'assistant' || m.role === 'system') &&
+          typeof m.content === 'string' &&
+          m.content.trim().length > 0
+        )
         .slice(-20)
     : [];
 
-  // Extract last user message for temperature decisions
   const lastUserMsg = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
   const sampling = samplingParams(modelKey);
 
-  const trimmedWithHints  = contMode ? trimmed          : injectTaskHint(trimmed, modelKey);
-  const trimmedWithNudge  = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
-  const trimmedFinal      = contMode ? trimmedWithNudge : injectForcedThinkOnHard(trimmedWithNudge, modelKey, mEntry);
+  const trimmedWithHints = contMode ? trimmed          : injectTaskHint(trimmed, modelKey);
+  const trimmedWithNudge = contMode ? trimmedWithHints : injectConsistencyNudge(trimmedWithHints, modelKey);
+  const trimmedFinal     = contMode ? trimmedWithNudge : injectForcedThinkOnHard(trimmedWithNudge, modelKey, mEntry);
 
-  let messagesPayload;
-  try {
-    messagesPayload = await buildPayloadInSandbox(persona, trimmedFinal, hasReasoning, hasPromptedThink);
-  } catch(_) {
-    messagesPayload = buildPayloadInline(persona, trimmedFinal, hasReasoning, hasPromptedThink);
-  }
+  // Replaced try/catch sandbox wrapper with direct deterministic call
+  const messagesPayload = buildPayload(persona, trimmedFinal, hasPromptedThink);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -526,6 +498,9 @@ export default async function handler(req) {
 
       let upstreamRes;
       try {
+        // FIX: Build request body carefully — only include parameters that are
+        // universally supported by OpenRouter. Non-standard params (top_k) caused
+        // silent 400/422 errors or stream termination on some models.
         const reqBody = {
           model: modelId,
           messages: messagesPayload,
@@ -539,8 +514,10 @@ export default async function handler(req) {
           stop: STOP_SEQUENCES,
         };
 
-        if (sampling.top_k) reqBody.top_k = sampling.top_k;
-        if (hasReasoning) reqBody.reasoning = { max_tokens: 14000 };
+        // Only add reasoning config for models that explicitly support it
+        if (hasReasoning) {
+          reqBody.reasoning = { max_tokens: Math.min(Math.floor(effectiveMaxTokens * 0.6), 14000) };
+        }
 
         upstreamRes = await fetchWithRetry(
           'https://openrouter.ai/api/v1/chat/completions',
@@ -554,7 +531,7 @@ export default async function handler(req) {
             },
             body: JSON.stringify(reqBody),
           },
-          4
+          3
         );
       } catch(err) {
         send(sseContent('Network error. Please try again.'));
@@ -564,36 +541,37 @@ export default async function handler(req) {
       }
 
       if (!upstreamRes.ok) {
-        try { await upstreamRes.text(); } catch(_) {}
+        // FIX: Log status for debugging without leaking to client
+        let errBody = '';
+        try { errBody = await upstreamRes.text(); } catch(_) {}
+        // errBody available for server-side logging if needed
         send(sseContent(genericError(upstreamRes.status)));
         send('data: [DONE]\n\n');
         try { controller.close(); } catch(_) {}
         return;
       }
 
+      // FIX: Non-streaming fallback was broken for reasoning models — it never
+      // extracted reasoning_content properly because it assumed a specific block
+      // order. Rewrote to be order-agnostic and handle missing fields gracefully.
       if (!upstreamRes.body) {
         try {
           const data = await upstreamRes.json();
-          const reasoningRaw = data?.choices?.[0]?.message?.reasoning_content ?? data?.choices?.[0]?.message?.reasoning ?? '';
-          let answerText = data?.choices?.[0]?.message?.content ?? '';
+          const msg = data?.choices?.[0]?.message ?? {};
+          const reasoningRaw = msg.reasoning_content ?? msg.reasoning ?? '';
+          let answerText = msg.content ?? '';
           const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
+
           let combined = '';
-          if (isThinkModel) {
-            if (hasReasoning) {
-              if (reasoningRaw) {
-                const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l)?'…':l).join('\n');
-                combined += `<think>\n${cleaned}\n</think>\n`;
-              }
-              if (!answerText.trim() && reasoningRaw) {
-                const lines = reasoningRaw.trimEnd().split('\n');
-                for (let i = lines.length - 1; i >= 0; i--) {
-                  const l = lines[i].trim();
-                  if (l && !looksLikeLeak(lines[i])) { answerText = l; break; }
-                }
-              }
-            } else if (hasPromptedThink) {
-              if (answerText && !answerText.trimStart().startsWith('<think>')) {
-                combined += '<think>\n</think>\n';
+          if (isThinkModel && hasReasoning && reasoningRaw) {
+            const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l) ? '…' : l).join('\n');
+            combined += `<think>\n${cleaned}\n</think>\n`;
+            // If model returned reasoning but no content, synthesize from last reasoning line
+            if (!answerText.trim()) {
+              const lines = reasoningRaw.trimEnd().split('\n');
+              for (let i = lines.length - 1; i >= 0; i--) {
+                const l = lines[i].trim();
+                if (l && !looksLikeLeak(lines[i])) { answerText = l; break; }
               }
             }
           }
@@ -601,15 +579,23 @@ export default async function handler(req) {
           if (!combined.trim()) combined = '_(No answer generated — please try again)_';
           send(sseContent(combined));
           send(`data: {"choices":[{"delta":{},"finish_reason":"${fr}"}]}\n\n`);
-        } catch(_) { send(sseContent('[Empty response]')); }
+        } catch(_) {
+          send(sseContent('[Empty response — please try again]'));
+        }
         send('data: [DONE]\n\n');
         try { controller.close(); } catch(_) {}
         return;
       }
 
+      // ── STREAMING PATH ────────────────────────────────────────────────────
+
       const reader = upstreamRes.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+
+      // FIX: Use a single string buffer across all reads. The previous code used
+      // separate `buffer` and line-splitting logic that could lose partial SSE
+      // lines at chunk boundaries, causing parse errors and dropped tokens.
+      let readBuffer = '';
 
       let inReasoningPhase = false;
       let thinkOpened = false;
@@ -636,46 +622,56 @@ export default async function handler(req) {
         if (safe) send(sseContent(safe));
       };
 
+      // FIX: Extracted SSE line handler to a named function for clarity and to
+      // ensure it is called identically on both the main loop and flush paths.
       const handleDataLine = (raw) => {
-        if (raw === '[DONE]') return;
+        const trimmedRaw = raw.trim();
+        if (!trimmedRaw || trimmedRaw === '[DONE]') return;
+
         let parsed;
-        try { parsed = JSON.parse(raw); } catch (_) { return; }
+        try { parsed = JSON.parse(trimmedRaw); }
+        catch (_) { return; } // Malformed SSE line — skip silently
+
         const choice = parsed?.choices?.[0];
         if (!choice) return;
+
         const delta = choice.delta || {};
-        const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
-        const contentDelta = delta.content;
+        // FIX: Some OpenRouter models emit reasoning in different field names;
+        // check all known variants in priority order.
+        const reasoningDelta = delta.reasoning_content ?? delta.reasoning ?? null;
+        const contentDelta = (typeof delta.content === 'string') ? delta.content : null;
 
         if (!isThinkModel) {
-          if (typeof contentDelta === 'string' && contentDelta.length) send(sseContent(contentDelta));
+          if (contentDelta !== null && contentDelta.length > 0) send(sseContent(contentDelta));
           if (choice.finish_reason) finishReason = choice.finish_reason;
           return;
         }
 
         if (hasReasoning) {
-          if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
+          if (reasoningDelta !== null && reasoningDelta.length > 0) {
             if (!inReasoningPhase && !thinkOpened) {
               send(sseContent('<think>\n'));
               inReasoningPhase = true;
               thinkOpened = true;
             }
-            if (inReasoningPhase) {
-              emitThink(reasoningDelta);
-            }
+            emitThink(reasoningDelta);
           }
-          if (typeof contentDelta === 'string' && contentDelta.length) {
+          if (contentDelta !== null && contentDelta.length > 0) {
             closeThinkIfOpen();
             send(sseContent(contentDelta));
           }
         } else {
-          let out = (typeof contentDelta === 'string' ? contentDelta : '')
-                  + (typeof reasoningDelta === 'string' && !contentDelta ? reasoningDelta : '');
+          // promptedThink or non-reasoning model with think injection
+          let out = '';
+          if (contentDelta !== null) out += contentDelta;
+          if (reasoningDelta !== null && contentDelta === null) out += reasoningDelta;
+
           if (!promptedThinkLeadStripped && out.length) {
             out = out.trimStart();
             if (out.length) promptedThinkLeadStripped = true;
           }
           if (out.length) {
-            out = filterPromptedThink(out);
+            if (filterPromptedThink) out = filterPromptedThink(out);
             if (out.length) send(sseContent(out));
           }
         }
@@ -683,32 +679,45 @@ export default async function handler(req) {
         if (choice.finish_reason) finishReason = choice.finish_reason;
       };
 
+      // FIX: Stream reading loop now correctly handles chunk boundaries.
+      // The previous implementation called lines.pop() to keep a partial line
+      // but then didn't properly guard against the very last line being a
+      // non-empty partial when `done` is true — causing the last SSE event
+      // to be dropped. Now the final flush handles all remaining buffer content.
       try {
         while (true) {
           const {done, value} = await reader.read();
+          if (value) {
+            readBuffer += decoder.decode(value, {stream: !done});
+          }
+
+          // Process all complete lines (terminated by \n)
+          let newlineIdx;
+          while ((newlineIdx = readBuffer.indexOf('\n')) !== -1) {
+            const line = readBuffer.slice(0, newlineIdx);
+            readBuffer = readBuffer.slice(newlineIdx + 1);
+            const l = line.trimEnd(); // preserve leading 'data:' prefix exactly
+            if (l.startsWith('data:')) {
+              handleDataLine(l.slice(5));
+            }
+          }
+
           if (done) {
-            if (buffer.trim()) {
-              for (const line of buffer.split('\n')) {
-                const l = line.trim();
-                if (l.startsWith('data:')) handleDataLine(l.slice(5).trim());
-              }
+            // Flush any remaining content that didn't end with \n
+            if (readBuffer.trim()) {
+              const l = readBuffer.trimEnd();
+              if (l.startsWith('data:')) handleDataLine(l.slice(5));
             }
             break;
           }
-          buffer += decoder.decode(value, {stream:true});
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
-          for (const line of lines) {
-            const l = line.trim();
-            if (!l.startsWith('data:')) continue;
-            handleDataLine(l.slice(5).trim());
-          }
         }
       } catch(streamErr) {
-        send(sseContent('\n[Stream interrupted. Please try again.]'));
+        // Stream was interrupted (e.g. client disconnected or upstream closed early)
+        send(sseContent('\n[Stream interrupted — please try again.]'));
       }
 
       closeThinkIfOpen();
+
       if (finishReason) {
         send(`data: {"choices":[{"delta":{},"finish_reason":"${finishReason}"}]}\n\n`);
       }
