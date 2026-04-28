@@ -552,6 +552,8 @@ export default async function handler(req) {
     maxTokens = 2000,
     model: modelKey = '0',
     contMode = false,
+    context = '',
+    useSearch = false,
   } = body;
 
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
@@ -575,16 +577,49 @@ export default async function handler(req) {
   const hasReasoning   = hasImages ? false : mEntry.hasReasoning;
   const hasPromptedThink = hasImages ? false : (mEntry.hasPromptedThink ?? false);
 
-  const persona = SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0'];
+  const persona = (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
 
-  const trimmed = Array.isArray(messages)
+  const rawTrimmed = Array.isArray(messages)
     ? messages
         .filter(m => m && typeof m === 'object' && typeof m.role === 'string' &&
           (typeof m.content === 'string' || Array.isArray(m.content)))
         .slice(-20)
     : [];
+
+  // Deduplicate: remove consecutive assistant messages with identical content
+  // and strip leaked system-prompt patterns from assistant messages
+  const LEAK_PATTERNS_MSG = [
+    /^Universal Production System Prompt/m,
+    /^FORMATTING RULES — MANDATORY/m,
+    /^Core Behavior\n/m,
+    /You are (?:0|00|000|V), created by Vin/,
+  ];
+  function msgLooksLikeSystemLeak(content) {
+    if (typeof content !== 'string') return false;
+    return LEAK_PATTERNS_MSG.some(re => re.test(content));
+  }
+
+  const dedupedMsgs = [];
+  for (let i = 0; i < rawTrimmed.length; i++) {
+    const m = rawTrimmed[i];
+    // Skip assistant messages that look like system prompt leakage
+    if (m.role === 'assistant' && msgLooksLikeSystemLeak(
+      Array.isArray(m.content) ? (m.content.find(p => p.type === 'text')?.text ?? '') : m.content
+    )) continue;
+    // Skip consecutive duplicate assistant messages
+    if (m.role === 'assistant' && dedupedMsgs.length > 0) {
+      const prev = dedupedMsgs[dedupedMsgs.length - 1];
+      if (prev.role === 'assistant') {
+        const prevText = Array.isArray(prev.content) ? (prev.content.find(p=>p.type==='text')?.text??'') : prev.content;
+        const curText  = Array.isArray(m.content)    ? (m.content.find(p=>p.type==='text')?.text??'')  : m.content;
+        if (prevText === curText) continue;
+      }
+    }
+    dedupedMsgs.push(m);
+  }
+  const trimmed = dedupedMsgs;
 
   const _lastUserRaw = [...trimmed].reverse().find(m => m.role === 'user')?.content ?? '';
   const lastUserMsg = Array.isArray(_lastUserRaw)
