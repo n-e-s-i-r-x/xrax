@@ -643,7 +643,7 @@ export default async function handler(req) {
 
       let upstreamRes;
       try {
-        const reqBody: Record<string, any> = {
+        const reqBody = {
           model: modelId,
           messages: messagesPayload,
           temperature: temp,
@@ -744,9 +744,10 @@ export default async function handler(req) {
       let promptedThinkLeadStripped = !hasPromptedThink;
 
       let _streamedAnswer = '';
+      const _contentChunks = [];
       const _origSend = send;
-      const _contentChunks: string[] = [];
-      const sendAndCollect = (chunk) => {
+      // Wrap send in-place to collect streamed content chunks for post-stream verification
+      let activeSend = (chunk) => {
         _origSend(chunk);
         try {
           const m = chunk.match(/^data: (.+)\n\n$/s);
@@ -757,16 +758,15 @@ export default async function handler(req) {
           }
         } catch(_) {}
       };
-      const send = sendAndCollect;
 
       const filterPromptedThink = hasPromptedThink ? makePromptedThinkFilter() : null;
 
       const closeThinkIfOpen = () => {
         if (inReasoningPhase) {
           const tail = sanitizeThinkFlush(thinkLineBuf);
-          if (tail) send(sseContent(tail));
+          if (tail) activeSend(sseContent(tail));
           thinkLineBuf = '';
-          send(sseContent('\n</think>\n'));
+          activeSend(sseContent('\n</think>\n'));
           inReasoningPhase = false;
           thinkOpened = false;
         }
@@ -775,7 +775,7 @@ export default async function handler(req) {
       const emitThink = (delta) => {
         const {safe, buf} = sanitizeThinkChunk(thinkLineBuf, delta);
         thinkLineBuf = buf;
-        if (safe) send(sseContent(safe));
+        if (safe) activeSend(sseContent(safe));
       };
 
       const handleDataLine = (raw) => {
@@ -789,7 +789,7 @@ export default async function handler(req) {
         const contentDelta = delta.content;
 
         if (!isThinkModel) {
-          if (typeof contentDelta === 'string' && contentDelta.length) send(sseContent(contentDelta));
+          if (typeof contentDelta === 'string' && contentDelta.length) activeSend(sseContent(contentDelta));
           if (choice.finish_reason) finishReason = choice.finish_reason;
           return;
         }
@@ -797,7 +797,7 @@ export default async function handler(req) {
         if (hasReasoning) {
           if (typeof reasoningDelta === 'string' && reasoningDelta.length) {
             if (!inReasoningPhase && !thinkOpened) {
-              send(sseContent('<think>\n'));
+              activeSend(sseContent('<think>\n'));
               inReasoningPhase = true;
               thinkOpened = true;
             }
@@ -807,7 +807,7 @@ export default async function handler(req) {
           }
           if (typeof contentDelta === 'string' && contentDelta.length) {
             closeThinkIfOpen();
-            send(sseContent(contentDelta));
+            activeSend(sseContent(contentDelta));
           }
         } else {
           let out = (typeof contentDelta === 'string' ? contentDelta : '')
@@ -818,7 +818,7 @@ export default async function handler(req) {
           }
           if (out.length) {
             out = filterPromptedThink(out);
-            if (out.length) send(sseContent(out));
+            if (out.length) activeSend(sseContent(out));
           }
         }
 
@@ -847,7 +847,7 @@ export default async function handler(req) {
           }
         }
       } catch(streamErr) {
-        send(sseContent('\n[Stream interrupted. Please try again.]'));
+        activeSend(sseContent('\n[Stream interrupted. Please try again.]'));
       }
 
       closeThinkIfOpen();
