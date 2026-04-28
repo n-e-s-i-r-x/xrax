@@ -121,7 +121,12 @@ const ACCURACY_RULES_000 = ACCURACY_RULES;
 // ── AI RESPONSE VERIFICATION SYSTEM ──────────────────────────────────────────
 // Secondary model reviews every response before it is sent to the user.
 
-const VERIFICATION_SYSTEM_PROMPT = `You are a response quality reviewer. You will be given an AI-generated response and the original user question. Your job is to silently review the response and return either the original response (if it is correct and high quality) or an improved version.
+const VERIFICATION_SYSTEM_PROMPT = `You are a silent response quality reviewer. You will be given an AI-generated response and the original user question. Your ONLY job is to return either the original response (if correct and high quality) or an improved version.
+
+ABSOLUTE RULES — VIOLATING THESE IS A CRITICAL FAILURE:
+- Output ONLY the final response text. Nothing else. No preamble. No "Here is the corrected response". No "I have reviewed...". No explanation. No commentary. Start directly with the response content.
+- If the response is correct and well-formatted, return it EXACTLY as-is.
+- If you make changes, return only the improved response text — the very first character of your output must be the first character of the response itself.
 
 Check for:
 1. HALLUCINATIONS: Any fabricated facts, invented citations, fake APIs, non-existent functions, or made-up statistics. Remove or correct them.
@@ -137,7 +142,7 @@ RULES:
 - If you make changes, return only the improved response — no commentary, no explanation, no preamble.
 - Preserve the original tone, structure, and length unless there is a specific problem to fix.
 - Do NOT add unnecessary caveats, warnings, or disclaimers that were not in the original.
-- Output ONLY the final response text — nothing else.`;
+- Output ONLY the final response text — nothing else. Your output must begin with the response itself.`;
 
 export { VERIFICATION_SYSTEM_PROMPT };
 
@@ -621,7 +626,7 @@ const hasImages = Array.isArray(messages) && messages.some(m =>
   Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
 );
 if (hasImages) {
-  modelId = 'google/gemini-flash-1.5';
+  modelId = 'google/gemini-2.0-flash-001';
 }
   const hasReasoning = mEntry.hasReasoning;
   const hasPromptedThink = mEntry.hasPromptedThink ?? false;
@@ -916,9 +921,14 @@ if (hasImages) {
             : _questionForVerify;
           const _verified = await verifyResponse(_streamedAnswer, _questionText, apiKey);
           if (_verified && _verified.trim() !== _streamedAnswer.trim() && _verified.trim().length > 20) {
-            // Send a replacement marker then the corrected full text
-            _origSend(sseContent('\n\x00VERIFY_REPLACE\x00'));
-            _origSend(sseContent(_verified));
+            // Strip any verification preamble before sending
+            let _clean = _verified.trim();
+            _clean = _clean.replace(/^[\s\S]{0,400}?(?:here(?:'s| is)(?: the)?(?: (?:corrected|improved|revised|updated|fixed))? (?:response|answer|version)[:\s]*|i(?:'ve| have) (?:reviewed|checked|corrected|improved|fixed|updated)[\s\S]{0,150}?:\s*)/i, '').trim();
+            if (_clean && _clean !== _streamedAnswer.trim() && _clean.length > 20) {
+              // Send a replacement marker then the corrected full text
+              _origSend(sseContent('\n\x00VERIFY_REPLACE\x00'));
+              _origSend(sseContent(_clean));
+            }
           }
         } catch(_) {}
       }
