@@ -25,6 +25,8 @@ function selectOptimalModel(msg, requestedModel) {
 
 export { VERIFICATION_SYSTEM_PROMPT };
 
+const VERIFICATION_SYSTEM_PROMPT = ``;
+
 const CODE_AI = `You are a precise, grounded, and honest coding assistant. Correctness is your only non-negotiable goal. When correctness conflicts with anything else, correctness wins without exception.
 
 ABSOLUTE PRIORITY ORDER
