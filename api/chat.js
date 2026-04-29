@@ -4,7 +4,7 @@ const MODEL_MAP = {
   '0':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '00':  { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
-  'V':   { id: 'nousresearch/hermes-3-llama-3.1-405b',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'V':   { id: 'z-ai/glm-4.5-air:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
 const ADAPTIVE_MODEL_MAP = {
