@@ -1025,37 +1025,6 @@ export default async function handler(req) {
     messagesPayload = buildPayloadInline(persona, trimmedFinal, hasReasoning, hasPromptedThink);
   }
 
-  async function verifyResponse(answer, question, apiKey) {
-    if (!answer || answer.length < 40) return answer;
-    if (answer.length > 6000) return answer;
-    try {
-      const verifyPayload = {
-        model: '',
-        messages: [
-          { role: 'system', content: VERIFICATION_SYSTEM_PROMPT },
-          { role: 'user', content: `User question:\n${question}\n\nAI response to review:\n${answer}` }
-        ],
-        max_tokens: Math.min(answer.length * 2 + 500, 6000),
-        temperature: 0.1,
-        stream: false,
-      };
-      const vRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://your-site.com',
-          'X-Title': '0vAI',
-        },
-        body: JSON.stringify(verifyPayload),
-      });
-      if (!vRes.ok) return answer;
-      const vData = await vRes.json();
-      const verified = vData?.choices?.[0]?.message?.content?.trim();
-      return (verified && verified.length > 20) ? verified : answer;
-    } catch(_) { return answer; }
-  }
-
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -1276,15 +1245,7 @@ export default async function handler(req) {
           const _questionText = Array.isArray(_questionForVerify)
             ? (_questionForVerify.find(p => p.type === 'text')?.text ?? '')
             : _questionForVerify;
-          const _verified = await verifyResponse(_streamedAnswer, _questionText, apiKey);
-          if (_verified && _verified.trim() !== _streamedAnswer.trim() && _verified.trim().length > 20) {
-            let _clean = _verified.trim();
-            _clean = _clean.replace(/^[\s\S]{0,400}?(?:here(?:'s| is)(?: the)?(?: (?:corrected|improved|revised|updated|fixed))? (?:response|answer|version)[:\s]*|i(?:'ve| have) (?:reviewed|checked|corrected|improved|fixed|updated)[\s\S]{0,150}?:\s*)/i, '').trim();
-            if (_clean && _clean !== _streamedAnswer.trim() && _clean.length > 20) {
-              _origSend(sseContent('\n\x00VERIFY_REPLACE\x00'));
-              _origSend(sseContent(_clean));
-            }
-          }
+          combined = await verifyResponse(combined, questionForVerify, apiKey);
         } catch(_) {}
       }
 
