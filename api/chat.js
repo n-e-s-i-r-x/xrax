@@ -4,7 +4,7 @@ const MODEL_MAP = {
   '0':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '00':  { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '000': { id: 'nvidia/nemotron-3-super-120b-a12b:free',          hasReasoning: false,  hasPromptedThink: false, minTokens: 5000 },
-  'V':   { id: 'thedrummer/rocinante-12b',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'V':   { id: 'thedrummer/rocinante-12b',  hasReasoning: true, hasPromptedThink: false, minTokens: 5000 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
