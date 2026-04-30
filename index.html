@@ -596,7 +596,7 @@ body.themed .speed-timer {
   </div>
   <div class="mp-item" id="mp-item-000" onclick="selectModel('000')">
     <div class="mp-label-row"><div class="mp-name">000</div><span class="mp-badge rapid">Rapid</span></div>
-    <div class="mp-desc" id="mp-desc-000">Smartest. Thinking.</div>
+    <div class="mp-desc" id="mp-desc-000">Smartest. BackThinking.</div>
   </div>
   <div style="height:1px;background:#1e1e1e;margin:4px 0;"></div>
   <div class="mp-item" id="mp-item-V" onclick="selectModel('V')">
@@ -807,10 +807,10 @@ function renderMd(text){
 const MODELS={
   '0'  :{key:'0',  label:'0',  placeholder:'Message 0...',  hasThink:false,temp:0.5},
   '00' :{key:'00', label:'00', placeholder:'Message 00...', hasThink:false, temp:0.1},
-  '000':{key:'000',label:'000',placeholder:'Message 000...',hasThink:true, temp:0.6},
+  '000':{key:'000',label:'000',placeholder:'Message 000...',hasThink:false, temp:0.6},
   'V'  :{key:'V',  label:'V',  placeholder:'Message V...',  hasThink:false, temp:0.9},
 };
-const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. Thinking.','V':'Smart. Uncensored.'};
+const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. BackThinking.','V':'Smart. Uncensored.'};
 
 const C={
   grey:  {
