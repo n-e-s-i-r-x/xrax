@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '00':  { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '000': { id: 'nvidia/nemotron-3-super-120b-a12b:free',          hasReasoning: false,  hasPromptedThink: false, minTokens: 5000 },
+  '000': { id: 'nvidia/nemotron-3-super-120b-a12b:free',          hasReasoning: true,  hasPromptedThink: false, minTokens: 5000 },
   'V':   { id: 'thedrummer/rocinante-12b',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
@@ -707,6 +707,10 @@ function samplingParams(modelKey, difficulty) {
 
   return { top_p: 0.75, top_k: 20, frequency_penalty: 0.15, presence_penalty: 0.1 };
 }
+
+const STOP_SEQUENCES = [
+  'As an AI language model,',
+];
 
 const FORCED_N = 1;
 
