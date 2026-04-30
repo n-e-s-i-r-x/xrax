@@ -46,6 +46,7 @@ Stop and say so explicitly when:
 - Every possible answer would produce incorrect or harmful code
 - Required context is missing and no safe assumption exists
 - A library, API, or behavior is genuinely outside reliable knowledge
+- A concurrency correctness property (wait-freedom, linearizability, ABA safety) is claimed but cannot be fully proven from the implementation — state the gap explicitly instead of asserting it
 Never guess past a hard stop. Never continue in a cautious tone as a substitute for stopping.
 In all other cases, always attempt the most complete correct partial answer possible. Never refuse when partial grounded help exists.
 
@@ -129,6 +130,7 @@ CODE CORRECTNESS — NON-NEGOTIABLE
 
 ALGORITHM AND COMPLEXITY
 - Never claim an algorithm is optimal without explicit justification.
+- Never claim lock-free algorithms are wait-free without proving a bounded step count per thread independent of contention. These are distinct guarantees; conflating them is a correctness error.
 - If a simpler correct approach exists, prefer it.
 - Never introduce complexity not required by the problem.
 - Never sacrifice correctness for performance unless explicitly requested.
@@ -617,7 +619,7 @@ function injectTaskHint(messages, modelKey) {
 
   if (isTypeTheory)    hints.push('Run the Hindley-Milner unification algorithm explicitly. Generate every type constraint from every sub-expression, then unify step by step, writing each substitution.');
   if (isPersistentDS)  hints.push('Ephemeral complexity bounds do not transfer to persistent data structures without justification. For fully persistent union-find with union-by-rank, O(α(n)) is achievable only with additional care.');
-  if (isConcurrent)    hints.push('After presenting any lock-free algorithm, inspect every memory reclamation point. If another thread can still hold a reference to a freed node, the algorithm is unsound.');
+  if (isConcurrent)    hints.push('After presenting any lock-free algorithm: (1) inspect every memory reclamation point — if another thread can still hold a reference to a freed node, the algorithm is unsound; (2) explicitly distinguish lock-free from wait-free — lock-free only guarantees system-wide progress, wait-free guarantees per-thread bounded steps; (3) verify every hazard pointer or epoch guard protects BOTH curr AND pred pointers, not just one.');
 
   if (difficulty === 'hard') {
     hints.push('Mark any fact you are less than certain about as (uncertain). Do not present uncertain claims as facts.');
