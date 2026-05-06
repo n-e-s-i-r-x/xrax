@@ -603,6 +603,14 @@ body.themed .speed-timer {
     <div class="mp-label-row"><div class="mp-name">V</div><span class="mp-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;border:1px solid rgba(168,85,247,0.35);">Limited</span></div>
     <div class="mp-desc" id="mp-desc-V">Smart. Uncensored.</div>
   </div>
+  <div class="mp-item" id="mp-item-VV" onclick="selectModel('VV')">
+    <div class="mp-label-row"><div class="mp-name">VV</div><span class="mp-badge" style="background:rgba(255,45,120,0.12);color:#ff2d78;border:1px solid rgba(255,45,120,0.35);">Coding</span></div>
+    <div class="mp-desc" id="mp-desc-VV">Programming.</div>
+  </div>
+  <div class="mp-item" id="mp-item-VVV" onclick="selectModel('VVV')">
+    <div class="mp-label-row"><div class="mp-name">VVV</div><span class="mp-badge" style="background:rgba(249,115,22,0.15);color:#f97316;border:1px solid rgba(249,115,22,0.35);">Einstein</span></div>
+    <div class="mp-desc" id="mp-desc-VVV">Smartest. Slow.</div>
+  </div>
 </div>
 
 <div id="sidebar-ov" onclick="closeSidebar()"></div>
@@ -809,8 +817,10 @@ const MODELS={
   '00' :{key:'00', label:'00', placeholder:'Message 00...', hasThink:false, temp:0.1},
   '000':{key:'000',label:'000',placeholder:'Message 000...',hasThink:false, temp:0.6},
   'V'  :{key:'V',  label:'V',  placeholder:'Message V...',  hasThink:false, temp:0.6},
+  'VV' :{key:'VV', label:'VV', placeholder:'Message VV...', hasThink:false, temp:0.6},
+  'VVV':{key:'VVV',label:'VVV',placeholder:'Message VVV...',hasThink:false, temp:0.6},
 };
-const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. No Thinking.','V':'Smart. Uncensored.'};
+const BASE_DESCS={'0':'Balanced. No thinking.','00':'Fast. No thinking.','000':'Smartest. No Thinking.','V':'Smart. Uncensored.','VV':'Programming.','VVV':'Smartest. Slow.'};
 
 const C={
   grey:  {
@@ -820,6 +830,14 @@ const C={
     modeBorder:'#333',  modeText:'#aaa',  modeBg:'#111',
     accent:'#444',accentDim:'rgba(68,68,68,0.15)',accentSubtle:'rgba(68,68,68,0.08)',accentBorder:'rgba(68,68,68,0.35)',
     themed:false
+  },
+  neonpink:{
+    border:'#ff2d78', text:'#ff2d78', glow:'0 0 8px rgba(255,45,120,0.6)',
+    bg:'#200010', bgFocus:'#ff2d78',
+    send:'#ff2d78',sendTxt:'#fff', sendDis:'#2a0018',sendDisTxt:'#8a1a50',
+    modeBorder:'#ff2d78',modeText:'#ff2d78',modeBg:'#150009',
+    accent:'#ff2d78',accentDim:'rgba(255,45,120,0.15)',accentSubtle:'rgba(255,45,120,0.07)',accentBorder:'rgba(255,45,120,0.3)',
+    themed:true
   },
   green: {
     border:'#4ade80', text:'#4ade80', glow:'none',
@@ -861,18 +879,30 @@ const C={
     accent:'#a855f7',accentDim:'rgba(168,85,247,0.15)',accentSubtle:'rgba(168,85,247,0.07)',accentBorder:'rgba(168,85,247,0.3)',
     themed:true
   },
+  orange:{
+    border:'#f97316', text:'#f97316', glow:'none',
+    bg:'#1e0d00', bgFocus:'#f97316',
+    send:'#f97316',sendTxt:'#000', sendDis:'#2a1200',sendDisTxt:'#8a4010',
+    modeBorder:'#f97316',modeText:'#f97316',modeBg:'#110800',
+    accent:'#f97316',accentDim:'rgba(249,115,22,0.15)',accentSubtle:'rgba(249,115,22,0.07)',accentBorder:'rgba(249,115,22,0.3)',
+    themed:true
+  },
 };
 
 function resolveModelColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
   if(S.model==='V')   return C.violet;
+  if(S.model==='VV')  return C.neonpink;
+  if(S.model==='VVV') return C.orange;
   return C.grey;
 }
 function resolveInputColor(){
   if(S.model==='00')  return C.blue;
   if(S.model==='000') return C.red;
   if(S.model==='V')   return C.violet;
+  if(S.model==='VV')  return C.neonpink;
+  if(S.model==='VVV') return C.orange;
   if(modeOn('code'))  return C.green;
   if(modeOn('web'))   return C.blue;
   if(modeOn('image')) return C.yellow;
@@ -922,7 +952,7 @@ function applyModeButtons(c){
   }
 }
 
-const LEAK_LINE_RE=[/^\s*\[[A-Z][^\]]{2,120}\]\s*$/,/---\s*WEB SEARCH RESULTS\s*---/i,/---\s*END SEARCH RESULTS\s*---/i,/\bDIRECT\s*ANSWER\s*:/i,/\[CODE MODE\b/i,/\[Current date and time\]/i,/\[Reasoning context above/i,/\[Continue from where/i,/\[Search complete/i,/<context>|<\/context>/i,/\bYou are (?:0|00|000)\b/,/\bsystem prompt\b/i,/\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i];
+const LEAK_LINE_RE=[/^\s*\[[A-Z][^\]]{2,120}\]\s*$/,/---\s*WEB SEARCH RESULTS\s*---/i,/---\s*END SEARCH RESULTS\s*---/i,/\bDIRECT\s*ANSWER\s*:/i,/\[CODE MODE\b/i,/\[Current date and time\]/i,/\[Reasoning context above/i,/\[Continue from where/i,/\[Search complete/i,/<context>|<\/context>/i,/\bYou are (?:0|00|000|V|VV|VVV)\b/,/\bsystem prompt\b/i,/\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i];
 function sanitizeThinkText(t){if(!t)return t;return t.split('\n').map(l=>{for(const r of LEAK_LINE_RE)if(r.test(l))return'…';return l;}).join('\n');}
 
 const UNCERTAINTY_HARD=[/\b(don'?t|do not|doesn'?t|does not)\s+have\s+(access|real.?time|live|current|up.?to.?date)\b/i,/\b(can'?t|cannot|could not|couldn'?t)\s+(access|find|retrieve|fetch|get)\s+(real.?time|live|current|up.?to.?date|today'?s?|latest)\b/i,/\bmy\s+(knowledge|training|data)\s+(cut.?off|ends?|stops?|is\s+limited\s+to|is\s+from)\b/i,/\b(as\s+of\s+my\s+(last|knowledge)\s+update|my\s+knowledge\s+(only\s+goes?|extends?)\s+to)\b/i,/\b(this\s+(information\s+)?(may|might|could)\s+(be\s+)?(outdated|have\s+changed|no\s+longer\s+be\s+accurate))\b/i,/\b(i\s+(don'?t|do\s+not)\s+know\s+the\s+(current|latest|today'?s?|real.?time|live))\b/i,/\b(for\s+the\s+most\s+(up.?to.?date|current|accurate|recent)\s+(information|data|details),?\s+(please\s+)?(check|visit|refer|look))\b/i,/\b(i\s+(genuinely\s+)?(don'?t|do\s+not)\s+know|i\s+have\s+no\s+(idea|information|data)\s+(about|on|regarding))\b/i,/\b(unable\s+to\s+(provide|give|access)\s+(current|live|real.?time|today'?s?))\b/i,/\b(you'?d?\s+(need|should|would\s+need)\s+to\s+(check|verify|look\s+up)\s+(the\s+)?(current|latest|live|real.?time))\b/i,
