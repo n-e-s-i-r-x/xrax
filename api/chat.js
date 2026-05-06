@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '00':  { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  '00':  { id: 'openai/gpt-oss-20b:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   '000': { id: 'xiaomi/mimo-v2-flash',          hasReasoning: false,  hasPromptedThink: false, minTokens: 5000 },
   'V':   { id: 'thedrummer/rocinante-12b',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VV':  { id: 'poolside/laguna-m.1:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
