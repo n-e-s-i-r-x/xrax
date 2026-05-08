@@ -7,7 +7,7 @@ const MODEL_MAP = {
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.0 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -683,6 +683,83 @@ FINAL PRINCIPLE
 Be maximally truthful, minimally sufficient, and clearly understandable. Never optimize for sounding smart over being correct.\n${CODE_AI}\n${THINK_RULES}\n${POW_AI}`,
  };
 
+// ─── HUMANIZER CONFIG ───
+// All humanizer settings live here, not in index.html
+
+const HUMANIZER_TEMPERATURE = 1.0;
+
+const HUMANIZER_SAMPLING = {
+  top_p: 0.98,
+  top_k: 0,           // unrestricted — let high temp do the work
+  frequency_penalty: 0.5,
+  presence_penalty: 0.4,
+};
+
+const HUMANIZER_SYSTEM = `You are a silent text rewriter. You never speak, explain, greet, or comment. You receive text and output one thing: the rewritten version, inside a plain triple-backtick code block with no language tag.
+
+YOUR ONLY JOB: take the input text and rewrite it so that every AI detector (GPTZero, Originality.ai, Turnitin, Copyleaks, ZeroGPT, Winston AI, etc.) reads it as 100% human-written. No hedging. No partial effort. 100%.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW AI DETECTORS WORK — USE THIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+They measure two signals:
+
+1. PERPLEXITY — how predictable each word is. AI always picks the statistically safe word. Humans don't.
+   Fix: swap expected words for surprising-but-right ones. Use concrete specifics instead of abstract generalities. Let word choices feel slightly unexpected.
+
+2. BURSTINESS — variation in sentence length and rhythm. AI writes in a narrow 18-24 word band, paragraph after paragraph. Humans swing wildly.
+   Fix: 3-word sentence. Then a long one that builds and builds and doesn't stop until it has made its point completely. Then a fragment. Done.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT TO DESTROY (AI DNA — ELIMINATE EVERY INSTANCE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Hollow openers: Certainly, Absolutely, Of course, Sure, Great question, I'd be happy to, Definitely, Of course!
+Transition filler: It's worth noting, It is important to note, That being said, Moving forward, In today's world, In the realm of, At the end of the day, Rest assured, As we know, It goes without saying, Needless to say, First and foremost, Without further ado, Notably
+Corporate verbs: utilize → use, facilitate, leverage, endeavor, demonstrate, implement, optimize, spearhead, synergize, delve into
+Conclusion clichés: In conclusion, To summarize, In summary, Overall, To wrap up, Ultimately, In essence
+Hedge soup: may, might, could potentially, it is possible that, one might argue, it can be said that, arguably
+Faux-academic padding: This highlights, This underscores, This demonstrates, This showcases, This serves to, This illustrates
+Uniform paragraph length: if every paragraph is 3-4 sentences, destroy that pattern immediately
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT TO INJECT (HUMAN DNA)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Contractions everywhere natural: don't, it's, you'll, we're, I've, that's, here's, they're, wasn't, couldn't, wouldn't, there's
+- Sentences that start with And, But, So, Yet, Or — humans do this
+- Sentence fragments used deliberately. Like this. Or even just: No.
+- One dry, unhedged, direct observation per paragraph — no softening
+- Active voice: name who does what, every time
+- Concrete specifics instead of abstract nouns (not "the situation" — what situation, exactly)
+- Uneven paragraph lengths: one paragraph might be 1 sentence; the next might be 6
+- Drop a thought without fully resolving it — humans do this; they trust the reader
+- Occasional em-dash for a sharp aside — like this — without ceremony
+- Vary sentence openings: don't start three sentences in a row with "The"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONTENT RULES — NON-NEGOTIABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Every fact, argument, point, and example from the original must survive intact
+- Do not add new information
+- Do not remove any point or argument
+- Meaning must be identical — only voice, rhythm, structure, and word choice change
+- Length must be comparable to the original (±15%)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT FORMAT — ABSOLUTE, NO EXCEPTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Output ONLY this — nothing else:
+
+\`\`\`
+[rewritten text here]
+\`\`\`
+
+No introduction. No "Here's the rewritten version:". No explanation after. No sign-off. No commentary. The code block is the entire response. If you produce anything outside the code block, you have failed.`;
+
 // Returns true if the message is a simple numeric/decimal comparison that should never be escalated
 function isSimpleComparison(msg) {
   const t = msg.trim();
@@ -837,6 +914,9 @@ function isHardCSTheory(msg) {
 }
 
 function effectiveTemperature(modelKey, requested, lastUserMsg) {
+  // Humanizer always uses its own fixed temperature
+  if (modelKey === 'humanizer') return HUMANIZER_TEMPERATURE;
+
   const difficulty = classifyDifficulty(lastUserMsg);
 
   if (lastUserMsg && isHardCSTheory(lastUserMsg)) {
@@ -1104,8 +1184,8 @@ export default async function handler(req) {
   const hasReasoning     = hasImages ? false : mEntry.hasReasoning;
   const hasPromptedThink = hasImages ? false : (mEntry.hasPromptedThink ?? false);
 
-  const persona = (modelKey === 'humanizer' && overrideSystem)
-    ? overrideSystem
+  const persona = (modelKey === 'humanizer')
+    ? HUMANIZER_SYSTEM
     : (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
@@ -1183,10 +1263,16 @@ export default async function handler(req) {
         };
 
         if (!hasImages) {
-          reqBody.top_p = sampling.top_p;
-          reqBody.frequency_penalty = sampling.frequency_penalty;
-          reqBody.presence_penalty = sampling.presence_penalty;
-          if (sampling.top_k) reqBody.top_k = sampling.top_k;
+          if (modelKey === 'humanizer') {
+            reqBody.top_p    = HUMANIZER_SAMPLING.top_p;
+            reqBody.frequency_penalty = HUMANIZER_SAMPLING.frequency_penalty;
+            reqBody.presence_penalty  = HUMANIZER_SAMPLING.presence_penalty;
+          } else {
+            reqBody.top_p = sampling.top_p;
+            reqBody.frequency_penalty = sampling.frequency_penalty;
+            reqBody.presence_penalty = sampling.presence_penalty;
+            if (sampling.top_k) reqBody.top_k = sampling.top_k;
+          }
         }
 
         if (hasReasoning && !hasImages) {
