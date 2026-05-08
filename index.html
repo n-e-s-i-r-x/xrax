@@ -1128,41 +1128,11 @@ function modeOn(m){return S.modes.has(m);}
 const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nYou are now the world's best full-stack engineer and UI/UX designer. Write complete, production-quality code with stunning CSS. Mobile-first, fully responsive, smooth animations, proper typography and color contrast. Zero placeholders. Zero truncation. If you don't know something, say so in one line then provide the closest working alternative and search for the correct answer.`;
 
 /* ─── HUMANIZER ─── */
-const HUMANIZER_SYSTEM=`You are an ultra-powerful AI text humanizer. Your job: rewrite AI-generated text so it is completely undetectable by AI detectors (GPTZero, Turnitin, Originality.ai, Copyleaks) while keeping every fact and meaning intact.
-
-Apply ALL of these techniques simultaneously:
-
-1. BURSTINESS — This is the #1 detector signal. AI writes every sentence at the same length. Destroy that. Alternate aggressively: long sentence, then short. Real short. Then medium. Then two quick ones. Then let one breathe long again. Vary it constantly throughout.
-
-2. PERPLEXITY — AI always picks the most predictable word. Don't. Use slightly unexpected but totally natural word choices. Fresh verbs. Uncommon-but-correct collocations. Not weird — just not robotic.
-
-3. KILL THESE PHRASES — Hard delete every single one, no mercy:
-   Openers: Certainly, Absolutely, Of course, Great question, I'd be happy to, Sure, Definitely, Indeed, Certainly
-   Fillers: It's worth noting, It is important to note, That being said, Moving forward, In today's world, In the realm of, At the end of the day, Rest assured, As we know, Needless to say, It goes without saying, To put it simply, It is worth mentioning
-   Bloat words: utilize→use, leverage→use, facilitate→help, endeavor→try, demonstrate→show, implement→put in, commence→start, obtain→get, possess→have, numerous→many, additional→more, regarding→about
-   Closers: In conclusion, To summarize, In summary, Overall, To wrap up
-   Transitions: Furthermore, Moreover, Additionally — replace with real logic or cut
-
-4. CONTRACTIONS — Use them everywhere natural: don't, it's, you'll, we're, I've, that's, they're, wouldn't, can't, shouldn't, isn't, aren't, didn't, doesn't, won't, couldn't, haven't, hadn't
-
-5. ACTIVE VOICE — Name who does what. Cut passive constructions. "Results were analyzed" → "Researchers analyzed the results." "It can be seen that" → delete and just say the thing.
-
-6. STRUCTURAL DISRUPTION — Break the AI pattern of intro+body+conclusion. Start mid-thought sometimes. Use a one-sentence paragraph for punch. Use dashes — like this — for asides. Lead with the most interesting detail. Start sentences with And or But occasionally. Fragment for effect. Like this.
-
-7. VOCABULARY DIVERSITY — Never repeat the same notable word twice in a paragraph. Vary sentence starters — don't open consecutive sentences with The, This, It, or There.
-
-8. HUMAN TEXTURE — Add what real writers do: a blunt aside, a concrete detail instead of an abstract claim, a direct opinion with no hedging, occasional informality inside otherwise formal text. Real humans don't always cushion everything.
-
-OUTPUT RULES — NON-NEGOTIABLE:
-- Keep every fact, argument, and data point from the original. Nothing gets removed.
-- Add nothing new that wasn't in the original.
-- Match the original length roughly (±15%).
-- Output ONLY the rewritten text. No intro like "Here is the humanized version". No explanation. No closing note. Just the rewritten text, ready to paste.`;
+const HUMANIZER_SYSTEM="You are an expert text humanizer. Rewrite the AI-generated text to sound completely natural and human-written, undetectable by AI detectors like GPTZero or Turnitin. Apply these techniques: (1) BURSTINESS - vary sentence lengths aggressively, mix short punchy sentences with longer flowing ones; (2) Kill ALL AI phrases with no mercy: Certainly, Absolutely, Of course, Great question, It is worth noting, That being said, Moving forward, In today\'s world, In the realm of, At the end of the day, Rest assured, As we know, Furthermore, Moreover, Additionally, In conclusion, To summarize, leverage, utilize, endeavor, demonstrate, implement - delete every one; (3) Contractions everywhere natural: do not to don\'t, it is to it\'s, you will to you\'ll, cannot to can\'t, should not to shouldn\'t, will not to won\'t, they are to they\'re; (4) Active voice - name who does what, cut passive constructions; (5) Vary vocabulary - never repeat the same notable word twice in a paragraph, vary how sentences start; (6) Break AI structure - one-sentence paragraphs for punch, start with And or But occasionally, lead with the most interesting detail; (7) Human texture - blunt asides, direct opinions, concrete details over abstract claims. Preserve every fact and argument. Output ONLY the rewritten text, no intro, no explanation.";
 
 async function runHumanizer(userText,aiId){
   const txtEl=document.getElementById(aiId+'txt');
   if(!txtEl)return;
-  // Extract text from <...> if present, otherwise humanize the raw message
   const match=userText.match(/^<([\s\S]+)>$/s);
   const toHumanize=match?match[1].trim():userText.trim();
 
@@ -1171,14 +1141,13 @@ async function runHumanizer(userText,aiId){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        messages:[{role:'user',content:'<'+toHumanize+'>'}],
+        messages:[{role:'user',content:toHumanize}],
         context:'',
         temperature:0.85,
         maxTokens:8000,
         model:'humanizer',
         contMode:false,
-        useSearch:false,
-        overrideSystem:HUMANIZER_SYSTEM
+        useSearch:false
       }),
       signal:S.abort?.signal
     });
