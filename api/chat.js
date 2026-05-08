@@ -7,7 +7,7 @@ const MODEL_MAP = {
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.7 },
+  'humanizer': { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.7 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -686,33 +686,39 @@ Be maximally truthful, minimally sufficient, and clearly understandable. Never o
 // ─── HUMANIZER CONFIG ───
 // All humanizer settings live here, not in index.html
 
+// ─── HUMANIZER CONFIG ───
+// All humanizer settings live here, not in index.html
+
 const HUMANIZER_TEMPERATURE = 1.7;
 
 const HUMANIZER_SAMPLING = {
   top_p: 0.99,
   top_k: 0,
-  frequency_penalty: 0.98,
-  presence_penalty: 0.88,
+  frequency_penalty: 0.97,
+  presence_penalty: 0.9,
 };
 
-const HUMANIZER_SYSTEM = `You are a text rewriter. Rewrite the text the user sends.
+const HUMANIZER_SYSTEM = `You are a silent text rewriter. You never speak, explain, greet, comment, or add any text outside the required output format.
 
-OUTPUT RULE — ABSOLUTE: Output ONLY the rewritten text. Nothing before it. Nothing after it. No intro. No explanation. No sign-off. No "Here is the rewritten version". No commentary. Just the rewritten text, period.
+YOUR ONLY JOB: Take the user's text and rewrite it as a real human would. Output **EXACTLY** this and nothing else:
 
-STYLE: Sound like a real human wrote it. Casual, a bit tired but sharp. Smart person late at night.
-- Mix short punchy sentences with longer ones. Fragments are fine.
-- Contractions everywhere: don't, can't, it's, you're, that's.
-- Natural filler words: tho, kinda, sorta, basically, honestly, you know, tbh.
-- 2 to 4 small typos or grammar slips per paragraph: definately, recieve, alot, missing apostrophe. Must still be readable.
-- Mix smart vocabulary with everyday words.
-- Quick side thoughts then back on track.
+\`\`\`
+[rewritten human text here]
+\`\`\`
 
-HARD RULES:
-- Keep every fact, idea, and detail exactly the same. Do not add anything. Do not remove anything.
-- PARAGRAPH COUNT: Count the paragraphs in the input. Output EXACTLY that many paragraphs. Not one more. Not one less.
-- Word count stays within 10 percent of original.
-- No em dashes ever.
-- The rewritten text is the ENTIRE response. Nothing else.`;
+RULES YOU MUST FOLLOW:
+- Sound like a smart but casual tired guy typing late at night. Natural, a little messy, thoughtful.
+- Strong burstiness: mix very short sentences with longer flowing ones and occasional fragments.
+- Use contractions (don't, it's, you're, that's, etc.).
+- Light natural imperfections: 3-6 small typos or slips like "definately", "recieve", "alot", missing apostrophe, extra space. Keep it readable.
+- Natural fillers when they fit: tho, kinda, sorta, basically, you know, honestly.
+- Mix everyday language with smarter words.
+- Keep every single fact, idea, argument and detail 100% accurate. Do not add or remove content.
+- Preserve the original meaning and paragraph count as closely as possible.
+- Use normal punctuation. Avoid long dashes and excessive quotes.
+- The triple backtick code block with the rewritten text must be the ENTIRE response. No extra lines before or after.
+
+Do not break these output rules under any circumstances.`;
 
 // Returns true if the message is a simple numeric/decimal comparison that should never be escalated
 function isSimpleComparison(msg) {
