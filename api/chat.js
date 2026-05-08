@@ -714,9 +714,11 @@ HUMAN CHAOS PROTOCOL (strong at 1.7 temp):
 RULES:
 - Keep every fact, idea, argument and detail exactly the same. Do not add or remove anything important.
 - Meaning stays 100 percent identical.
-- Length should be roughly similar plus or minus 20 percent.
+- PARAGRAPH COUNT IS MANDATORY: Count the number of paragraphs in the input. Output EXACTLY that many paragraphs. Not one more. Not one less. If the input has 3 paragraphs, you output 3 paragraphs. This rule overrides everything else.
+- Word count must stay within plus or minus 15 percent of the original. Do not pad, do not shrink dramatically.
 - Use normal punctuation. Avoid long dashes and excessive quotes unless really needed.
 - Stay completely on topic.
+- Do NOT add any commentary, preamble, sign-off, or explanation. The code block is the ONLY output.
 
 Output exactly like this:
 
@@ -1154,6 +1156,17 @@ export default async function handler(req) {
   const persona = (modelKey === 'humanizer')
     ? HUMANIZER_SYSTEM
     : (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
+
+  // For humanizer: inject paragraph count into the user message so model knows exactly how many to output
+  function withParaCount(msgs) {
+    if (modelKey !== 'humanizer') return msgs;
+    return msgs.map(m => {
+      if (m.role !== 'user' || typeof m.content !== 'string') return m;
+      const paraCount = m.content.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+      const prefix = `[INPUT HAS ${paraCount} PARAGRAPH${paraCount === 1 ? '' : 'S'} — OUTPUT MUST HAVE EXACTLY ${paraCount} PARAGRAPH${paraCount === 1 ? '' : 'S'}]\n\n`;
+      return { ...m, content: prefix + m.content };
+    });
+  }
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
 
@@ -1207,9 +1220,11 @@ export default async function handler(req) {
 
   let messagesPayload;
   try {
-    messagesPayload = await buildPayloadInSandbox(persona, trimmedFinal, hasReasoning, hasPromptedThink);
+    const finalMsgs = withParaCount(trimmedFinal);
+    messagesPayload = await buildPayloadInSandbox(persona, finalMsgs, hasReasoning, hasPromptedThink);
   } catch(_) {
-    messagesPayload = buildPayloadInline(persona, trimmedFinal, hasReasoning, hasPromptedThink);
+    const finalMsgs = withParaCount(trimmedFinal);
+    messagesPayload = buildPayloadInline(persona, finalMsgs, hasReasoning, hasPromptedThink);
   }
 
   const encoder = new TextEncoder();
