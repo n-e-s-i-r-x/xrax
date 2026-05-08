@@ -720,6 +720,8 @@ RULES:
 
 Output exactly like this:
 
+Ban "—" never use it
+
 \`\`\`
 [the fully rewritten human version here]
 \`\`\` 
