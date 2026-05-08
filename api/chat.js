@@ -7,7 +7,7 @@ const MODEL_MAP = {
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'humanizer': { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.7 },
+  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.7 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
