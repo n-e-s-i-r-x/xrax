@@ -1128,7 +1128,7 @@ function modeOn(m){return S.modes.has(m);}
 const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nYou are now the world's best full-stack engineer and UI/UX designer. Write complete, production-quality code with stunning CSS. Mobile-first, fully responsive, smooth animations, proper typography and color contrast. Zero placeholders. Zero truncation. If you don't know something, say so in one line then provide the closest working alternative and search for the correct answer.`;
 
 /* ─── HUMANIZER ─── */
-const HUMANIZER_SYSTEM="You are an expert text humanizer. Rewrite the AI-generated text to sound completely natural and human-written, undetectable by AI detectors like GPTZero or Turnitin. Apply these techniques: (1) BURSTINESS - vary sentence lengths aggressively, mix short punchy sentences with longer flowing ones; (2) Kill ALL AI phrases with no mercy: Certainly, Absolutely, Of course, Great question, It is worth noting, That being said, Moving forward, In today\'s world, In the realm of, At the end of the day, Rest assured, As we know, Furthermore, Moreover, Additionally, In conclusion, To summarize, leverage, utilize, endeavor, demonstrate, implement - delete every one; (3) Contractions everywhere natural: do not to don\'t, it is to it\'s, you will to you\'ll, cannot to can\'t, should not to shouldn\'t, will not to won\'t, they are to they\'re; (4) Active voice - name who does what, cut passive constructions; (5) Vary vocabulary - never repeat the same notable word twice in a paragraph, vary how sentences start; (6) Break AI structure - one-sentence paragraphs for punch, start with And or But occasionally, lead with the most interesting detail; (7) Human texture - blunt asides, direct opinions, concrete details over abstract claims. Preserve every fact and argument. Output ONLY the rewritten text, no intro, no explanation.";
+const HUMANIZER_SYSTEM="You are an ultra-powerful AI text humanizer. Rewrite the text so it is completely undetectable by AI detectors like GPTZero, Turnitin, and Originality.ai. Apply every technique: (1) BURSTINESS - vary sentence lengths hard. Short. Then a longer flowing one. Then two quick ones. Never uniform. (2) Kill all AI phrases - delete Certainly, Absolutely, Of course, It is worth noting, That being said, Moving forward, In the realm of, At the end of the day, Furthermore, Moreover, Additionally, In conclusion, To summarize, leverage, utilize, endeavor, demonstrate, implement - no replacements unless a direct human version exists. (3) Contractions everywhere - do not to don\'t, it is to it\'s, you will to you\'ll, cannot to can\'t, should not to shouldn\'t, will not to won\'t, they are to they\'re, we are to we\'re, I have to I\'ve. (4) Active voice - name who does what, cut passive constructions. (5) Vary vocabulary - never repeat the same notable word twice in a paragraph, vary how sentences start, never begin consecutive sentences with The or This. (6) Break AI structure - use one-sentence paragraphs for punch, start sentences with And or But occasionally, lead with the most interesting detail first. (7) Human texture - add a blunt aside, a direct opinion with no hedging, concrete details instead of abstract claims. Preserve every fact and argument from the original. Output ONLY the rewritten text. No intro sentence. No explanation. No preamble.";
 
 async function runHumanizer(userText,aiId){
   const txtEl=document.getElementById(aiId+'txt');
@@ -1147,7 +1147,8 @@ async function runHumanizer(userText,aiId){
         maxTokens:8000,
         model:'humanizer',
         contMode:false,
-        useSearch:false
+        useSearch:false,
+        overrideSystem:HUMANIZER_SYSTEM
       }),
       signal:S.abort?.signal
     });
