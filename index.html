@@ -1157,22 +1157,36 @@ async function runHumanizer(userText,aiId){
     const throttledRender=throttle(()=>{
       if(!txtEl)return;
       const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-      txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answer))+'<span class="stream-cur"></span>';
+      // Strip opening ``` fence during live streaming so user sees clean text
+      let live=answer;
+      if(live.startsWith('```')){const nl=live.indexOf('\n');if(nl!==-1)live=live.slice(nl+1);}
+      live=live.replace(/\n?```\s*$/,'');
+      txtEl.innerHTML=DOMPurify.sanitize(marked.parse(live||''))+'<span class="stream-cur"></span>';
       attachCodeBtns();
       if(S.settings.autoscroll)scrollBot();
     },150);
-    while(true){
+    let done_reading=false;
+    while(!done_reading){
       const{done,value}=await reader.read();if(done)break;
       buf+=dec.decode(value,{stream:true});
       const lines=buf.split('\n');buf=lines.pop()??'';
       for(const line of lines){
         const l=line.trim();if(!l.startsWith('data:'))continue;
-        const raw=l.slice(5).trim();if(raw==='[DONE]')break;
+        const raw=l.slice(5).trim();if(raw==='[DONE]'){done_reading=true;break;}
         try{const d=JSON.parse(raw);const txt=d.choices?.[0]?.delta?.content;if(typeof txt==='string'&&txt.length){answer+=txt;throttledRender();}}catch(_){}
       }
     }
-    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=renderMd(answer||'_(No response)_');attachCodeBtns();}
-    return answer;
+    // Extract the rewritten text from inside the triple-backtick fence the humanizer outputs
+    function extractHumanizerText(raw){
+      // Match ```\n...\n``` pattern (with optional language tag)
+      const m=raw.match(/^```[^\n]*\n([\s\S]*?)```\s*$/);
+      if(m)return m[1].trimEnd();
+      // Fallback: strip any leading/trailing ``` lines
+      return raw.replace(/^```[^\n]*\n?/,'').replace(/\n?```\s*$/,'').trimEnd();
+    }
+    const displayAnswer=extractHumanizerText(answer.trim())||answer;
+    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=renderMd(displayAnswer||'_(No response)_');attachCodeBtns();}
+    return displayAnswer;
   }catch(e){
     if(e.name!=='AbortError'&&txtEl)txtEl.innerHTML=renderMd('_(Humanizer error — please retry)_');
     throw e;
@@ -1701,6 +1715,7 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
       const l=line.trim();if(!l.startsWith('data:'))continue;
       const raw=l.slice(5).trim();if(raw==='[DONE]'){
         if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:replaceBuf};
+        pendingReplace=false;replaceBuf='';
         return;
       }
       try{const d=JSON.parse(raw);const choice=d.choices?.[0];if(!choice)continue;
