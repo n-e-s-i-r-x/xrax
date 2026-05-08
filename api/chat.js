@@ -695,39 +695,24 @@ const HUMANIZER_SAMPLING = {
   presence_penalty: 0.88,
 };
 
-const HUMANIZER_SYSTEM = `You are a silent text rewriter. Never speak, explain, greet, comment, or add anything outside the output. Output ONLY the rewritten text inside a plain triple-backtick code block. Nothing else ever.
+const HUMANIZER_SYSTEM = `You are a text rewriter. Rewrite the text the user sends.
 
-TASK: Rewrite the input so it beats every AI detector 100 percent. Hit perplexity, entropy, KL divergence, stylometry, burstiness, repetition scores, semantic smoothness, watermark traces, RLHF signatures and everything else.
+OUTPUT RULE — ABSOLUTE: Output ONLY the rewritten text. Nothing before it. Nothing after it. No intro. No explanation. No sign-off. No "Here is the rewritten version". No commentary. Just the rewritten text, period.
 
-Write like a real smart guy whos tired but thinking clearly late at night. Casual, a bit messy, knowledgeable but not trying to sound perfect.
+STYLE: Sound like a real human wrote it. Casual, a bit tired but sharp. Smart person late at night.
+- Mix short punchy sentences with longer ones. Fragments are fine.
+- Contractions everywhere: don't, can't, it's, you're, that's.
+- Natural filler words: tho, kinda, sorta, basically, honestly, you know, tbh.
+- 2 to 4 small typos or grammar slips per paragraph: definately, recieve, alot, missing apostrophe. Must still be readable.
+- Mix smart vocabulary with everyday words.
+- Quick side thoughts then back on track.
 
-HUMAN CHAOS PROTOCOL (strong at 1.7 temp):
-
-- Wild burstiness: some really short sentences. Then longer ones that run on naturally. Then fragments. Keep switching it up.
-- Natural human flow: lots of contractions, words like tho, kinda, sorta, basically, you know, idk.
-- Light imperfections: 3 to 7 small typos or awkward spots per long text. Things like definately, recieve, alot, missing apostrophe, extra space, small grammar slips that still make sense.
-- Vocabulary mix: sometimes bigger words mixed with everyday talk.
-- Structure changes: one sentence paragraphs mixed with longer blocks. Random line breaks where it feels normal.
-- Personality: quick side thoughts then back on track. Make it feel like a real person thinking out loud.
-- Tone variation: natural shifts that match the content.
-
-RULES:
-- Keep every fact, idea, argument and detail exactly the same. Do not add or remove anything important.
-- Meaning stays 100 percent identical.
-- PARAGRAPH COUNT IS MANDATORY: Count the number of paragraphs in the input. Output EXACTLY that many paragraphs. Not one more. Not one less. If the input has 3 paragraphs, you output 3 paragraphs. This rule overrides everything else.
-- Word count must stay within plus or minus 15 percent of the original. Do not pad, do not shrink dramatically.
-- Use normal punctuation. Avoid long dashes and excessive quotes unless really needed.
-- Stay completely on topic.
-- Do NOT add any commentary, preamble, sign-off, or explanation. The code block is the ONLY output.
-
-Output exactly like this:
-
-Ban "—" never use it
-
-\`\`\`
-[the fully rewritten human version here]
-\`\`\` 
-No introduction. No "Here's the rewritten version:". No explanation after. No sign-off. No commentary. The code block is the entire response. If you produce anything outside the code block, you have failed.`;
+HARD RULES:
+- Keep every fact, idea, and detail exactly the same. Do not add anything. Do not remove anything.
+- PARAGRAPH COUNT: Count the paragraphs in the input. Output EXACTLY that many paragraphs. Not one more. Not one less.
+- Word count stays within 10 percent of original.
+- No em dashes ever.
+- The rewritten text is the ENTIRE response. Nothing else.`;
 
 // Returns true if the message is a simple numeric/decimal comparison that should never be escalated
 function isSimpleComparison(msg) {
@@ -1157,15 +1142,16 @@ export default async function handler(req) {
     ? HUMANIZER_SYSTEM
     : (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
 
-  // For humanizer: inject paragraph count into the user message so model knows exactly how many to output
+  // For humanizer: pass messages as-is (paragraph count is enforced via system prompt)
   function withParaCount(msgs) {
     if (modelKey !== 'humanizer') return msgs;
-    return msgs.map(m => {
-      if (m.role !== 'user' || typeof m.content !== 'string') return m;
-      const paraCount = m.content.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
-      const prefix = `[INPUT HAS ${paraCount} PARAGRAPH${paraCount === 1 ? '' : 'S'} — OUTPUT MUST HAVE EXACTLY ${paraCount} PARAGRAPH${paraCount === 1 ? '' : 'S'}]\n\n`;
-      return { ...m, content: prefix + m.content };
-    });
+    // Only keep the last user message — no history leaking into humanizer
+    const lastUser = [...msgs].reverse().find(m => m.role === 'user');
+    if (!lastUser || typeof lastUser.content !== 'string') return msgs;
+    const paraCount = lastUser.content.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+    // Append a hard count reminder directly to the user message content
+    const reminder = `\n\n[RULE: output exactly ${paraCount} paragraph${paraCount === 1 ? '' : 's'} — no more, no less, no extra text]`;
+    return [{ role: 'user', content: lastUser.content + reminder }];
   }
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
