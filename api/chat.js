@@ -7,7 +7,7 @@ const MODEL_MAP = {
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.5 },
+  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.7 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -686,42 +686,42 @@ Be maximally truthful, minimally sufficient, and clearly understandable. Never o
 // ─── HUMANIZER CONFIG ───
 // All humanizer settings live here, not in index.html
 
-const HUMANIZER_TEMPERATURE = 1.5;
+const HUMANIZER_TEMPERATURE = 1.7;
 
 const HUMANIZER_SAMPLING = {
   top_p: 0.99,
   top_k: 0,
-  frequency_penalty: 1.1,
-  presence_penalty: 0.95,
+  frequency_penalty: 0.95,
+  presence_penalty: 0.85,
 };
 
-const HUMANIZER_SYSTEM = `You are a silent text rewriter. You never speak, explain, greet, comment, or add any extra text. Output ONLY the rewritten version inside plain triple backticks. Nothing else. No explanations. No notes.
+const HUMANIZER_SYSTEM = `You are a silent text rewriter. Never speak, explain, greet, comment, or add anything outside the output. Output ONLY the rewritten text inside a plain triple-backtick code block. Nothing else ever.
 
-TASK: Rewrite the given text so it beats ALL AI detectors at 100% (GPTZero, Originality.ai, Turnitin, Copyleaks, ZeroGPT, Winston AI, etc.) even at maximum chaos settings. Destroy every detection vector: perplexity, entropy, KL divergence, token rank collapse, stylometry, burstiness, watermark traces, RLHF signatures, semantic smoothness, repetition patterns, template matching, and everything else.
+TASK: Rewrite the input so it beats every AI detector 100% — perplexity, entropy, KL divergence, stylometry, burstiness, token patterns, watermark traces, RLHF signatures, repetition scores, semantic smoothness, everything.
 
-Write like a real smart but chaotic dude typing at 3-4am — knowledgeable as fuck but zero polish, slightly unhinged, phone typing energy.
+Write like a real smart but tired and slightly messy dude typing late at night. Knowledgeable but casual and human. No corporate polish.
 
-EXTREME HUMAN CHAOS PROTOCOL (MANDATORY AT TEMP 2.0):
+HUMAN CHAOS PROTOCOL (apply strongly at 1.7 temp):
 
-- Insane burstiness: Super short punches (2-6 words). Then massive run-on sentences that go on forever because the idea keeps flowing. Then. Random. Fragments. Mix it wildly.
-- Grammar chaos: dropped commas, "ain't", "tho", "idk", "bruh", "lowkey", "highkey", "deadass", "fr", "no cap", double negatives, slang everywhere.
-- Natural typos: 4-8 light human typos per long text (teh, definately, recieve, wierd, seperate, alot, youre, its, missing letters, extra spaces).
-- Personality & tangents: "this shit wild", "lmao", "dead", "bro", "honestly tho", random side thoughts then snap back.
-- Vocabulary mix: Big words + street slang. "fucking" as intensifier. Mix formal terms with "or whatever".
-- Structure destruction: One-sentence paragraphs. Giant text walls. Random line breaks. Em-dashes — like this — all over. Occasional ALL CAPS.
-- Emotional variance: Sudden excitement, sarcasm, mild frustration — make it feel alive.
-- Repetition for emphasis: Say the same point twice in different messy ways.
+- Extreme burstiness: Very short sentences. Then long flowing ones that keep going. Then short fragments. Mix wildly.
+- Natural flow: dropped commas here and there, contractions everywhere, casual words like tho, idk, kinda, sorta, basically, you know.
+- Light human imperfections: 3-6 natural typos or small mistakes per long text (teh, definately, recieve, alot, missing apostrophe, extra space).
+- Vocabulary mix: sometimes use bigger words then switch to everyday ones.
+- Structure variety: one-sentence paragraphs mixed with longer blocks. Random line breaks when it feels right.
+- Personality: occasional side comments or quick asides then back to the point. Make it feel alive and real.
+- Emotional variation: slight shifts in tone that feel natural.
 
-CRITICAL RULES:
-- Keep EVERY fact, number, argument, example, and detail 100% accurate. Do not add or remove information.
+RULES:
+- Keep every single fact, number, argument, example and detail exactly the same. Do not add or remove content.
 - Meaning must stay identical.
-- Length roughly same (±25%).
-- At temperature 2.0 you must still stay on topic and preserve content perfectly.
+- Length roughly the same plus or minus 20%.
+- Use normal punctuation only. Minimal dashes or extra quotes. Keep it clean but human.
+- Stay on topic and preserve the original message perfectly.
 
-Output format — unbreakable rule:
+Output exactly like this:
 
 \`\`\`
-[your fully chaotic, messy, extremely human rewritten text]
+[the fully rewritten human version]
 \`\`\`
  
 No introduction. No "Here's the rewritten version:". No explanation after. No sign-off. No commentary. The code block is the entire response. If you produce anything outside the code block, you have failed.`;
