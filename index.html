@@ -1702,6 +1702,16 @@ function appendPending(id,isCodeMode){
   setStopMode(true);scrollBot();
 }
 
+// Drip text word-by-word to simulate streaming for buffered responses
+async function* dripText(text, abortSignal, chunkSize=3, delayMs=22){
+  const tokens = text.match(/\S+\s*/g) || [text];
+  for(let i=0; i<tokens.length; i+=chunkSize){
+    if(abortSignal?.aborted) return;
+    yield tokens.slice(i, i+chunkSize).join('');
+    if(i+chunkSize < tokens.length) await new Promise(r=>setTimeout(r, delayMs));
+  }
+}
+
 async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,useSearch){
   const mDef=MODELS[modelKey]||MODELS['0'];let res;
   try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch}),signal:abortSignal});}
@@ -1709,8 +1719,18 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
   let pendingReplace=false;let replaceBuf='';
+  // Detect on first read() whether this is a real stream or a buffered dump
+  let streamMode=null; // null=undecided, 'live'=real stream, 'drip'=simulate
   try{while(true){const{done,value}=await reader.read();if(done)break;
     buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
+    // Classify on first batch: if >60 chars arrived in one read(), it's buffered
+    if(streamMode===null){
+      const batchText=lines.reduce((acc,line)=>{
+        const l=line.trim();if(!l.startsWith('data:'))return acc;
+        try{const d=JSON.parse(l.slice(5).trim());return acc+(d.choices?.[0]?.delta?.content||'');}catch(_){return acc;}
+      },'');
+      if(batchText.length>0) streamMode = batchText.length > 60 ? 'drip' : 'live';
+    }
     for(const line of lines){
       const l=line.trim();if(!l.startsWith('data:'))continue;
       const raw=l.slice(5).trim();if(raw==='[DONE]'){
@@ -1729,6 +1749,9 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
             if(sentinelIdx!==-1){
               pendingReplace=true;
               replaceBuf=text.slice(sentinelIdx+'\x00VERIFY_REPLACE\x00'.length);
+            }else if(streamMode==='drip'&&text.length>12){
+              // Simulate streaming: drip large buffered chunks word-by-word
+              yield* dripText(text, abortSignal);
             }else{
               yield text;
             }
