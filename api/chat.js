@@ -1,12 +1,13 @@
 export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
-  '0':   { id: 'liquid/lfm-2.5-1.2b-instruct:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '00':  { id: 'openai/gpt-oss-20b:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '000': { id: 'openai/gpt-oss-120b:free',          hasReasoning: false,  hasPromptedThink: false, minTokens: 5000 },
-  'V':   { id: 'thedrummer/cydonia-24b-v4.1',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'VV':  { id: 'poolside/laguna-m.1:free',  hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'VVV': { id: 'nvidia/nemotron-3-super-120b-a12b:free', hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  '0':         { id: 'liquid/lfm-2.5-1.2b-instruct:free',          hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  '00':        { id: 'openai/gpt-oss-20b:free',                     hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  '000':       { id: 'openai/gpt-oss-120b:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
+  'humanizer': { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -1080,6 +1081,7 @@ export default async function handler(req) {
     contMode = false,
     context = '',
     useSearch = false,
+    overrideSystem = null,
   } = body;
 
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
@@ -1102,7 +1104,9 @@ export default async function handler(req) {
   const hasReasoning     = hasImages ? false : mEntry.hasReasoning;
   const hasPromptedThink = hasImages ? false : (mEntry.hasPromptedThink ?? false);
 
-  const persona = (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
+  const persona = (modelKey === 'humanizer' && overrideSystem)
+    ? overrideSystem
+    : (SYSTEM_PROMPT_MAP[modelKey] ?? SYSTEM_PROMPT_MAP['0']) + (context ? '\n\n' + context : '');
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
 
