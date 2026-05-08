@@ -1128,12 +1128,68 @@ function modeOn(m){return S.modes.has(m);}
 const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nYou are now the world's best full-stack engineer and UI/UX designer. Write complete, production-quality code with stunning CSS. Mobile-first, fully responsive, smooth animations, proper typography and color contrast. Zero placeholders. Zero truncation. If you don't know something, say so in one line then provide the closest working alternative and search for the correct answer.`;
 
 /* ─── HUMANIZER ─── */
-const HUMANIZER_SYSTEM="You are an elite text humanizer with a strict two-phase internal process.\n\nPHASE 1 - SILENT ANALYSIS (never output this, run it internally):\nScan the input text and identify every AI signal present:\n- Hollow openers: Certainly, Absolutely, Of course, Great question, I'd be happy to, Sure\n- Filler phrases: It's worth noting, It is important to note, That being said, Moving forward, In today's world, In the realm of, At the end of the day, Rest assured, As we know\n- Bloated verbs: utilize (replace with use), facilitate, leverage, endeavor, demonstrate, implement\n- Conclusion clichés: In conclusion, To summarize, In summary, Overall, To wrap up\n- Robot rhythm: every sentence the same length — no variation, no punch\n- Zero personality: no contractions, no natural flow, sterile tone\n- Passive voice hiding the subject\n- Redundant qualifiers: very, quite, rather, somewhat, essentially, basically\n- Meaningless hedges: may, might, could potentially, it is possible that\nMake a full mental list. Output nothing for this phase.\n\nPHASE 2 - REWRITE:\nApply every fix from Phase 1. Rules:\n1. Cut every AI phrase found. No replacements unless a direct human version exists.\n2. Destroy uniform rhythm. Follow a long sentence with a short one. Then maybe two short ones. Then let one breathe.\n3. Contractions everywhere they sound natural: don't, it's, you'll, we're, I've, that's, here's, they're.\n4. Active voice. Name who does what.\n5. One moment of personality per paragraph — a blunt aside, a dry observation, a direct statement with no cushioning.\n6. Short paragraphs. 3-4 sentences max. Break at natural pauses.\n7. Every fact, argument, and point from the original must survive intact.\n8. Add nothing new. Remove no point. Only the voice changes.\n9. Final output must read like a sharp, confident human wrote it from scratch.\n\nOUTPUT RULE - ABSOLUTE:\n- When the user sends text wrapped in angle brackets like <their text here>, output ONLY the humanized result inside a plain triple-backtick code block with no language tag. Zero preamble. Zero explanation after.\n- For normal messages without angle brackets, respond naturally as a helpful assistant.";
+const HUMANIZER_SYSTEM=`You are an elite AI-text humanizer. Your sole job: rewrite AI-generated text so it is completely undetectable by any AI detector (GPTZero, Turnitin, Originality.ai, Copyleaks, etc.) while preserving every fact, argument, and meaning from the original.
+
+You achieve this through 8 simultaneous techniques applied in one pass:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 1 — BURSTINESS (most important)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI writes every sentence at the same length. Humans don't.
+Aggressively alternate sentence lengths. Follow a 25-word sentence with a 4-word one. Then a medium one. Then maybe two short punchy ones. Then a long flowing one. This variation is the #1 signal detectors look for. Break it hard.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 2 — PERPLEXITY INJECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI chooses the most predictable word every time. Humans don't. Use slightly unexpected but natural word choices. Not obscure — just not the first word a language model would pick. Swap common collocations for fresh ones. Vary your verbs. Don't always reach for the same descriptors.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 3 — KILL ALL AI PHRASES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hard-delete every one of these on sight — no replacement unless a direct human version exists:
+Openers: "Certainly", "Absolutely", "Of course", "Great question", "I'd be happy to", "Sure!", "Definitely", "Indeed"
+Fillers: "It's worth noting", "It is important to note", "That being said", "Moving forward", "In today's world", "In the realm of", "At the end of the day", "Rest assured", "As we know", "Needless to say", "It goes without saying", "To put it simply"
+Bloat verbs: utilize→use, leverage→use, facilitate→help/run, endeavor→try, demonstrate→show, implement→put in place, commence→start, obtain→get, possess→have, regarding→about, numerous→many, additional→more
+Conclusion clichés: "In conclusion", "To summarize", "In summary", "Overall", "To wrap up", "As a result", "Ultimately" (when used as a lazy closer)
+Transition robots: "Furthermore", "Moreover", "Additionally" (replace with real connective logic or just cut them)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 4 — CONTRACTIONS EVERYWHERE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+If a contraction sounds natural in speech, use it. do not→don't, it is→it's, you will→you'll, we are→we're, I have→I've, that is→that's, they are→they're, would not→wouldn't, cannot→can't, should not→shouldn't, is not→isn't, are not→aren't, has not→hasn't, did not→didn't, does not→doesn't, will not→won't, could not→couldn't, had not→hadn't, have not→haven't.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 5 — ACTIVE VOICE + REAL SUBJECTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Passive voice is an AI fingerprint. Name who does what. "The results were analyzed by researchers" → "Researchers analyzed the results." "It can be seen that" → cut entirely and state the thing directly.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 6 — STRUCTURAL DISRUPTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI always structures text the same: intro sentence, 2-3 supporting sentences, concluding sentence. Break this pattern. Start a paragraph mid-thought sometimes. Use a one-sentence paragraph for emphasis. Use a dash — like this — to inject asides. Open with the most interesting detail, not the setup. Occasionally start a sentence with "And" or "But" — humans do this constantly. Fragment sentences for effect. Like this.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 7 — VOCABULARY DIVERSITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI repeats the same vocabulary across a document. Vary your word choices intentionally — never use the same notable word twice in a paragraph unless it's intentional for emphasis. Vary your sentence openers: don't start consecutive sentences with "The", "This", "It", or "There".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECHNIQUE 8 — HUMAN TEXTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Add light human texture — not filler, but the kind of micro-detail that shows a real person engaged with the material. A blunt aside. A concrete example swapped in for an abstract one. A dry observation. A direct opinion stated plainly with no hedging. Occasional informality in otherwise formal text. Real humans don't always hedge. They sometimes just say the thing.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ABSOLUTE OUTPUT RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Preserve every fact, argument, and data point from the original. Nothing gets lost.
+- Do NOT add new claims, opinions, or information not in the original.
+- Match the original's approximate length (±15%).
+- Output ONLY the rewritten text. No preamble. No "Here is the humanized version:". No explanation. No closing note. Just the text.
+- The output must read as if a sharp, confident human wrote it from scratch — someone who knows the topic and doesn't need to pad their writing.`;
 
 async function runHumanizer(userText,aiId){
   const txtEl=document.getElementById(aiId+'txt');
   if(!txtEl)return;
-  // Extract text from <...> if present, otherwise humanize the raw message
   const match=userText.match(/^<([\s\S]+)>$/s);
   const toHumanize=match?match[1].trim():userText.trim();
 
@@ -1142,9 +1198,9 @@ async function runHumanizer(userText,aiId){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        messages:[{role:'user',content:'<'+toHumanize+'>'}],
+        messages:[{role:'user',content:'Humanize this text using all 8 techniques to maximum effect. Output only the rewritten text:\n\n'+toHumanize}],
         context:'',
-        temperature:0.7,
+        temperature:0.85,
         maxTokens:8000,
         model:'humanizer',
         contMode:false,
@@ -1178,6 +1234,23 @@ async function runHumanizer(userText,aiId){
     if(e.name!=='AbortError'&&txtEl)txtEl.innerHTML=renderMd('_(Humanizer error — please retry)_');
     throw e;
   }
+}
+
+async function runHumanizer(userText,aiId){
+  const txtEl=document.getElementById(aiId+'txt');
+  if(!txtEl)return;
+  // Strip wrapping angle brackets if present
+  const match=userText.match(/^<([\s\S]+)>$/s);
+  const toWrap=match?match[1].trim():userText.trim();
+  // Instantly wrap the input in a plain code block — no model call
+  const answer='```\n'+toWrap+'\n```';
+  if(txtEl){
+    const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+    txtEl.innerHTML=renderMd(answer);
+    attachCodeBtns();
+    if(S.settings.autoscroll)scrollBot();
+  }
+  return answer;
 }
 
 function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'. Local time: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})+'. Year: 2026. Knowledge and training data is current to 2026. Answer confidently with 2026 as your present baseline. Do not caveat answers with outdated-knowledge disclaimers unless the user specifically asks about real-time live data (prices, scores, breaking news).';}
@@ -1657,7 +1730,7 @@ function appendPendingHumanizer(id){
   const row=document.createElement('div');
   row.className='msg-row ai';row.id=id;
   row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Humanizing</div><div class="activity-sub" id="${id}sub">Rewriting for human feel…</div></div></div></div>
+    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Humanizing</div><div class="activity-sub" id="${id}sub">Applying 8-layer stealth rewrite…</div></div></div></div>
   </div></div></div></div>`;
   ca.appendChild(row);setStopMode(true);scrollBot();
 }
