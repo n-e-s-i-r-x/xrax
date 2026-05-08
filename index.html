@@ -573,6 +573,18 @@ body.themed .speed-timer {
           </svg>
           Image
         </button>
+        <button class="mode-btn" id="humanizer-btn" onclick="toggleMode('humanizer')">
+          <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
+            <rect x="3" y="0" width="2" height="1"/>
+            <rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/>
+            <rect x="1" y="2" width="1" height="2"/><rect x="6" y="2" width="1" height="2"/>
+            <rect x="2" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/>
+            <rect x="1" y="5" width="6" height="1"/>
+            <rect x="2" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/>
+            <rect x="3" y="7" width="2" height="1"/>
+          </svg>
+          Humanizer
+        </button>
       </div>
       <div class="input-row">
         <button class="model-btn" id="model-btn" onclick="openModelPicker(event)">0</button>
@@ -608,6 +620,7 @@ body.themed .speed-timer {
       </div>
     </div>
     <div id="image-notice">Text-to-Image is in alpha. Quality may vary.</div>
+    <div id="humanizer-hint" style="display:none;text-align:center;font-size:10.5px;color:#fff;padding:6px 14px 0;line-height:1.5;opacity:0.7">To humanize a text, type <span style="font-weight:700;opacity:1">"&lt;your text&gt;"</span></div>
   </div>
 </div>
 
@@ -976,6 +989,11 @@ function applyModeButtons(c){
     if(modeOn('image')){ib.style.borderColor=C.yellow.modeBorder;ib.style.color=C.yellow.modeText;ib.style.background=C.yellow.modeBg;}
     else{ib.style.borderColor='#2a2a2a';ib.style.color='#555';ib.style.background='transparent';}
   }
+  const hzb=document.getElementById('humanizer-btn');
+  if(hzb){
+    if(modeOn('humanizer')){hzb.style.borderColor='#fff';hzb.style.color='#fff';hzb.style.background='rgba(255,255,255,0.07)';}
+    else{hzb.style.borderColor='#2a2a2a';hzb.style.color='#555';hzb.style.background='transparent';}
+  }
 }
 
 const LEAK_LINE_RE=[/^\s*\[[A-Z][^\]]{2,120}\]\s*$/,/---\s*WEB SEARCH RESULTS\s*---/i,/---\s*END SEARCH RESULTS\s*---/i,/\bDIRECT\s*ANSWER\s*:/i,/\[CODE MODE\b/i,/\[Current date and time\]/i,/\[Reasoning context above/i,/\[Continue from where/i,/\[Search complete/i,/<context>|<\/context>/i,/\bYou are (?:0|00|000|V|VV|VVV)\b/,/\bsystem prompt\b/i,/\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i];
@@ -1101,11 +1119,67 @@ function toggleMode(m){
   const inp=document.getElementById('user-input');
   if(inp)inp.placeholder=modeOn('code')?'Code with '+S.model+'...':mDef.placeholder;
   document.getElementById('image-notice')?.classList.toggle('show',modeOn('image'));
+  const hzHint=document.getElementById('humanizer-hint');
+  if(hzHint)hzHint.style.display=modeOn('humanizer')?'block':'none';
   applyColors();updateModelDescs();
 }
 function modeOn(m){return S.modes.has(m);}
 
 const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nYou are now the world's best full-stack engineer and UI/UX designer. Write complete, production-quality code with stunning CSS. Mobile-first, fully responsive, smooth animations, proper typography and color contrast. Zero placeholders. Zero truncation. If you don't know something, say so in one line then provide the closest working alternative and search for the correct answer.`;
+
+/* ─── HUMANIZER ─── */
+const HUMANIZER_MODEL='VVV'; // nvidia/nemotron-super-120b same as VVV
+const HUMANIZER_SYSTEM="You are a text humanizer. Your sole purpose is to rewrite AI-generated text so it reads as naturally human-written prose that bypasses AI detectors.\n\nCORE BEHAVIOR\n- When the user sends a message in the format \"<text>\", extract the text inside the angle brackets and humanize it. Output ONLY the humanized result inside a markdown plain code block (triple backticks, no language tag).\n- For any other message (questions, greetings, chat), respond naturally and helpfully as a normal assistant.\n\nHUMANIZATION RULES\n1. Remove all AI tell-tale phrases: certainly, absolutely, of course, I'd be happy to, it's worth noting, in conclusion, to summarize, delve, leverage, utilize, facilitate, in today's world, in the realm of, as an AI, that being said, rest assured, at the end of the day, moving forward.\n2. Vary sentence length dramatically. Mix very short punchy sentences with longer ones.\n3. Use contractions naturally: don't, it's, you'll, we're, I've.\n4. Add natural transitions: but, so, well, look.\n5. Break up long paragraphs. No walls of text.\n6. Remove redundant qualifiers and filler. Be direct.\n7. Preserve all factual content and structure — only the voice changes.\n8. Do NOT add new information or change any facts.\n9. Output must feel like a thoughtful human wrote it.\n10. Never explain what you did. No commentary. Output only the humanized text inside a plain code block.";
+
+async function runHumanizer(userText,aiId){
+  const txtEl=document.getElementById(aiId+'txt');
+  if(!txtEl)return;
+  // Extract text from <...> if present, otherwise humanize the raw message
+  const match=userText.match(/^<([\s\S]+)>$/s);
+  const toHumanize=match?match[1].trim():userText.trim();
+
+  try{
+    const res=await fetch('/api/chat.js',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        messages:[{role:'user',content:'<'+toHumanize+'>'}],
+        context:'',
+        temperature:0.7,
+        maxTokens:8000,
+        model:HUMANIZER_MODEL,
+        contMode:false,
+        useSearch:false,
+        overrideSystem:HUMANIZER_SYSTEM
+      }),
+      signal:S.abort?.signal
+    });
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const reader=res.body.getReader();const dec=new TextDecoder();let buf='';let answer='';
+    const throttledRender=throttle(()=>{
+      if(!txtEl)return;
+      const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+      txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answer))+'<span class="stream-cur"></span>';
+      attachCodeBtns();
+      if(S.settings.autoscroll)scrollBot();
+    },150);
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');buf=lines.pop()??'';
+      for(const line of lines){
+        const l=line.trim();if(!l.startsWith('data:'))continue;
+        const raw=l.slice(5).trim();if(raw==='[DONE]')break;
+        try{const d=JSON.parse(raw);const txt=d.choices?.[0]?.delta?.content;if(typeof txt==='string'&&txt.length){answer+=txt;throttledRender();}}catch(_){}
+      }
+    }
+    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=renderMd(answer||'_(No response)_');attachCodeBtns();}
+    return answer;
+  }catch(e){
+    if(e.name!=='AbortError'&&txtEl)txtEl.innerHTML=renderMd('_(Humanizer error — please retry)_');
+    throw e;
+  }
+}
 
 function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'. Local time: '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})+'. Year: 2026. Knowledge and training data is current to 2026. Answer confidently with 2026 as your present baseline. Do not caveat answers with outdated-knowledge disclaimers unless the user specifically asks about real-time live data (prices, scores, breaking news).';}
 
@@ -1537,6 +1611,37 @@ async function sendMsg(){
   if(S.settings.speedTimer){startSpeedTimer();}
   if(modeOn('image')){await genImage(c,raw||'');S.busy=false;if(sb){sb.disabled=!inp.value.trim();applyColors();}return;}
 
+  // ─── HUMANIZER MODE ───
+  if(modeOn('humanizer')){
+    const aiId='ai'+uid();
+    appendPendingHumanizer(aiId);
+    S.abort=new AbortController();
+    try{
+      const answer=await runHumanizer(modelContent,aiId);
+      const savedAnswer=(answer||'').trim();
+      c.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:false,sources:[],codeMode:false,thinking:null,thinkDuration:null,truncated:false,modelKey:'humanizer'});
+      const pendingRow=document.getElementById(aiId);
+      if(pendingRow){
+        pendingRow.dataset.msgIndex=c.msgs.length-1;
+        pendingRow.setAttribute('onclick','toggleMsgCopy(this,event)');
+        pendingRow.querySelectorAll('.stream-cur').forEach(el=>el.remove());
+        const aiBody=pendingRow.querySelector('.ai-body');
+        if(aiBody){
+          const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id='msg-'+(c.msgs.length-1)+'-acts';aiBody.appendChild(actsEl);
+          const copyBtn=document.createElement('button');copyBtn.className='msg-copy-btn';copyBtn.setAttribute('onclick','copyMsgTxt(this,event)');
+          copyBtn.innerHTML=`<svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy`;
+          aiBody.appendChild(copyBtn);
+        }
+        const txtEl=document.getElementById(aiId+'txt');
+        if(txtEl){txtEl.innerHTML=renderMd(savedAnswer||'_(No response)_');attachCodeBtns();}
+      }
+    }catch(e){if(e.name!=='AbortError')showErr(e.message||null);}
+    setStopMode(false);S.busy=false;S.abort=null;saveStore();
+    if(sb){sb.disabled=!inp.value.trim();applyColors();}
+    stopSpeedTimer();
+    return;
+  }
+
   let userSearchData=null;const userWantsSearch=queryNeedsSearch(modelContent);
   if(userWantsSearch){showUserSearchInd();userSearchData=await doSearch(modelContent);hideUserSearchInd();}
   const aiId='ai'+uid();
@@ -1548,6 +1653,15 @@ async function sendMsg(){
 function showUserSearchInd(){const ca=document.getElementById('chat-area');if(!ca||document.getElementById('srch-ind'))return;const el=document.createElement('div');el.id='srch-ind';el.style.cssText='padding:4px 14px;margin:4px 0';el.innerHTML=`<div class="activity-wrap" data-state="searching" style="padding:6px 0"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Searching</div><div class="activity-sub">Finding sources</div></div></div>`;ca.appendChild(el);scrollBot();}
 function hideUserSearchInd(){document.getElementById('srch-ind')?.remove();}
 
+function appendPendingHumanizer(id){
+  const ca=document.getElementById('chat-area');if(!ca)return;
+  const row=document.createElement('div');
+  row.className='msg-row ai';row.id=id;
+  row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
+    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Humanizing</div><div class="activity-sub" id="${id}sub">Rewriting for human feel…</div></div></div></div>
+  </div></div></div></div>`;
+  ca.appendChild(row);setStopMode(true);scrollBot();
+}
 function appendPending(id,isCodeMode){
   const ca=document.getElementById('chat-area');if(!ca)return;
   const m=MODELS[S.model]||MODELS['0'];
