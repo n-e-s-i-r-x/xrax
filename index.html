@@ -1326,7 +1326,7 @@ function buildMsg(msg,idx){
   const html=renderMd(msg.content||'');
   let imgHtml='';if(msg.imageUrl){const escapedUrl=esc(msg.imageUrl);imgHtml=`<div class="ai-image" onclick="event.stopPropagation();toggleImgSave(this,event)"><img src="${escapedUrl}" alt="Generated image" loading="lazy"/><button class="msg-img-save-btn" onclick="saveImg(this,event)">\u2193 Save</button></div>`;}
   let acts='';
-  if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">↓ Continue</button>`;
+  if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">↓ Continue</button>`;
   else if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
   return`<div class="msg-row ai" data-msg-index="${idx}" ${cma} onclick="toggleMsgCopy(this,event)"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div><button class="msg-copy-btn" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div></div></div>`;
 }
@@ -2097,7 +2097,6 @@ async function retryEmpty(idx){const c=curConvo();if(!c||S.busy)return;const msg
 async function continueMsg(idx){
   const c=curConvo();if(!c||S.busy)return;
   const msg=c.msgs[idx];if(!msg||msg.role!=='assistant')return;
-  // Safety guard: prevent runaway continuation chains
   if((msg._contCount||0)>=5){showErr('Max continuations reached for this message.');return;}
   msg.truncated=false;
   const actsEl=document.getElementById(`msg-${idx}-acts`);
@@ -2112,10 +2111,15 @@ async function continueMsg(idx){
   let ctx=dtCtx();
   if(isCodeMode)ctx+=CODE_MODE_EXTRA;
   if(msg.sources&&msg.sources.length)ctx+=buildSearchCtx({results:msg.sources});
-  // Include the exact cutoff point so the model knows where to resume
-  ctx+='\n\nThe previous response was cut off. Resume seamlessly from exactly where it stopped. Do NOT repeat any text that was already written. Do NOT add a preamble or transition. Continue mid-sentence or mid-word if that is where it cut off.';
-  // Send full history including the partial assistant turn so context is complete
-  const msgs=c.msgs.slice(0,idx+1).map(m=>({role:m.role,content:m.content}));
+  ctx+='\n\nCONTINUATION INSTRUCTION: Your previous response was cut off by the token limit. You must continue from EXACTLY where it ended — mid-sentence or mid-word if needed. Output ONLY the continuation text. Do NOT repeat anything already written. Do NOT add any preamble, greeting, or transition.';
+
+  // Send history UP TO BUT NOT INCLUDING the partial assistant turn,
+  // then add it as a separate assistant message so the model appends to it,
+  // not rewrites it.
+  const historyMsgs=c.msgs.slice(0,idx).map(m=>({role:m.role,content:m.modelContent||m.content||''}));
+  // Add the partial answer as the last assistant turn
+  historyMsgs.push({role:'assistant',content:msg.content});
+
   let full=msg.content;
   txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
   const _renderContinue=throttle(()=>{
@@ -2127,7 +2131,13 @@ async function continueMsg(idx){
     txtEl.innerHTML=renderMd(full);
     msg.content=full;msg.truncated=false;msg.ts=Date.now();
     if(newlyContinued)msg._contCount=(msg._contCount||0)+1;
-    if(actsEl)actsEl.innerHTML='';
+    if(actsEl){
+      if(msg.truncated){
+        actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">↓ Continue</button>`;
+      }else{
+        actsEl.innerHTML='';
+      }
+    }
     attachCodeBtns();
     saveStore();S.busy=false;S.abort=null;
     setStopMode(false);
@@ -2139,9 +2149,9 @@ async function continueMsg(idx){
   };
   let didContinue=false;
   try{
-    for await(const chunk of streamParsed(msgs,ctx,modelKey,8000,S.abort.signal,mDef.hasThink,true)){
+    for await(const chunk of streamParsed(historyMsgs,ctx,modelKey,8000,S.abort.signal,mDef.hasThink,true)){
       if(S.abort?.signal?.aborted)break;
-      if(chunk&&chunk.type==='finish'){if(chunk.reason==='length'){msg.truncated=true;}continue;}
+      if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')msg.truncated=true;continue;}
       const txt=(chunk&&chunk.text)||'';if(!txt)continue;
       if(chunk.type==='answer'||!mDef.hasThink){
         full+=txt;
@@ -2150,9 +2160,7 @@ async function continueMsg(idx){
       }
     }
   }catch(e){
-    if(e.name!=='AbortError'){
-      showErr(e.message||'Continue failed.');
-    }
+    if(e.name!=='AbortError'){showErr(e.message||'Continue failed.');}
   }finally{
     cleanup(didContinue);
   }
