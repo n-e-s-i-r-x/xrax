@@ -1,13 +1,13 @@
 export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
-  '0':         { id: 'liquid/lfm-2.5-1.2b-instruct:free',          hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '00':        { id: 'openai/gpt-oss-20b:free',                     hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  '000':       { id: 'openai/gpt-oss-120b:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.5 },
+  '0':         { id: 'liquid/lfm-2.5-1.2b-instruct:free',          hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  '00':        { id: 'openai/gpt-oss-20b:free',                     hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  '000':       { id: 'openai/gpt-oss-120b:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 10000, temperature: 1.5 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -1116,12 +1116,12 @@ export default async function handler(req) {
 
   const {
     messages,
-    temperature = 0.7,
-    maxTokens = 2000,
+    temperature = 0.5,
+    maxTokens = 100000,
     model: modelKey = '0',
     contMode = false,
     context = '',
-    useSearch = false,
+    useSearch = true,
     overrideSystem = null,
   } = body;
 
