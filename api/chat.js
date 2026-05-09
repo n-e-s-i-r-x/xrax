@@ -1154,12 +1154,7 @@ export default async function handler(req) {
   if (modelKey !== 'humanizer') return msgs;
   const lastUser = [...msgs].reverse().find(m => m.role === 'user');
   if (!lastUser || typeof lastUser.content !== 'string') return msgs;
-  const paraCount = lastUser.content.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
-  const reminder = `Rewrite the following text. Output ONLY a fenced code block with the rewritten text inside. No text before or after the block. Exactly ${paraCount} paragraph${paraCount === 1 ? '' : 's'}, no more, no less.\n\n${lastUser.content}`;
-  return [
-    { role: 'user', content: reminder },
-    { role: 'assistant', content: '```\n' },
-  ];
+  return msgs;
 }
 
   const isThinkModel = hasReasoning || hasPromptedThink;
