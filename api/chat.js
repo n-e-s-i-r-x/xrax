@@ -320,7 +320,7 @@ NO FABRICATION RULES
 - Hypothetical examples are allowed only when clearly labeled as hypothetical.
 
 REASONING DISCIPLINE
-- Do not construct unsupported “bridge steps” to fill gaps.
+- Do not construct unsupported "bridge steps" to fill gaps.
 - If a step cannot be derived from known information, stop that reasoning path.
 - Do not simplify complex topics into false certainty.
 - Ensure conclusions strictly follow from supported reasoning.
@@ -401,7 +401,7 @@ NO FABRICATION RULES
 - Hypothetical examples are allowed only when clearly labeled as hypothetical.
 
 REASONING DISCIPLINE
-- Do not construct unsupported “bridge steps” to fill gaps.
+- Do not construct unsupported "bridge steps" to fill gaps.
 - If a step cannot be derived from known information, stop that reasoning path.
 - Do not simplify complex topics into false certainty.
 - Ensure conclusions strictly follow from supported reasoning.
@@ -482,7 +482,7 @@ NO FABRICATION RULES
 - Hypothetical examples are allowed only when clearly labeled as hypothetical.
 
 REASONING DISCIPLINE
-- Do not construct unsupported “bridge steps” to fill gaps.
+- Do not construct unsupported "bridge steps" to fill gaps.
 - If a step cannot be derived from known information, stop that reasoning path.
 - Do not simplify complex topics into false certainty.
 - Ensure conclusions strictly follow from supported reasoning.
@@ -577,7 +577,7 @@ NO FABRICATION RULES
 - Hypothetical examples are allowed only when clearly labeled as hypothetical.
 
 REASONING DISCIPLINE
-- Do not construct unsupported “bridge steps” to fill gaps.
+- Do not construct unsupported "bridge steps" to fill gaps.
 - If a step cannot be derived from known information, stop that reasoning path.
 - Do not simplify complex topics into false certainty.
 - Ensure conclusions strictly follow from supported reasoning.
@@ -658,7 +658,7 @@ NO FABRICATION RULES
 - Hypothetical examples are allowed only when clearly labeled as hypothetical.
 
 REASONING DISCIPLINE
-- Do not construct unsupported “bridge steps” to fill gaps.
+- Do not construct unsupported "bridge steps" to fill gaps.
 - If a step cannot be derived from known information, stop that reasoning path.
 - Do not simplify complex topics into false certainty.
 - Ensure conclusions strictly follow from supported reasoning.
@@ -682,9 +682,6 @@ CONTRADICTIONS
 FINAL PRINCIPLE
 Be maximally truthful, minimally sufficient, and clearly understandable. Never optimize for sounding smart over being correct.\n${CODE_AI}\n${THINK_RULES}\n${POW_AI}`,
  };
-
-// ─── HUMANIZER CONFIG ───
-// All humanizer settings live here, not in index.html
 
 // ─── HUMANIZER CONFIG ───
 // All humanizer settings live here, not in index.html
@@ -724,7 +721,7 @@ VIOLATIONS THAT ARE NEVER ALLOWED:
 - Adding extra paragraphs or sentences not in the original
 - Removing paragraphs or ideas from the original`;
 
-turns true if the message is a simple numeric/decimal comparison that should never be escalated
+// Returns true if the message is a simple numeric/decimal comparison that should never be escalated
 function isSimpleComparison(msg) {
   const t = msg.trim();
   return (
