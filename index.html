@@ -2114,13 +2114,17 @@ async function continueMsg(idx){
   const cutoffText=msg.content||'';
   let ctx=dtCtx();
   if(isCodeMode)ctx+=CODE_MODE_EXTRA;
-  ctx+=`\n\n---\nYour last response above was cut off by the token limit. OUTPUT ONLY THE CONTINUATION — pick up exactly from the last character of your previous message, mid-word or mid-sentence if needed. Do NOT repeat anything already written. Do NOT add a preamble, heading, or intro. Just raw continuation text.`;
+  ctx+=`\n\n---\nCONTINUATION MODE: The assistant message in this conversation was cut off by the token limit. Output ONLY what comes next — continue from exactly where it ended. Do NOT repeat any already-written text. Do NOT add a preamble or heading.`;
 
-  // Include the full conversation history INCLUDING the partial assistant message,
-  // so the model sees exactly what was already written and only outputs the continuation.
-  const historyMsgs=c.msgs.slice(0,idx+1)
-    .filter(m=>m.role==='user'||m.role==='assistant')
-    .map(m=>({role:m.role,content:m.modelContent||m.content||''}));
+  // Include history up to and including the partial assistant message, then add a
+  // synthetic user turn — this gives models the correct user→assistant→user structure
+  // so they continue rather than regenerate from scratch.
+  const historyMsgs=[
+    ...c.msgs.slice(0,idx+1)
+      .filter(m=>m.role==='user'||m.role==='assistant')
+      .map(m=>({role:m.role,content:m.modelContent||m.content||''})),
+    {role:'user',content:'[CONTINUE — your previous response was cut off. Output ONLY the continuation from exactly where you stopped. Do NOT repeat anything. Do NOT add any intro or heading. Just raw continuation text.]'}
+  ];
 
   let full=cutoffText;
   let newChunk='';
