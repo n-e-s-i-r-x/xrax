@@ -686,7 +686,7 @@ Be maximally truthful, minimally sufficient, and clearly understandable. Never o
 // ─── HUMANIZER CONFIG ───
 // All humanizer settings live here, not in index.html
 
-const HUMANIZER_TEMPERATURE = 1.7;
+const HUMANIZER_TEMPERATURE = 1.5;
 
 const HUMANIZER_SAMPLING = {
   top_p: 0.99,
