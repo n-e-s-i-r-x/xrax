@@ -1326,8 +1326,8 @@ function buildMsg(msg,idx){
   const html=renderMd(msg.content||'');
   let imgHtml='';if(msg.imageUrl){const escapedUrl=esc(msg.imageUrl);imgHtml=`<div class="ai-image" onclick="event.stopPropagation();toggleImgSave(this,event)"><img src="${escapedUrl}" alt="Generated image" loading="lazy"/><button class="msg-img-save-btn" onclick="saveImg(this,event)">\u2193 Save</button></div>`;}
   let acts='';
-  if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">Continue</button>`;
-  if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
+  if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="continueMsg(${idx})">↓ Continue</button>`;
+  else if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
   return`<div class="msg-row ai" data-msg-index="${idx}" ${cma} onclick="toggleMsgCopy(this,event)"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div><button class="msg-copy-btn" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div></div></div>`;
 }
 
@@ -1945,6 +1945,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       },150);
       for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false,false,userWantsSearch)){
         if(S.abort?.signal?.aborted)break;
+        if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
         if(chunk&&chunk.type==='verify_replace'){
   // Strip any verification preamble the model may have leaked
   let vText=chunk.text;
@@ -1983,6 +1984,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           },150);
           for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,8000,S.abort.signal,false,false,true)){
             if(S.abort?.signal?.aborted)break;
+            if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
             const txt=(chunk&&chunk.text)||'';if(!txt)continue;
             answerText+=txt;
             if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderReAnswer();}
