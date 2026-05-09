@@ -7,7 +7,7 @@ const MODEL_MAP = {
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000 },
-  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.7 },
+  'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 5000, temperature: 1.5 },
 };
 
 function modelEntry(key) { return MODEL_MAP[key] ?? MODEL_MAP['0']; }
@@ -1151,15 +1151,17 @@ export default async function handler(req) {
 
   // For humanizer: pass messages as-is (paragraph count is enforced via system prompt)
   function withParaCount(msgs) {
-    if (modelKey !== 'humanizer') return msgs;
-    // Only keep the last user message — no history leaking into humanizer
-    const lastUser = [...msgs].reverse().find(m => m.role === 'user');
-    if (!lastUser || typeof lastUser.content !== 'string') return msgs;
-    const paraCount = lastUser.content.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
-    // Append a hard count reminder directly to the user message content
-    const reminder = `\n\n[RULE: output exactly ${paraCount} paragraph${paraCount === 1 ? '' : 's'} — no more, no less, no extra text]`;
-    return [{ role: 'user', content: lastUser.content + reminder }];
-  }
+  if (modelKey !== 'humanizer') return msgs;
+  const lastUser = [...msgs].reverse().find(m => m.role === 'user');
+  if (!lastUser || typeof lastUser.content !== 'string') return msgs;
+  const paraCount = lastUser.content.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+  const reminder = `Rewrite the following text. Output ONLY a fenced code block with the rewritten text inside. No text before or after the block. Exactly ${paraCount} paragraph${paraCount === 1 ? '' : 's'}, no more, no less.\n\n${lastUser.content}`;
+  return [
+    { role: 'user', content: reminder },
+    { role: 'assistant', content: '```\n' },
+  ];
+}
+
   const isThinkModel = hasReasoning || hasPromptedThink;
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
 
