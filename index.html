@@ -2100,7 +2100,7 @@ async function continueMsg(idx){
   if((msg._contCount||0)>=5){showErr('Max continuations reached for this message.');return;}
   msg.truncated=false;
   const actsEl=document.getElementById(`msg-${idx}-acts`);
-  if(actsEl){actsEl.innerHTML='';}
+  if(actsEl)actsEl.innerHTML='';
   const txtEl=document.getElementById(`msg-${idx}-text`);if(!txtEl)return;
   S.busy=true;
   S.abort=new AbortController();
@@ -2108,38 +2108,45 @@ async function continueMsg(idx){
   const modelKey=msg.modelKey||S.model;
   const mDef=MODELS[modelKey]||MODELS['0'];
   const isCodeMode=msg.codeMode||false;
+
+  // Build context: inject the cutoff text so model knows exactly where to resume
+  const cutoffText=msg.content||'';
+  const lastLine=cutoffText.trimEnd().split('\n').pop()||'';
   let ctx=dtCtx();
   if(isCodeMode)ctx+=CODE_MODE_EXTRA;
-  if(msg.sources&&msg.sources.length)ctx+=buildSearchCtx({results:msg.sources});
-  ctx+='\n\nCONTINUATION INSTRUCTION: Your previous response was cut off by the token limit. You must continue from EXACTLY where it ended — mid-sentence or mid-word if needed. Output ONLY the continuation text. Do NOT repeat anything already written. Do NOT add any preamble, greeting, or transition.';
+  ctx+=`\n\n---\nYOUR PREVIOUS RESPONSE WAS CUT OFF BY THE TOKEN LIMIT. IT ENDED WITH:\n"""\n${lastLine}\n"""\nOUTPUT ONLY THE CONTINUATION. Start from exactly where it cut off — mid-word or mid-sentence if needed. Do NOT restate anything. Do NOT add a heading or intro. Just the raw continuation text.`;
 
-  // Send history UP TO BUT NOT INCLUDING the partial assistant turn,
-  // then add it as a separate assistant message so the model appends to it,
-  // not rewrites it.
-  const historyMsgs=c.msgs.slice(0,idx).map(m=>({role:m.role,content:m.modelContent||m.content||''}));
-  // Add the partial answer as the last assistant turn
-  historyMsgs.push({role:'assistant',content:msg.content});
+  // Send only the conversation history BEFORE the truncated assistant turn
+  // Do NOT include the partial assistant message — it causes repetition
+  const historyMsgs=c.msgs.slice(0,idx)
+    .filter(m=>m.role==='user'||m.role==='assistant')
+    .map(m=>({role:m.role,content:m.modelContent||m.content||''}));
 
-  let full=msg.content;
-  txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
+  let full=cutoffText;
+  let newChunk='';
+
   const _renderContinue=throttle(()=>{
-    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full))+'<span class="stream-cur"></span>';
+    if(!txtEl)return;
+    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full+newChunk))+'<span class="stream-cur"></span>';
     attachCodeBtns();
     if(S.settings.autoscroll)scrollBot();
   },150);
-  const cleanup=(newlyContinued)=>{
-    txtEl.innerHTML=renderMd(full);
-    msg.content=full;msg.truncated=false;msg.ts=Date.now();
-    if(newlyContinued)msg._contCount=(msg._contCount||0)+1;
+
+  const cleanup=()=>{
+    const combined=(full+newChunk).trim();
+    msg.content=combined;
+    msg.truncated=false;
+    msg.ts=Date.now();
+    msg._contCount=(msg._contCount||0)+1;
+    txtEl.innerHTML=renderMd(combined);
     if(actsEl){
-      if(msg.truncated){
-        actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">↓ Continue</button>`;
-      }else{
-        actsEl.innerHTML='';
-      }
+      actsEl.innerHTML=msg.truncated
+        ?`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">↓ Continue</button>`
+        :'';
     }
     attachCodeBtns();
-    saveStore();S.busy=false;S.abort=null;
+    saveStore();
+    S.busy=false;S.abort=null;
     setStopMode(false);
     const inp=document.getElementById('user-input');
     const sb=document.getElementById('send-btn');
@@ -2147,22 +2154,19 @@ async function continueMsg(idx){
     scrollBot();
     stopSpeedTimer();
   };
-  let didContinue=false;
+
   try{
-    for await(const chunk of streamParsed(historyMsgs,ctx,modelKey,8000,S.abort.signal,mDef.hasThink,true)){
+    for await(const chunk of streamParsed(historyMsgs,ctx,modelKey,8000,S.abort.signal,false,true)){
       if(S.abort?.signal?.aborted)break;
       if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')msg.truncated=true;continue;}
       const txt=(chunk&&chunk.text)||'';if(!txt)continue;
-      if(chunk.type==='answer'||!mDef.hasThink){
-        full+=txt;
-        didContinue=true;
-        _renderContinue();
-      }
+      newChunk+=txt;
+      _renderContinue();
     }
   }catch(e){
-    if(e.name!=='AbortError'){showErr(e.message||'Continue failed.');}
+    if(e.name!=='AbortError')showErr(e.message||'Continue failed.');
   }finally{
-    cleanup(didContinue);
+    cleanup();
   }
 }
 
