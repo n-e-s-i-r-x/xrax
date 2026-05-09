@@ -1101,12 +1101,12 @@ function selectModel(key){
   S.model=key;
   document.getElementById('model-btn').textContent=m.label;
   document.getElementById('user-input').placeholder=modeOn('code')?'Code with '+key+'...':m.placeholder;
-  ['0','00','000','V'].forEach(k=>document.getElementById('mp-item-'+k)?.classList.toggle('sel',k===key));
+  ['0','00','000','V','VV','VVV'].forEach(k=>document.getElementById('mp-item-'+k)?.classList.toggle('sel',k===key));
   applyColors();updateModelDescs();
 }
 function updateModelDescs(){
   const isCode=modeOn('code');
-  ['0','00','000','V'].forEach(k=>{const el=document.getElementById('mp-desc-'+k);if(el)el.textContent=isCode?'CODE: '+BASE_DESCS[k]:BASE_DESCS[k];});
+  ['0','00','000','V','VV','VVV'].forEach(k=>{const el=document.getElementById('mp-desc-'+k);if(el)el.textContent=isCode?'CODE: '+BASE_DESCS[k]:BASE_DESCS[k];});
   const head=document.getElementById('mp-head-lbl');
   if(head)head.textContent=isCode?'Select Model — CODING':'Select Model';
 }
@@ -2109,16 +2109,16 @@ async function continueMsg(idx){
   const mDef=MODELS[modelKey]||MODELS['0'];
   const isCodeMode=msg.codeMode||false;
 
-  // Build context: inject the cutoff text so model knows exactly where to resume
+  // Build context: the partial assistant message is already included in historyMsgs,
+  // so just instruct the model to continue from where the last assistant turn ended.
   const cutoffText=msg.content||'';
-  const lastLine=cutoffText.trimEnd().split('\n').pop()||'';
   let ctx=dtCtx();
   if(isCodeMode)ctx+=CODE_MODE_EXTRA;
-  ctx+=`\n\n---\nYOUR PREVIOUS RESPONSE WAS CUT OFF BY THE TOKEN LIMIT. IT ENDED WITH:\n"""\n${lastLine}\n"""\nOUTPUT ONLY THE CONTINUATION. Start from exactly where it cut off — mid-word or mid-sentence if needed. Do NOT restate anything. Do NOT add a heading or intro. Just the raw continuation text.`;
+  ctx+=`\n\n---\nYour last response above was cut off by the token limit. OUTPUT ONLY THE CONTINUATION — pick up exactly from the last character of your previous message, mid-word or mid-sentence if needed. Do NOT repeat anything already written. Do NOT add a preamble, heading, or intro. Just raw continuation text.`;
 
-  // Send only the conversation history BEFORE the truncated assistant turn
-  // Do NOT include the partial assistant message — it causes repetition
-  const historyMsgs=c.msgs.slice(0,idx)
+  // Include the full conversation history INCLUDING the partial assistant message,
+  // so the model sees exactly what was already written and only outputs the continuation.
+  const historyMsgs=c.msgs.slice(0,idx+1)
     .filter(m=>m.role==='user'||m.role==='assistant')
     .map(m=>({role:m.role,content:m.modelContent||m.content||''}));
 
