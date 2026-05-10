@@ -2439,6 +2439,20 @@ const CAPS = {
   'VVV':       { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
   'humanizer': { search:false, files:false, vision:false, code:false, image:false, humanizer:true,  think:false },
 };
+/* Auto-detect think support by fetching MODEL_MAP caps from chat.js (GET).
+   This means: just set hasReasoning or hasPromptedThink in chat.js MODEL_MAP
+   and the UI will automatically enable/disable the Think toggle — no changes needed here. */
+(async function fetchThinkCaps(){
+  try{
+    const res = await fetch('/api/chat.js');
+    if(!res.ok) return;
+    const data = await res.json();
+    for(const key of Object.keys(data)){
+      if(CAPS[key]) CAPS[key].think = !!data[key].think;
+    }
+    applyCapabilityGating();
+  }catch(_){}
+})();
 function modelCaps(){return CAPS[S.model]||CAPS['0'];}
 function applyCapabilityGating(){
   try{
