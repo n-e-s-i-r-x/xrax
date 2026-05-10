@@ -1111,9 +1111,10 @@ export default async function handler(req) {
         }
       }
       if (hasReasoning && !hasImages) {
-        const cap = difficulty === 'hard' ? 3000 : difficulty === 'medium' ? 1500 : 600;
+        // OpenRouter: `reasoning` accepts EITHER `effort` OR `max_tokens` —
+        // sending both causes a 400 on several providers. Use effort only.
         const eff = difficulty === 'hard' ? 'medium' : 'low';
-        reqBody.reasoning = { max_tokens: cap, effort: eff };
+        reqBody.reasoning = { effort: eff };
       }
 
       let upstreamRes;
