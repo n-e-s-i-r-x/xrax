@@ -10,7 +10,7 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':         { id: 'z-ai/glm-4.5-air:free',       hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  '00':        { id: 'liquid/lfm-2.5-1.2b-thinking:free',                  hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
+  '00':        { id: 'liquid/lfm-2.5-1.2b-instruct:free',                  hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
   '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',              hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
   'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
@@ -2205,11 +2205,11 @@ function sanitizeThinkChunk(buf, incoming) {
   const tail = combined.slice(lastNl + 1);
   const cleaned = head.split('\n').map((line, i, arr) => {
     if (i === arr.length - 1 && line === '') return '';
-    return looksLikeLeak(line) ? '…' : line;
+    return looksLikeLeak(line) ? '' : line;
   }).join('\n');
   return { safe: cleaned, buf: tail };
 }
-const sanitizeThinkFlush = (buf) => !buf ? '' : (looksLikeLeak(buf) ? '…' : buf);
+const sanitizeThinkFlush = (buf) => !buf ? '' : (looksLikeLeak(buf) ? '' : buf);
 
 async function fetchWithRetry(url, options, maxRetries = 4) {
   const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
@@ -2393,8 +2393,8 @@ export default async function handler(req) {
       if (hasReasoning && !hasImages) {
         // OpenRouter: `reasoning` accepts EITHER `effort` OR `max_tokens` —
         // sending both causes a 400 on several providers. Use effort only.
-        const eff = difficulty === 'hard' ? 'medium' : 'low';
-        reqBody.reasoning = { effort: eff };
+        // Always 'low' — think blocks should be brief, not verbose.
+        reqBody.reasoning = { effort: 'low' };
       }
 
       let upstreamRes;
@@ -2434,7 +2434,7 @@ export default async function handler(req) {
           const fr = data?.choices?.[0]?.finish_reason ?? 'stop';
           let combined = '';
           if (isThinkModel && hasReasoning && reasoningRaw) {
-            const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l) ? '…' : l).join('\n');
+            const cleaned = reasoningRaw.split('\n').map(l => looksLikeLeak(l) ? '' : l).join('\n');
             combined += `<think>\n${cleaned}\n</think>\n`;
             if (!answerText.trim()) {
               const lines = reasoningRaw.trimEnd().split('\n');
