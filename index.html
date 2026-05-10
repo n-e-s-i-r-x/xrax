@@ -2547,12 +2547,29 @@ window.__downloadZipFromAttr=async function(btn){
     return '<div class="tool-card" id="'+id+'" data-kind="'+kind+'" data-spec="'+enc+'"><div class="tool-name">'+esc(title)+'</div><div class="tool-sub" style="font-size:11px;opacity:.7">'+sub+'</div><div class="tool-steps"></div></div>';
   }
   /* Background processors */
+  /* Blob cache keyed by spec JSON so re-renders don't lose the download */
+  const _zipBlobCache=new Map();
   async function processZip(card){
-    const spec=JSON.parse(decodeURIComponent(atob(card.dataset.spec)));
+    const specRaw=decodeURIComponent(atob(card.dataset.spec));
+    const spec=JSON.parse(specRaw);
     const stepsEl=card.querySelector('.tool-steps');
     const subEl=card.querySelector('.tool-sub');
     const files=spec.files||[];
-    const steps=[{label:'Collecting '+files.length+' file'+(files.length===1?'':'s')}].concat(files.map(f=>({label:'Writing '+f.path}))).concat([{label:'Compressing'},{label:'Finalizing '+(spec.name||'bundle.zip')}]);
+    const fname=spec.name||'bundle.zip';
+    /* If already built, just show the download button immediately */
+    if(_zipBlobCache.has(specRaw)){
+      const blob=_zipBlobCache.get(specRaw);
+      stepsEl.innerHTML='';
+      subEl.textContent='Ready ('+files.length+' file'+(files.length===1?'':'s')+')';
+      if(!card.querySelector('.tool-dl')){
+        const btn=document.createElement('button');
+        btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(fname);
+        btn.onclick=()=>_downloadBlob(blob,fname);
+        card.appendChild(btn);
+      }
+      return;
+    }
+    const steps=[{label:'Collecting '+files.length+' file'+(files.length===1?'':'s')}].concat(files.map(f=>({label:'Writing '+f.path}))).concat([{label:'Compressing'},{label:'Finalizing '+fname}]);
     stepsEl.innerHTML=steps.map((s,i)=>'<div class="tool-step" data-i="'+i+'">'+PX_GEAR_SVG.replace('animation','x')+' '+esc(s.label)+'</div>').join('');
     const mark=(i,cls)=>{const el=stepsEl.querySelector('[data-i="'+i+'"]');if(el){el.className='tool-step '+cls;if(cls==='done')el.firstChild?.remove?.();}};
     try{
@@ -2567,10 +2584,11 @@ window.__downloadZipFromAttr=async function(btn){
       mark(1+files.length,'cur');
       const blob=await zip.generateAsync({type:'blob'});
       mark(1+files.length,'done'); mark(2+files.length,'done');
+      _zipBlobCache.set(specRaw,blob);
       subEl.textContent='Ready ('+files.length+' file'+(files.length===1?'':'s')+')';
       const btn=document.createElement('button');
-      btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(spec.name||'bundle.zip');
-      btn.onclick=()=>_downloadBlob(blob,spec.name||'bundle.zip');
+      btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(fname);
+      btn.onclick=()=>_downloadBlob(blob,fname);
       card.appendChild(btn);
     }catch(e){subEl.textContent='Build failed: '+(e?.message||e);}
   }
