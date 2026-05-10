@@ -442,11 +442,10 @@ body.themed .s-row{border-bottom-color:var(--accent-border);}
 body.themed .tog.on .tog-on{color:var(--accent);}
 .s-btn{padding:8px 14px;background:#2a1010;border:1px solid #3a1515;border-radius:8px;color:#e06060;font-size:13px;font-weight:600;transition:background .15s,transform .1s;cursor:pointer}
 .s-btn:active{background:#3a1515;transform:scale(.96)}
-.s-font-btn{background:#141414;border-color:#2a2a2a;color:#888;}
-.s-font-btn.active{background:#0d2010;border-color:#4ade80;color:#4ade80;}
-.s-font-btn:active{transform:scale(.96);}
-@keyframes togBounce{0%{transform:scale(1)}35%{transform:scale(.85)}65%{transform:scale(1.1)}100%{transform:scale(1)}}
-.tog.tog-anim{animation:togBounce .25s cubic-bezier(.4,0,.2,1);}
+.s-font-btn{background:#141414;border-color:#252525;color:#888;}
+.s-font-active{background:#0d2010 !important;border-color:#4ade80 !important;color:#4ade80 !important;}
+@keyframes togPop{0%{transform:scale(1)}35%{transform:scale(.82)}65%{transform:scale(1.12)}100%{transform:scale(1)}}
+.tog-anim{animation:togPop .22s cubic-bezier(.4,0,.2,1);}
 
 /* ── VIEW OVERLAY ── */
 #view-ov{position:fixed;inset:0;background:#000;z-index:10000;display:none;flex-direction:column}
@@ -2333,7 +2332,7 @@ function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,
 
 function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn s-font-btn ${fontKey==='M'?'active':''}" onclick="setFont('M')">0v font</button><button class="s-btn s-font-btn ${fontKey==='system'?'active':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
+function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn s-font-btn ${fontKey==='M'?'s-font-active':''}" onclick="setFont('M')">0v font</button><button class="s-btn s-font-btn ${fontKey==='system'?'s-font-active':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
 function togSet(k,el){
   S.settings[k]=!S.settings[k];
   if(el){
@@ -2341,7 +2340,7 @@ function togSet(k,el){
     el.classList.remove('tog-anim');
     void el.offsetWidth;
     el.classList.add('tog-anim');
-    setTimeout(()=>el.classList.remove('tog-anim'),260);
+    setTimeout(()=>el.classList.remove('tog-anim'),240);
   }
   if(k==='speedTimer'){
     const timerEl = document.getElementById('speed-timer');
@@ -2450,24 +2449,24 @@ const CAPS = {
   'VVV':       { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
   'humanizer': { search:false, files:false, vision:false, code:false, image:false, humanizer:true,  think:false },
 };
-/* Auto-detect think support by fetching MODEL_MAP caps from chat.js (GET).
-   This means: just set hasReasoning or hasPromptedThink in chat.js MODEL_MAP
-   and the UI will automatically enable/disable the Think toggle — no changes needed here. */
+function modelCaps(){return CAPS[S.model]||CAPS['0'];}
+/* Auto-detect think support from chat.js MODEL_MAP via GET.
+   Patches both CAPS[key].think (button gating) AND MODELS[key].hasThink (think block rendering).
+   You only need to set hasReasoning/hasPromptedThink in chat.js MODEL_MAP — nothing else. */
 (async function fetchThinkCaps(){
   try{
-    const res = await fetch('/api/chat.js');
-    if(!res.ok) return;
-    const data = await res.json();
+    const res=await fetch('/api/chat.js');
+    if(!res.ok)return;
+    const data=await res.json();
     for(const key of Object.keys(data)){
-      const supportsThink = !!data[key].think;
-      if(CAPS[key])   CAPS[key].think       = supportsThink;
-      if(MODELS[key]) MODELS[key].hasThink  = supportsThink;
+      const ok=!!data[key].think;
+      if(CAPS[key])   CAPS[key].think      = ok;
+      if(MODELS[key]) MODELS[key].hasThink = ok;
     }
     applyCapabilityGating();
     applyColors();
   }catch(_){}
 })();
-function modelCaps(){return CAPS[S.model]||CAPS['0'];}
 function applyCapabilityGating(){
   try{
     const caps=modelCaps();
@@ -2547,7 +2546,6 @@ window.__downloadZipFromAttr=async function(btn){
     return '<div class="tool-card" id="'+id+'" data-kind="'+kind+'" data-spec="'+enc+'"><div class="tool-name">'+esc(title)+'</div><div class="tool-sub" style="font-size:11px;opacity:.7">'+sub+'</div><div class="tool-steps"></div></div>';
   }
   /* Background processors */
-  /* Blob cache keyed by spec JSON so re-renders don't lose the download */
   const _zipBlobCache=new Map();
   async function processZip(card){
     const specRaw=decodeURIComponent(atob(card.dataset.spec));
@@ -2556,42 +2554,32 @@ window.__downloadZipFromAttr=async function(btn){
     const subEl=card.querySelector('.tool-sub');
     const files=spec.files||[];
     const fname=spec.name||'bundle.zip';
-    /* If already built, just show the download button immediately */
-    if(_zipBlobCache.has(specRaw)){
-      const blob=_zipBlobCache.get(specRaw);
+    const attach=(blob)=>{
       stepsEl.innerHTML='';
-      subEl.textContent='Ready ('+files.length+' file'+(files.length===1?'':'s')+')';
+      subEl.style.display='none';
       if(!card.querySelector('.tool-dl')){
         const btn=document.createElement('button');
         btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(fname);
         btn.onclick=()=>_downloadBlob(blob,fname);
         card.appendChild(btn);
       }
-      return;
-    }
-    const steps=[{label:'Collecting '+files.length+' file'+(files.length===1?'':'s')}].concat(files.map(f=>({label:'Writing '+f.path}))).concat([{label:'Compressing'},{label:'Finalizing '+fname}]);
-    stepsEl.innerHTML=steps.map((s,i)=>'<div class="tool-step" data-i="'+i+'">'+PX_GEAR_SVG.replace('animation','x')+' '+esc(s.label)+'</div>').join('');
-    const mark=(i,cls)=>{const el=stepsEl.querySelector('[data-i="'+i+'"]');if(el){el.className='tool-step '+cls;if(cls==='done')el.firstChild?.remove?.();}};
+    };
+    if(_zipBlobCache.has(specRaw)){attach(_zipBlobCache.get(specRaw));return;}
+    stepsEl.innerHTML='';
+    subEl.textContent='Building...';
     try{
       const JSZip=await _ensureJSZip();
       const zip=new JSZip();
-      mark(0,'done');
-      for(let i=0;i<files.length;i++){
-        const f=files[i];if(!f||typeof f.path!=='string')continue;
+      for(const f of files){
+        if(!f||typeof f.path!=='string')continue;
         zip.file(f.path,typeof f.content==='string'?f.content:'');
-        mark(1+i,'done'); await new Promise(r=>setTimeout(r,15));
       }
-      mark(1+files.length,'cur');
       const blob=await zip.generateAsync({type:'blob'});
-      mark(1+files.length,'done'); mark(2+files.length,'done');
       _zipBlobCache.set(specRaw,blob);
-      subEl.textContent='Ready ('+files.length+' file'+(files.length===1?'':'s')+')';
-      const btn=document.createElement('button');
-      btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(fname);
-      btn.onclick=()=>_downloadBlob(blob,fname);
-      card.appendChild(btn);
-    }catch(e){subEl.textContent='Build failed: '+(e?.message||e);}
+      attach(blob);
+    }catch(e){subEl.textContent='Failed: '+(e?.message||e);}
   }
+
   async function processDoc(card){
     const spec=JSON.parse(decodeURIComponent(atob(card.dataset.spec)));
     const stepsEl=card.querySelector('.tool-steps');
