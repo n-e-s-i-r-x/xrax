@@ -2369,7 +2369,7 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
 <div id="font-pop-ov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .35s ease">
   <div id="font-pop" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:18px;max-width:380px;width:100%;padding:22px;transform:translateY(20px) scale(.96);transition:transform .4s cubic-bezier(.34,1.56,.64,1)">
     <div style="font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Choose your font</div>
-    <div style="font-size:12px;color:#666;text-align:center;margin-bottom:16px">You can change this later.</div>
+    <div style="font-size:12px;color:#fff;text-align:center;margin-bottom:16px">You can change this later.</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button onclick="pickFont('M')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:14px;text-align:left;cursor:pointer;color:#fff;font-family:'M',sans-serif">
         <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:16px;font-weight:700">0v Font</div><div style="font-size:10px;font-weight:700;background:#4ade80;color:#000;padding:2px 7px;border-radius:99px;letter-spacing:.3px">RECOMMENDED</div></div>
@@ -2387,7 +2387,7 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
 <div id="model-pop-ov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()">
   <div id="model-pop" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:18px;max-width:380px;width:100%;padding:22px;transform:translateY(20px) scale(.96);transition:transform .4s cubic-bezier(.34,1.56,.64,1);max-height:88vh;overflow-y:auto">
     <div style="font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Pick your first model</div>
-    <div style="font-size:12px;color:#666;text-align:center;margin-bottom:16px">You can change this later.</div>
+    <div style="font-size:12px;color:#fff;text-align:center;margin-bottom:16px">You can change this later.</div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button onclick="pickFirstModel('0')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
         <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">0</div></div>
@@ -2461,15 +2461,8 @@ window.pickFont=function(key){
   },380);
 };
 
-function scheduleModelToast(){
-  if(localStorage.getItem('mhint3'))return;
-  localStorage.setItem('mhint3','1');
-  setTimeout(function(){
-    var t=document.getElementById('model-toast'); if(!t)return;
-    t.classList.add('show');
-    setTimeout(function(){t.classList.remove('show');t.classList.add('hide');},4000);
-  },1200);
-}
+function scheduleModelToast(){ /* toast removed by user request */ }
+
 
 function showFirstModelPopup(){
   if(localStorage.getItem('vg_model_chosen')){ scheduleModelToast(); return; }
@@ -2500,13 +2493,22 @@ window.pickFirstModel=function(key){
   if(!fontDone){
     setTimeout(function(){
       const ov=document.getElementById('font-pop-ov'); const pop=document.getElementById('font-pop'); if(!ov)return;
+      ov.style.transition='none';
       ov.style.display='flex';
-      requestAnimationFrame(()=>{ov.style.opacity='1'; if(pop)pop.style.transform='translateY(0) scale(1)';});
-    },2200);
+      ov.style.opacity='1';
+      requestAnimationFrame(()=>{ if(pop)pop.style.transform='translateY(0) scale(1)';});
+    },2400);
     return;
   }
   /* font done, model not done: show model popup directly after intro */
-  setTimeout(showFirstModelPopup,2200);
+  setTimeout(function(){
+    const ov=document.getElementById('model-pop-ov'); const pop=document.getElementById('model-pop'); if(!ov)return;
+    ov.style.transition='none';
+    ov.style.display='flex';
+    ov.style.opacity='1';
+    requestAnimationFrame(()=>{ if(pop)pop.style.transform='translateY(0) scale(1)';});
+  },2400);
+
 })();
 
 
