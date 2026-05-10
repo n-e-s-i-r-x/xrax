@@ -443,7 +443,7 @@ body.themed .tog.on .tog-on{color:var(--accent);}
 .s-btn{padding:8px 14px;background:#2a1010;border:1px solid #3a1515;border-radius:8px;color:#e06060;font-size:13px;font-weight:600;transition:background .15s,transform .1s;cursor:pointer}
 .s-btn:active{background:#3a1515;transform:scale(.96)}
 .s-font-btn{background:#141414;border-color:#252525;color:#888;}
-.s-font-active{background:#0d2010 !important;border-color:#4ade80 !important;color:#4ade80 !important;}
+.s-font-active{background:#4ade80 !important;border-color:#4ade80 !important;color:#000 !important;}
 @keyframes togPop{0%{transform:scale(1)}35%{transform:scale(.82)}65%{transform:scale(1.12)}100%{transform:scale(1)}}
 .tog-anim{animation:togPop .22s cubic-bezier(.4,0,.2,1);}
 
@@ -1314,7 +1314,7 @@ function setTitle(t){const el=document.getElementById('tb-title');if(el)el.textC
 function mkTitle(raw){const t=raw.trim().replace(/\s+/g,' ');return t.length>40?t.slice(0,40)+'...':t;}
 
 function showEmpty(){const ca=document.getElementById('chat-area');if(!ca)return;ca.innerHTML=`<div id="empty-state"><img id="empty-logo" src="icon.webp" alt=""/><div id="empty-h">How can I help?</div><div id="empty-s">Ask me anything. I can write, explain, code, and more.</div></div>`;}
-function renderMsgs(){const c=curConvo();const ca=document.getElementById('chat-area');if(!ca)return;if(!c||!c.msgs.length){showEmpty();return;}ca.innerHTML=c.msgs.map((m,i)=>buildMsg(m,i)).join('');attachCodeBtns();scrollBot();}
+function renderMsgs(){const c=curConvo();const ca=document.getElementById('chat-area');if(!ca)return;if(!c||!c.msgs.length){showEmpty();return;}ca.innerHTML=c.msgs.map((m,i)=>buildMsg(m,i)).join('');attachCodeBtns();if(typeof processCards==='function')processCards();scrollBot();}
 function toggleSources(el){el.closest('.sources-wrap')?.classList.toggle('open');}
 function stopBubble(e){e.stopPropagation();}
 
@@ -2367,7 +2367,7 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
     <div style="font-size:12px;color:#666;text-align:center;margin-bottom:16px">You can change this later.</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button onclick="pickFont('M')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:14px;text-align:left;cursor:pointer;color:#fff;font-family:'M',sans-serif">
-        <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:16px;font-weight:700">M.ttf</div><div style="font-size:10px;font-weight:700;background:#4ade80;color:#000;padding:2px 7px;border-radius:99px;letter-spacing:.3px">RECOMMENDED</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:16px;font-weight:700">0v Font</div><div style="font-size:10px;font-weight:700;background:#4ade80;color:#000;padding:2px 7px;border-radius:99px;letter-spacing:.3px">RECOMMENDED</div></div>
         <div style="font-size:11px;color:#888;margin-top:4px">The signature look</div>
       </button>
       <button onclick="pickFont('system')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:14px;text-align:left;cursor:pointer;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
@@ -2541,9 +2541,7 @@ window.__downloadZipFromAttr=async function(btn){
   function makeToolCard(kind,specJson){
     const id='tc-'+Math.random().toString(36).slice(2,9);
     const enc=btoa(encodeURIComponent(specJson));
-    let title='Bundle', sub='Preparing...';
-    try{const s=JSON.parse(specJson); title=s.name||(kind==='doc'?'document':'bundle.zip');}catch(_){}
-    return '<div class="tool-card" id="'+id+'" data-kind="'+kind+'" data-spec="'+enc+'"><div class="tool-name">'+esc(title)+'</div><div class="tool-sub" style="font-size:11px;opacity:.7">'+sub+'</div><div class="tool-steps"></div></div>';
+    return '<div class="tool-card" id="'+id+'" data-kind="'+kind+'" data-spec="'+enc+'"><div class="tool-sub" style="font-size:11px;opacity:.7">Building...</div><div class="tool-steps"></div></div>';
   }
   /* Background processors */
   const _zipBlobCache=new Map();
@@ -2559,7 +2557,8 @@ window.__downloadZipFromAttr=async function(btn){
       subEl.style.display='none';
       if(!card.querySelector('.tool-dl')){
         const btn=document.createElement('button');
-        btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(fname);
+        btn.className='tool-dl';
+        btn.innerHTML=PX_DL_SVG+' <span>Download '+esc(fname)+'</span>';
         btn.onclick=()=>_downloadBlob(blob,fname);
         card.appendChild(btn);
       }
@@ -2601,9 +2600,10 @@ window.__downloadZipFromAttr=async function(btn){
         blob=new Blob([String(spec.content||'')],{type:allowed[fmt]});
       }
       mark(1,'done'); mark(2,'done');
-      subEl.textContent='Ready';
+      subEl.style.display='none';
       const btn=document.createElement('button');
-      btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(spec.name||('document.'+fmt));
+      btn.className='tool-dl';
+      btn.innerHTML=PX_DL_SVG+' <span>Download '+esc(spec.name||('document.'+fmt))+'</span>';
       btn.onclick=()=>_downloadBlob(blob,spec.name||('document.'+fmt));
       card.appendChild(btn);
     }catch(e){subEl.textContent='Build failed: '+(e?.message||e);}
@@ -2634,7 +2634,7 @@ window.__downloadZipFromAttr=async function(btn){
     }catch(e){subEl.textContent='Mermaid failed: '+(e?.message||e);}
   }
   /* Process newly inserted cards (mutation observer keeps it cheap). */
-  function processCards(root){
+  window.processCards = function processCards(root){
     (root||document).querySelectorAll('.tool-card:not([data-done])').forEach(c=>{
       c.dataset.done='1';
       const k=c.dataset.kind;
@@ -2644,7 +2644,7 @@ window.__downloadZipFromAttr=async function(btn){
       else if(k==='mermaid')processMermaid(c);
     });
   }
-  const mo=new MutationObserver(muts=>{for(const m of muts)for(const n of m.addedNodes)if(n.nodeType===1)processCards(n);});
+  const mo=new MutationObserver(muts=>{for(const m of muts)for(const n of m.addedNodes)if(n.nodeType===1)window.processCards(n);});
   mo.observe(document.body,{childList:true,subtree:true});
 
   window.renderMd=function(text){
@@ -2676,7 +2676,7 @@ window.__downloadZipFromAttr=async function(btn){
       }
     });
     /* Schedule processor for cards that arrive via innerHTML (no MutationObserver fire). */
-    setTimeout(()=>processCards(),0);
+    setTimeout(()=>window.processCards(),0);
     return html;
   };
 })();
