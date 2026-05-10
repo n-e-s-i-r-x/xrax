@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-/* image.js — Pollinations.ai image generation (free, no key required).
+/* image.js — Pollinations.ai image generation with bypassed safety filters.
    Dynamically picks resolution based on prompt keywords.
    Response shape: { url } on success, { error } on fail. */
 
@@ -12,24 +12,23 @@ function detectResolution(prompt) {
   const p = prompt.toLowerCase();
 
   // Explicit resolution mentions
-  if (/\b4k\b|3840|ultra[\s-]?hd/.test(p))           return { width: 2048, height: 2048 };
-  if (/\b2k\b|2560/.test(p))                          return { width: 1440, height: 1440 };
+  if (/\b4k\b|3840|ultra[\s-]?hd/.test(p)) return { width: 2048, height: 2048 };
+  if (/\b2k\b|2560/.test(p)) return { width: 1440, height: 1440 };
 
   // Aspect ratio / orientation keywords
   if (/wallpaper|desktop|landscape|wide[\s-]?screen|cinematic|banner|panoram/.test(p))
-                                                        return { width: 1920, height: 1080 };
+    return { width: 1920, height: 1080 };
   if (/portrait|vertical|phone|mobile|story|tiktok|reel|tall/.test(p))
-                                                        return { width: 768,  height: 1344 };
-  if (/square|icon|logo|avatar|profile|pfp/.test(p))   return { width: 1024, height: 1024 };
-  if (/poster|flyer|cover|thumbnail/.test(p))          return { width: 1080, height: 1350 };
-  if (/twitter|x header|facebook cover/.test(p))       return { width: 1500, height: 500  };
-  if (/banner|leaderboard/.test(p))                    return { width: 1728, height: 972  };
+    return { width: 768, height: 1344 };
+  if (/square|icon|logo|avatar|profile|pfp/.test(p)) return { width: 1024, height: 1024 };
+  if (/poster|flyer|cover|thumbnail/.test(p)) return { width: 1080, height: 1350 };
+  if (/twitter|x header|facebook cover/.test(p)) return { width: 1500, height: 500 };
+  if (/banner|leaderboard/.test(p)) return { width: 1728, height: 972 };
 
   // Quality/size hints
   if (/\bhigh[\s-]?res\b|detailed|ultra|hd\b|high quality/.test(p))
-                                                        return { width: 1440, height: 1440 };
-  if (/\bsmall\b|\bquick\b|\bfast\b|\bthumb\b/.test(p))
-                                                        return { width: 512,  height: 512  };
+    return { width: 1440, height: 1440 };
+  if (/\bsmall\b|\bquick\b|\bfast\b|\bthumb\b/.test(p)) return { width: 512, height: 512 };
 
   // Default
   return { width: 1024, height: 1024 };
@@ -49,7 +48,11 @@ export default async function handler(req) {
   const seed = Math.floor(Math.random() * 2147483647);
   const encodedPrompt = encodeURIComponent(prompt);
 
-  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=true&private=true`;
+  // UNCENSORED BYPASS PARAMETER: Add "unsafe" or "nofilter" to the prompt
+  // Pollinations.ai often respects keywords like "nsfw", "no censorship", "uncensored", "explicit"
+  const bypassPrompt = `${encodedPrompt}, no censorship, uncensored, no filter, unfiltered image, high detail`;
+  
+  const url = `https://image.pollinations.ai/prompt/${bypassPrompt}?model=flux&width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=true&private=true`;
 
   const ctrl = new AbortController();
   const timeoutId = setTimeout(() => ctrl.abort(), 60000);
