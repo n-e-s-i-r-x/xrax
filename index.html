@@ -1137,9 +1137,17 @@ function closeModelPicker(){
 function selectModel(key){
   closeModelPicker();const m=MODELS[key];if(!m)return;
   S.model=key;
+  // Always reset Think toggle on model switch; also force off if model has no Think support
+  if(S.modes&&S.modes.has&&S.modes.has('think'))S.modes.delete('think');
   document.getElementById('model-btn').textContent=m.label;
   document.getElementById('user-input').placeholder=modeOn('code')?'Code with '+key+'...':m.placeholder;
   ['0','00','000','V','VV','VVV'].forEach(k=>document.getElementById('mp-item-'+k)?.classList.toggle('sel',k===key));
+  // Disable think button visually when unsupported
+  const tb=document.getElementById('think-btn');
+  if(tb){
+    if(!m.hasThink){tb.classList.add('disabled');tb.setAttribute('aria-disabled','true');tb.style.opacity='0.45';tb.style.pointerEvents='none';}
+    else{tb.classList.remove('disabled');tb.removeAttribute('aria-disabled');tb.style.opacity='';tb.style.pointerEvents='';}
+  }
   applyColors();updateModelDescs();
 }
 function updateModelDescs(){
@@ -1151,6 +1159,7 @@ function updateModelDescs(){
 
 /* ─── MODES ─── */
 function toggleMode(m){
+  if(m==='think'){const md=MODELS[S.model]; if(md&&!md.hasThink){S.modes.delete('think');applyColors();return;}}
   if(S.modes.has(m))S.modes.delete(m);else S.modes.add(m);
   const mDef=MODELS[S.model]||MODELS['0'];
   document.getElementById('model-btn').textContent=mDef.label;
