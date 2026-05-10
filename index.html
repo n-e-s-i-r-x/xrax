@@ -609,17 +609,9 @@ body.themed .speed-timer {
         <button class="model-btn" id="model-btn" onclick="openModelPicker(event)">0</button>
         <textarea id="user-input" placeholder="Message 0..." rows="1" oninput="autoGrow(this)" onkeydown="onKey(event)"></textarea>
         <button class="send-btn" id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file">
-          <svg width="14" height="14" viewBox="0 0 8 10" fill="currentColor" shape-rendering="crispEdges">
-            <rect x="3" y="0" width="2" height="1"/>
-            <rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/>
-            <rect x="1" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/>
-            <rect x="1" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/>
-            <rect x="1" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/>
-            <rect x="1" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/>
-            <rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/>
-            <rect x="3" y="7" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/>
-            <rect x="4" y="8" width="1" height="1"/><rect x="6" y="8" width="1" height="1"/>
-            <rect x="5" y="9" width="2" height="1"/>
+          <svg width="16" height="16" viewBox="0 0 12 12" fill="currentColor" shape-rendering="crispEdges">
+            <rect x="1" y="4" width="10" height="4"/>
+            <rect x="4" y="1" width="4" height="10"/>
           </svg>
         </button>
         <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>
@@ -1178,11 +1170,30 @@ const CODE_MODE_EXTRA=`\n\nULTRA MAXIMUM CODING MODE — ACTIVE.\nYou are now th
 // System prompt and all config live in chat.js (server-side).
 // Every user message is silently humanized — no angle brackets needed.
 
+// Recognise any "ran out of tokens"-style finish reason across providers.
+function isLengthFinish(fr){
+  if(!fr)return false;
+  const s=String(fr).toLowerCase();
+  return s==='length'||s==='max_tokens'||s==='max_output_tokens'||s==='model_length'||s.indexOf('length')!==-1||s.indexOf('max_token')!==-1;
+}
+// Heuristic: looks cut off mid-thought (no terminal punctuation / closing fence)
+function looksMidSentence(t){
+  if(!t)return false;
+  const tail=t.replace(/\s+$/,'').slice(-3);
+  if(!tail)return false;
+  if(/[.!?\)\]\"\u201D\u2019]/.test(tail.slice(-1)))return false;
+  if(/```\s*$/.test(t))return false;
+  return t.length>400;
+}
+
 async function runHumanizer(userText,aiId){
   const txtEl=document.getElementById(aiId+'txt');
-  if(!txtEl)return;
+  if(!txtEl)return{text:'',truncated:false};
   // Always humanize the raw message — no angle-bracket wrapping needed
   const toHumanize=userText.trim();
+  // Scale token budget to input size — long pastes need long outputs.
+  // Rough estimate: ~1 token per 4 chars; ask for input length in tokens with headroom.
+  const dynMax=Math.min(64000,Math.max(8000,Math.ceil(toHumanize.length/2)));
 
   try{
     const res=await fetch('/api/chat.js',{
@@ -1192,7 +1203,7 @@ async function runHumanizer(userText,aiId){
         messages:[{role:'user',content:toHumanize}],
         context:'',
         temperature:1.0,
-        maxTokens:8000,
+        maxTokens:dynMax,
         model:'humanizer',
         contMode:false,
         useSearch:false
@@ -1201,6 +1212,7 @@ async function runHumanizer(userText,aiId){
     });
     if(!res.ok)throw new Error('HTTP '+res.status);
     const reader=res.body.getReader();const dec=new TextDecoder();let buf='';let answer='';
+    let finishReason=null;
     const throttledRender=throttle(()=>{
       if(!txtEl)return;
       const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
@@ -1220,20 +1232,33 @@ async function runHumanizer(userText,aiId){
       for(const line of lines){
         const l=line.trim();if(!l.startsWith('data:'))continue;
         const raw=l.slice(5).trim();if(raw==='[DONE]'){done_reading=true;break;}
-        try{const d=JSON.parse(raw);const txt=d.choices?.[0]?.delta?.content;if(typeof txt==='string'&&txt.length){answer+=txt;throttledRender();}}catch(_){}
+        try{
+          const d=JSON.parse(raw);
+          const ch=d.choices?.[0];
+          if(ch&&ch.finish_reason)finishReason=ch.finish_reason;
+          const txt=ch?.delta?.content;
+          if(typeof txt==='string'&&txt.length){answer+=txt;throttledRender();}
+        }catch(_){}
       }
     }
-    // Extract the rewritten text from inside the triple-backtick fence the humanizer outputs
-    function extractHumanizerText(raw){
-      // Match ```\n...\n``` pattern (with optional language tag)
+    // Pull the inner text out of the model's fenced block (so we can re-wrap cleanly)
+    function extractInner(raw){
       const m=raw.match(/^```[^\n]*\n([\s\S]*?)```\s*$/);
       if(m)return m[1].trimEnd();
-      // Fallback: strip any leading/trailing ``` lines
       return raw.replace(/^```[^\n]*\n?/,'').replace(/\n?```\s*$/,'').trimEnd();
     }
-    const displayAnswer=extractHumanizerText(answer.trim())||answer;
-    if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();txtEl.innerHTML=renderMd(displayAnswer||'_(No response)_');attachCodeBtns();}
-    return displayAnswer;
+    const inner=extractInner(answer.trim())||answer.trim();
+    // Always render & save inside a ```text fence so attachCodeBtns gives a Copy button.
+    const fenced=(typeof window.__wrapInCodeBlock==='function')
+      ? window.__wrapInCodeBlock(inner)
+      : ('```text\n'+inner+'\n```');
+    if(txtEl){
+      const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
+      txtEl.innerHTML=renderMd(fenced||'_(No response)_');
+      attachCodeBtns();
+    }
+    const truncated=isLengthFinish(finishReason)||(!finishReason&&looksMidSentence(inner));
+    return{text:fenced,truncated:truncated};
   }catch(e){
     if(e.name!=='AbortError'&&txtEl)txtEl.innerHTML=renderMd('_(Humanizer error — please retry)_');
     throw e;
@@ -1371,9 +1396,9 @@ function buildMsg(msg,idx){
     }
   }
   const html=(window.renderMd||renderMd)(msg.content||'');
-  let imgHtml='';if(msg.imageUrl){const escapedUrl=esc(msg.imageUrl);imgHtml=`<div class="ai-image" onclick="event.stopPropagation();toggleImgSave(this,event)"><img src="${escapedUrl}" alt="Generated image" loading="lazy"/><button class="msg-img-save-btn" onclick="saveImg(this,event)">\u2193 Save</button></div>`;}
+  let imgHtml='';if(msg.imageUrl){const escapedUrl=esc(msg.imageUrl);imgHtml=`<div class="ai-image" onclick="event.stopPropagation();toggleImgSave(this,event)"><img src="${escapedUrl}" alt="Generated image" loading="lazy"/><button class="msg-img-save-btn" onclick="saveImg(this,event)">${PX_DOWN_SVG} Save</button></div>`;}
   let acts='';
-  if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">↓ Continue</button>`;
+  if(msg.truncated)acts=`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">${PX_DOWN_SVG} Continue</button>`;
   else if(msg.emptyRetry)acts=`<button class="ma-btn" onclick="retryEmpty(${idx})" style="color:#e06060">Retry</button>`;
   return`<div class="msg-row ai" data-msg-index="${idx}" ${cma} onclick="toggleMsgCopy(this,event)"><div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">${badge}${thinkHtml}<div class="ai-txt" id="msg-${idx}-text">${imgHtml}${html}</div>${sourcesHtml}${ts}<div class="msg-acts" id="msg-${idx}-acts">${acts}</div><button class="msg-copy-btn" onclick="copyMsgTxt(this,event)"><svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy</button></div></div></div></div>`;
 }
@@ -1454,7 +1479,7 @@ const _chipSVG=`<svg width="9" height="9" viewBox="0 0 6 7" fill="currentColor" 
 
 function showFileErr(msg){
   const pr=document.getElementById('file-parse-progress');if(!pr)return;
-  pr.textContent='⚠ '+msg;pr.style.color='#e06060';pr.classList.add('show');
+  pr.innerHTML=PX_WARN_SVG+' '+esc(msg);pr.style.color='#e06060';pr.classList.add('show');
   setTimeout(()=>{pr.classList.remove('show');pr.style.color='';},4000);
 }
 
@@ -1677,17 +1702,23 @@ async function sendMsg(){
     appendPendingHumanizer(aiId);
     S.abort=new AbortController();
     try{
-      const answer=await runHumanizer(modelContent,aiId);
-      const savedAnswer=(answer||'').trim();
-      c.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:false,sources:[],codeMode:false,thinking:null,thinkDuration:null,truncated:false,modelKey:'humanizer'});
+      const result=await runHumanizer(modelContent,aiId);
+      const savedAnswer=((result&&result.text)||'').trim();
+      const wasTruncated=!!(result&&result.truncated);
+      c.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:false,sources:[],codeMode:false,thinking:null,thinkDuration:null,truncated:wasTruncated,modelKey:'humanizer'});
+      const newIdx=c.msgs.length-1;
       const pendingRow=document.getElementById(aiId);
       if(pendingRow){
-        pendingRow.dataset.msgIndex=c.msgs.length-1;
+        pendingRow.dataset.msgIndex=newIdx;
         pendingRow.setAttribute('onclick','toggleMsgCopy(this,event)');
         pendingRow.querySelectorAll('.stream-cur').forEach(el=>el.remove());
         const aiBody=pendingRow.querySelector('.ai-body');
         if(aiBody){
-          const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id='msg-'+(c.msgs.length-1)+'-acts';aiBody.appendChild(actsEl);
+          const actsEl=document.createElement('div');actsEl.className='msg-acts';actsEl.id='msg-'+newIdx+'-acts';
+          if(wasTruncated){
+            actsEl.innerHTML=`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${newIdx})">${PX_DOWN_SVG} Continue</button>`;
+          }
+          aiBody.appendChild(actsEl);
           const copyBtn=document.createElement('button');copyBtn.className='msg-copy-btn';copyBtn.setAttribute('onclick','copyMsgTxt(this,event)');
           copyBtn.innerHTML=`<svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="4" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="5" y="1" width="1" height="3"/><rect x="2" y="4" width="3" height="1"/><rect x="0" y="1" width="4" height="1"/><rect x="0" y="2" width="1" height="3"/><rect x="3" y="2" width="1" height="1"/><rect x="0" y="5" width="4" height="1"/></svg>Copy`;
           aiBody.appendChild(copyBtn);
@@ -1936,7 +1967,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         runWithSmartSearch=false;
         for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,true,false,userWantsSearch)){
           if(S.abort?.signal?.aborted&&!internalSearchFired)break;
-          if(chunk&&typeof chunk==='object'&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
+          if(chunk&&typeof chunk==='object'&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
           if(chunk.type==='think'){
             if(answerPhase){
               answerText+=chunk.text;renderAnswer();
@@ -1993,7 +2024,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       },150);
       for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false,false,userWantsSearch)){
         if(S.abort?.signal?.aborted)break;
-        if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
+        if(chunk&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
         if(chunk&&chunk.type==='verify_replace'){
   // Strip any verification preamble the model may have leaked
   let vText=chunk.text;
@@ -2015,6 +2046,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         answerText+=txt;
         if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderNonThink();}
       }
+      if(!wasTruncated&&looksMidSentence(answerText))wasTruncated=true;
       if(!wasTruncated&&answerText&&!userSearchData&&allowSmartSearch&&!modeOn('image')&&detectUncertainty(answerText)){
         showUserSearchInd();
         const q=userQuery||baseMsgs.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
@@ -2032,7 +2064,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           },150);
           for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,8000,S.abort.signal,false,false,true)){
             if(S.abort?.signal?.aborted)break;
-            if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')wasTruncated=true;continue;}
+            if(chunk&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
             const txt=(chunk&&chunk.text)||'';if(!txt)continue;
             answerText+=txt;
             if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderReAnswer();}
@@ -2165,9 +2197,20 @@ async function continueMsg(idx){
   // Build context: the partial assistant message is already included in historyMsgs,
   // so just instruct the model to continue from where the last assistant turn ended.
   const cutoffText=msg.content||'';
+  // Tail anchor: last ~240 chars trimmed at a word boundary — the model must resume right after this.
+  let tailAnchor=cutoffText.slice(-240);
+  const sp=tailAnchor.indexOf(' ');
+  if(sp>0&&sp<60)tailAnchor=tailAnchor.slice(sp+1);
+  // Detect unclosed code fence so model knows not to re-open one.
+  const fenceCount=(cutoffText.match(/```/g)||[]).length;
+  const insideFence=(fenceCount%2)===1;
+
   let ctx=dtCtx();
   if(isCodeMode)ctx+=CODE_MODE_EXTRA;
   ctx+=`\n\n---\nCONTINUATION MODE: The assistant message in this conversation was cut off by the token limit. Output ONLY what comes next — continue from exactly where it ended. Do NOT repeat any already-written text. Do NOT add a preamble or heading.`;
+  if(insideFence)ctx+='\nThe cutoff is INSIDE an open code block. Continue inside that same block; do NOT emit a new opening or closing triple-backtick fence — the renderer keeps the original fence open.';
+
+  const continueInstr='[CONTINUE] Your previous reply was cut off. Resume immediately AFTER this exact tail, without repeating it and without any preamble or heading:\n<<<TAIL\n'+tailAnchor+'\nTAIL>>>';
 
   // Include history up to and including the partial assistant message, then add a
   // synthetic user turn — this gives models the correct user→assistant→user structure
@@ -2176,11 +2219,26 @@ async function continueMsg(idx){
     ...c.msgs.slice(0,idx+1)
       .filter(m=>m.role==='user'||m.role==='assistant')
       .map(m=>({role:m.role,content:m.modelContent||m.content||''})),
-    {role:'user',content:'[CONTINUE — your previous response was cut off. Output ONLY the continuation from exactly where you stopped. Do NOT repeat anything. Do NOT add any intro or heading. Just raw continuation text.]'}
+    {role:'user',content:continueInstr}
   ];
 
   let full=cutoffText;
   let newChunk='';
+  let overlapStripped=false;
+  // Strip any echoed overlap: longest suffix of `full` that is a prefix of `newChunk`.
+  function stripOverlap(){
+    if(overlapStripped||!newChunk)return;
+    const maxScan=Math.min(400,full.length,newChunk.length);
+    for(let k=maxScan;k>=8;k--){
+      if(full.slice(-k)===newChunk.slice(0,k)){
+        newChunk=newChunk.slice(k);
+        overlapStripped=true;
+        return;
+      }
+    }
+    // Once we have at least 80 chars and no overlap matched, stop scanning forever.
+    if(newChunk.length>=80)overlapStripped=true;
+  }
 
   const _renderContinue=throttle(()=>{
     if(!txtEl)return;
@@ -2198,7 +2256,7 @@ async function continueMsg(idx){
     txtEl.innerHTML=(window.renderMd||renderMd)(combined);
     if(actsEl){
       actsEl.innerHTML=msg.truncated
-        ?`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">↓ Continue</button>`
+        ?`<button class="ma-btn continue-btn" onclick="event.stopPropagation();continueMsg(${idx})">${PX_DOWN_SVG} Continue</button>`
         :'';
     }
     attachCodeBtns();
@@ -2215,11 +2273,13 @@ async function continueMsg(idx){
   try{
     for await(const chunk of streamParsed(historyMsgs,ctx,modelKey,8000,S.abort.signal,false,true)){
       if(S.abort?.signal?.aborted)break;
-      if(chunk&&chunk.type==='finish'){if(chunk.reason==='length')msg.truncated=true;continue;}
+      if(chunk&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))msg.truncated=true;continue;}
       const txt=(chunk&&chunk.text)||'';if(!txt)continue;
       newChunk+=txt;
+      stripOverlap();
       _renderContinue();
     }
+    if(!msg.truncated&&looksMidSentence((full+newChunk).trim()))msg.truncated=true;
   }catch(e){
     if(e.name!=='AbortError')showErr(e.message||'Continue failed.');
   }finally{
@@ -2443,6 +2503,10 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
 </div>
 
 <script>
+/* ── Reusable pixel-art icons (currentColor, theme-aware) ── */
+const PX_DOWN_SVG='<svg width="10" height="10" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="2" height="5"/><rect x="1" y="4" width="6" height="1"/><rect x="2" y="5" width="4" height="1"/><rect x="3" y="6" width="2" height="1"/></svg>';
+const PX_WARN_SVG='<svg width="12" height="11" viewBox="0 0 11 9" fill="currentColor" shape-rendering="crispEdges" style="vertical-align:-2px;margin-right:2px"><rect x="5" y="0" width="1" height="1"/><rect x="4" y="1" width="3" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="8" y="4" width="1" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="9" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="0" y="7" width="11" height="1"/></svg>';
+
 /* Reusable pixel-art toggle SVG — shown in renderSettings */
 window.TOG_SVG='<svg viewBox="0 0 25 14" xmlns="http://www.w3.org/2000/svg"><g class="tog-off" fill="currentColor"><rect x="2" y="0" width="21" height="1"/><rect x="2" y="13" width="21" height="1"/><rect x="0" y="2" width="1" height="10"/><rect x="24" y="2" width="1" height="10"/><rect x="1" y="1" width="1" height="1"/><rect x="23" y="1" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="23" y="12" width="1" height="1"/><rect x="2" y="2" width="6" height="10" fill="#fff"/><rect x="2" y="2" width="1" height="1" fill="#bbb"/><rect x="7" y="2" width="1" height="1" fill="#bbb"/><rect x="2" y="11" width="1" height="1" fill="#bbb"/><rect x="7" y="11" width="1" height="1" fill="#bbb"/></g><g class="tog-on" fill="currentColor"><rect x="2" y="0" width="21" height="1"/><rect x="2" y="13" width="21" height="1"/><rect x="0" y="2" width="1" height="10"/><rect x="24" y="2" width="1" height="10"/><rect x="1" y="1" width="1" height="1"/><rect x="23" y="1" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="23" y="12" width="1" height="1"/><rect x="17" y="2" width="6" height="10" fill="#fff"/><rect x="17" y="2" width="1" height="1" fill="#bbb"/><rect x="22" y="2" width="1" height="1" fill="#bbb"/><rect x="17" y="11" width="1" height="1" fill="#bbb"/><rect x="22" y="11" width="1" height="1" fill="#bbb"/></g></svg>';
 
