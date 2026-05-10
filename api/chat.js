@@ -11,10 +11,10 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':         { id: 'liquid/lfm-2.5-1.2b-instruct:free',       hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
   '00':        { id: 'openai/gpt-oss-20b:free',                  hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
+  '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',              hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
+  'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
+  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
@@ -723,14 +723,13 @@ const ZIP_TOOL_ADDENDUM = `
 TOOLS — RICH OUTPUTS (use only when genuinely useful):
 
 1) FILE BUNDLE (.zip)
-When the user asks for code files, a project, or multiple files — write ALL file contents ONLY inside the zip block below. Do NOT write them as separate code blocks before or after. The zip tool renders a download card automatically.
+Emit one fenced block tagged \`zip\`:
 \`\`\`zip
 { "name": "project.zip", "files": [
-  { "path": "src/index.js", "content": "/* full file content here */" },
-  { "path": "README.md",    "content": "# Project\n..." }
+  { "path": "src/index.js", "content": "..." },
+  { "path": "README.md",    "content": "..." }
 ] }
 \`\`\`
-CRITICAL: Every file's complete content goes inside "content". Never write the same code outside the zip block. Do not explain what each file contains before the block — just emit the zip block directly after a one-line intro at most.
 
 2) DOCUMENT EXPORT (.pdf, .csv, .md, .txt, .html, .json)
 For a single downloadable document, emit one fenced block tagged \`doc\`:
@@ -752,11 +751,12 @@ Use a fenced block tagged \`mermaid\` with valid Mermaid syntax.
 Inline LaTeX with \\( ... \\) or $...$, display math with $$ ... $$.
 
 Rules:
-- Place tool blocks AFTER a brief one-line intro only. No pre-listing of files.
+- When creating a zip, put ALL file contents inside the zip block ONLY. Do NOT write files as separate code blocks before or after.
+- Place the zip block after a single intro sentence at most — no listing of files beforehand.
 - Forward-slash paths only. Plain UTF-8 text. No binary content.
 - At most one zip and one doc per response.
 - Do NOT mention these tools unless you actually use them.
-- NEVER duplicate file contents both inside the zip and outside it as code blocks.
+- NEVER duplicate file contents both inside and outside the zip block.
 `;
 
 /* ─────────────── 3. CLASSIFICATION & SAMPLING ─────────────── */
@@ -1031,16 +1031,12 @@ function sseError(text) {
 }
 
 export default async function handler(req) {
-  /* GET → return per-model think capability so the UI can auto-detect */
   if (req.method === 'GET') {
     const caps = {};
     for (const [key, m] of Object.entries(MODEL_MAP)) {
       caps[key] = { think: !!(m.hasReasoning || m.hasPromptedThink) };
     }
-    return new Response(JSON.stringify(caps), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify(caps), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
