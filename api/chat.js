@@ -11,17 +11,11 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':         { id: 'liquid/lfm-2.5-1.2b-instruct:free',       hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
   '00':        { id: 'openai/gpt-oss-20b:free',                  hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
+  '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',              hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
+  'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
+  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
-};
-/* Think capability: a model supports Think if hasReasoning OR hasPromptedThink is true.
-   This drives the UI gating — exported so index.html can read it dynamically. */
-const modelSupportsThink = (key) => {
-  const m = MODEL_MAP[key] ?? MODEL_MAP['0'];
-  return !!(m.hasReasoning || m.hasPromptedThink);
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
 const modelEntry = (key) => MODEL_MAP[key] ?? MODEL_MAP['0'];
@@ -1035,6 +1029,17 @@ function sseError(text) {
 }
 
 export default async function handler(req) {
+  /* GET → return per-model think capability so the UI can auto-detect */
+  if (req.method === 'GET') {
+    const caps = {};
+    for (const [key, m] of Object.entries(MODEL_MAP)) {
+      caps[key] = { think: !!(m.hasReasoning || m.hasPromptedThink) };
+    }
+    return new Response(JSON.stringify(caps), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
   let body;
