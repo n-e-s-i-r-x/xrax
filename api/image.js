@@ -6,14 +6,13 @@ export const config = { runtime: 'edge' };
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
 
-// Models ordered from most capable to cheapest/most permissive fallbacks
+// Models that actually support image generation output (responseModalities: IMAGE)
 const GEMINI_IMAGE_MODELS = [
   'gemini-2.0-flash-preview-image-generation',
-  'gemini-2.0-flash-exp',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash-exp-image-generation',
+  'imagen-3.0-generate-002',
+  'imagen-3.0-generate-001',
+  'imagen-3.0-fast-generate-001',
 ];
 
 // Errors that should trigger a model switch vs hard-fail
@@ -34,15 +33,28 @@ const errMsg = (status) => {
 };
 
 async function tryGeminiModel(apiKey, model, prompt, signal) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const isImagen = model.startsWith('imagen-');
+
+  let url, bodyPayload;
+
+  if (isImagen) {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
+    bodyPayload = {
+      instances: [{ prompt }],
+      parameters: { sampleCount: 1 },
+    };
+  } else {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    bodyPayload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+    };
+  }
 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-    }),
+    body: JSON.stringify(bodyPayload),
     signal,
   });
 
@@ -57,18 +69,26 @@ async function tryGeminiModel(apiKey, model, prompt, signal) {
     return { ok: false, status: 200, body: 'Invalid JSON response', fallback: false };
   }
 
-  // Extract inline image data from Gemini response
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  const imagePart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
+  let dataUrl = null;
 
-  if (!imagePart) {
-    // No image in response — may be a model that doesn't support image gen, try fallback
-    return { ok: false, status: 200, body: 'No image in response', fallback: true };
+  if (isImagen) {
+    // Imagen response: predictions[0].bytesBase64Encoded
+    const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
+    const mime = data?.predictions?.[0]?.mimeType || 'image/png';
+    if (b64) dataUrl = `data:${mime};base64,${b64}`;
+  } else {
+    // Gemini response: candidates[0].content.parts[].inlineData
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
+    if (imagePart) {
+      const mime = imagePart.inlineData.mimeType || 'image/png';
+      dataUrl = `data:${mime};base64,${imagePart.inlineData.data}`;
+    }
   }
 
-  const mimeType = imagePart.inlineData.mimeType || 'image/png';
-  const b64 = imagePart.inlineData.data;
-  const dataUrl = `data:${mimeType};base64,${b64}`;
+  if (!dataUrl) {
+    return { ok: false, status: 200, body: 'No image in response', fallback: true };
+  }
 
   return { ok: true, url: dataUrl, model };
 }
