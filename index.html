@@ -648,11 +648,11 @@ body.themed .speed-timer {
   <div class="mp-head" id="mp-head-lbl">Select Model</div>
   <div class="mp-item sel" id="mp-item-0" onclick="selectModel('0')">
     <div class="mp-label-row"><div class="mp-name">0</div></div>
-    <div class="mp-desc" id="mp-desc-0">Balanced.</div>
+    <div class="mp-desc" id="mp-desc-0">Normal.</div>
   </div>
   <div class="mp-item" id="mp-item-00" onclick="selectModel('00')">
     <div class="mp-label-row"><div class="mp-name">00</div><span class="mp-badge fast">Fast</span></div>
-    <div class="mp-desc" id="mp-desc-00">Smart. Fast.</div>
+    <div class="mp-desc" id="mp-desc-00">Fastest.</div>
   </div>
   <div class="mp-item" id="mp-item-000" onclick="selectModel('000')">
     <div class="mp-label-row"><div class="mp-name">000</div><span class="mp-badge rapid">Rapid</span></div>
@@ -880,7 +880,7 @@ const MODELS={
   'VV' :{key:'VV', label:'VV', placeholder:'Message VV...', hasThink:false, temp:0.6},
   'VVV':{key:'VVV',label:'VVV',placeholder:'Message VVV...',hasThink:false, temp:0.6},
 };
-const BASE_DESCS={'0':'Balanced.','00':'Smart. Fast.','000':'Highest. Fast.','V':'Smart. Uncensored.','VV':'Smartest. Programming.','VVV':'Smartest. Slow.'};
+const BASE_DESCS={'0':'Normal.','00':'Fastest.','000':'Highest. Fast.','V':'Smart. Uncensored.','VV':'Smartest. Programming.','VVV':'Smartest. Slow.'};
 
 const C={
   grey:  {
@@ -1021,7 +1021,7 @@ function applyModeButtons(c){
 }
 
 const LEAK_LINE_RE=[/^\s*\[[A-Z][^\]]{2,120}\]\s*$/,/---\s*WEB SEARCH RESULTS\s*---/i,/---\s*END SEARCH RESULTS\s*---/i,/\bDIRECT\s*ANSWER\s*:/i,/\[CODE MODE\b/i,/\[Current date and time\]/i,/\[Reasoning context above/i,/\[Continue from where/i,/\[Search complete/i,/<context>|<\/context>/i,/\bYou are (?:0|00|000|V|VV|VVV)\b/,/\bsystem prompt\b/i,/\b(?:my|the) (?:instructions?|rules|role|configuration|behavior list)\b/i];
-function sanitizeThinkText(t){if(!t)return t;return t.split('\n').map(l=>{for(const r of LEAK_LINE_RE)if(r.test(l))return'…';return l;}).join('\n');}
+function sanitizeThinkText(t){if(!t)return t;return t.split('\n').map(l=>{for(const r of LEAK_LINE_RE)if(r.test(l))return'';return l;}).join('\n');}
 
 const UNCERTAINTY_HARD=[/\b(don'?t|do not|doesn'?t|does not)\s+have\s+(access|real.?time|live|current|up.?to.?date)\b/i,/\b(can'?t|cannot|could not|couldn'?t)\s+(access|find|retrieve|fetch|get|verify)\s+(real.?time|live|current|up.?to.?date|today'?s?|latest|that|this)\b/i,/\bmy\s+(knowledge|training|data)\s+(cut.?off|ends?|stops?|is\s+limited\s+to|is\s+from)\b/i,/\b(as\s+of\s+my\s+(last|knowledge)\s+update|my\s+knowledge\s+(only\s+goes?|extends?)\s+to)\b/i,/\b(this\s+(information\s+)?(may|might|could)\s+(be\s+)?(outdated|have\s+changed|no\s+longer\s+be\s+accurate))\b/i,/\b(i\s+(don'?t|do\s+not)\s+know\s+the\s+(current|latest|today'?s?|real.?time|live))\b/i,/\b(for\s+the\s+most\s+(up.?to.?date|current|accurate|recent)\s+(information|data|details),?\s+(please\s+)?(check|visit|refer|look))\b/i,/\b(i\s+(genuinely\s+)?(don'?t|do\s+not)\s+know|i\s+have\s+no\s+(idea|information|data)\s+(about|on|regarding))\b/i,/\b(unable\s+to\s+(provide|give|access)\s+(current|live|real.?time|today'?s?))\b/i,/\b(you'?d?\s+(need|should|would\s+need)\s+to\s+(check|verify|look\s+up)\s+(the\s+)?(current|latest|live|real.?time))\b/i,
 /\b(not\s+sure\s+(if|whether|about)\s+(this\s+)?(syntax|api|method|function|library|package|version))\b/i,/\b(you\s+(may|might|should)\s+(want\s+to\s+)?(check|verify|confirm)\s+(the\s+)?(docs?|documentation|api|syntax))\b/i,/\b(this\s+(may|might)\s+(have\s+changed|be\s+different|vary)\s+(in|across|between|with)\s+(newer|older|different|recent)\s+versions?)\b/i,/\b(i'?m\s+not\s+(100%\s+)?(certain|sure|confident)\s+(about\s+(the\s+)?)?(exact|precise|correct)\s+(syntax|api|usage|name))\b/i,
