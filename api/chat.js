@@ -720,9 +720,10 @@ function composePersona(modelKey) {
    a Download button. */
 const ZIP_TOOL_ADDENDUM = `
 
-TOOL — FILE BUNDLE (.zip):
-When the user asks you to deliver multiple files, a project, or anything packageable, you MAY emit exactly one fenced JSON block tagged \`zip\` with this shape:
+TOOLS — RICH OUTPUTS (use only when genuinely useful):
 
+1) FILE BUNDLE (.zip)
+Emit one fenced block tagged \`zip\`:
 \`\`\`zip
 { "name": "project.zip", "files": [
   { "path": "src/index.js", "content": "..." },
@@ -730,11 +731,30 @@ When the user asks you to deliver multiple files, a project, or anything package
 ] }
 \`\`\`
 
+2) DOCUMENT EXPORT (.pdf, .csv, .md, .txt, .html, .json)
+For a single downloadable document, emit one fenced block tagged \`doc\`:
+\`\`\`doc
+{ "name": "report.pdf", "format": "pdf", "content": "Plain text body...\nMore text..." }
+\`\`\`
+Allowed formats: pdf, csv, md, txt, html, json. Use plain UTF-8 text in "content".
+
+3) CHART (bar, line, pie)
+Emit one fenced block tagged \`chart\`:
+\`\`\`chart
+{ "type": "bar", "title": "Sales", "labels": ["Q1","Q2","Q3"], "data": [12,19,7] }
+\`\`\`
+
+4) DIAGRAM (Mermaid)
+Use a fenced block tagged \`mermaid\` with valid Mermaid syntax.
+
+5) MATH
+Inline LaTeX with \\( ... \\) or $...$, display math with $$ ... $$.
+
 Rules:
-- Place the block AFTER any normal explanation.
-- Use forward-slash paths only. Plain UTF-8 text content. No binary.
-- Emit at most one zip block per response.
-- Do NOT mention this tool unless you actually use it.
+- Place tool blocks AFTER any normal explanation.
+- Forward-slash paths only. Plain UTF-8 text. No binary content.
+- At most one zip and one doc per response.
+- Do NOT mention these tools unless you actually use them.
 `;
 
 /* ─────────────── 3. CLASSIFICATION & SAMPLING ─────────────── */
@@ -1021,6 +1041,7 @@ export default async function handler(req) {
     model: modelKey = '0',
     contMode = false,
     context = '',
+    think: userWantsThink = false,
   } = body;
 
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
@@ -1032,8 +1053,9 @@ export default async function handler(req) {
     Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
   );
   const modelId          = hasImages ? VISION_MODEL_ID : mEntry.id;
-  const hasReasoning     = hasImages ? false : mEntry.hasReasoning;
-  const hasPromptedThink = hasImages ? false : (mEntry.hasPromptedThink ?? false);
+  // Real reasoning only when the user toggled the Think mode AND the model supports it.
+  const hasReasoning     = hasImages ? false : (!!mEntry.hasReasoning && !!userWantsThink);
+  const hasPromptedThink = hasImages ? false : (!!mEntry.hasPromptedThink && !!userWantsThink);
   const isThinkModel     = hasReasoning || hasPromptedThink;
 
   const persona = composePersona(modelKey) + (context ? '\n\n' + context : '');
