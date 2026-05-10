@@ -5,7 +5,7 @@ const MODEL_MAP = {
   '00':        { id: 'openai/gpt-oss-20b:free',                     hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
   '000':       { id: 'openai/gpt-oss-120b:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',                 hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
-  'VV':        { id: 'poolside/laguna-m.1:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
+  'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',                    hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 10000 },
   'humanizer': { id: 'openai/gpt-oss-120b:free',      hasReasoning: false, hasPromptedThink: false, minTokens: 10000, temperature: 1.5 },
 };
