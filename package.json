@@ -1,0 +1,8 @@
+{
+  "name": "0v-ai-web",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "0v AI chat — refactored backend, original UI preserved.",
+  "engines": { "node": ">=18" }
+}
