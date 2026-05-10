@@ -2036,14 +2036,17 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];
 
   const savedAnswer=answerText.trim();
-  const savedThinking=sanitizeThinkText(thinkText).trim()||null;
+  // Only save thinking data if this model actually has think mode — prevents
+  // leaked <think> tags from non-think models showing up as a think block.
+  const savedThinking=useThink?(sanitizeThinkText(thinkText).trim()||null):null;
+  const savedThinkDur=useThink?thinkDurStr:null;
 
   if(!savedAnswer&&!thinkText.trim()){
     convo.msgs.push({role:'assistant',content:'_(No response — tap Retry)_',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:null,thinkDuration:null,truncated:false,emptyRetry:true,modelKey});
   }else if(!savedAnswer&&savedThinking){
-    convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:false,modelKey});
+    convo.msgs.push({role:'assistant',content:'',ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:savedThinkDur,truncated:false,modelKey});
   }else{
-    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:thinkDurStr,truncated:wasTruncated,modelKey});
+    convo.msgs.push({role:'assistant',content:savedAnswer,ts:Date.now(),userSearched:!!userWantsSearch,sources:effectiveSources,codeMode:isCodeMode,thinking:savedThinking,thinkDuration:savedThinkDur,truncated:wasTruncated,modelKey});
   }
   const msgIdx=convo.msgs.length-1;
   const pendingRow=document.getElementById(aiId);
@@ -2075,11 +2078,13 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       aiBody.appendChild(copyBtn);
     }
     attachCodeBtns();
+    if(typeof window.processCards==='function')setTimeout(()=>window.processCards(),0);
   }else if(pendingRow){
     const finalHtml=buildMsg(convo.msgs[msgIdx],msgIdx);
     const tmp=document.createElement('div');tmp.innerHTML=finalHtml;
     pendingRow.replaceWith(tmp.firstElementChild);
     attachCodeBtns();
+    if(typeof window.processCards==='function')setTimeout(()=>window.processCards(),0);
   }else{
     renderMsgs();
   }
