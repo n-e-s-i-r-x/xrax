@@ -630,7 +630,7 @@ body.themed .speed-timer {
         </button>
       </div>
     </div>
-    <div id="image-notice">Text-to-Image is in alpha. Quality may vary.</div>
+    <div id="image-notice"><span id="img-limit-display"></span></div>
     <div id="humanizer-hint" style="display:none;text-align:center;font-size:10.5px;color:#fff;padding:6px 14px 0;line-height:1.5;opacity:0.7">Paste your text and send it will be humanized automatically.</div>
   </div>
 </div>
@@ -1158,6 +1158,7 @@ function toggleMode(m){
   const inp=document.getElementById('user-input');
   if(inp)inp.placeholder=modeOn('code')?'Code with '+S.model+'...':mDef.placeholder;
   document.getElementById('image-notice')?.classList.toggle('show',modeOn('image'));
+  if(modeOn('image'))updateImgLimitDisplay();
   const hzHint=document.getElementById('humanizer-hint');
   if(hzHint)hzHint.style.display=modeOn('humanizer')?'block':'none';
   applyColors();updateModelDescs();
@@ -2287,7 +2288,30 @@ async function continueMsg(idx){
   }
 }
 
+/* ── Image generation daily limit (3/day, resets at midnight local time) ── */
+const IMG_LIMIT=3;
+function _imgLimitKey(){return'imgLimit_'+new Date().toLocaleDateString('en-CA');}
+function imgLimitGet(){try{const k=_imgLimitKey();const v=localStorage.getItem(k);return v?parseInt(v,10):0;}catch(_){return 0;}}
+function imgLimitInc(){try{const k=_imgLimitKey();localStorage.setItem(k,String(imgLimitGet()+1));}catch(_){}}
+function imgLimitLeft(){return Math.max(0,IMG_LIMIT-imgLimitGet());}
+function updateImgLimitDisplay(){
+  const el=document.getElementById('img-limit-display');
+  if(!el)return;
+  const left=imgLimitLeft();
+  el.textContent=left>0?`Generation: ${left} remaining.`:'Generation: 0 remaining. Resets tomorrow.';
+  el.style.color=left===0?'#ff6b6b':'#ffe066';
+}
+
 async function genImage(convo,prompt){
+  /* Check daily limit */
+  if(imgLimitLeft()<=0){
+    const ca=document.getElementById('chat-area');
+    const row=document.createElement('div');row.className='msg-row ai';
+    row.innerHTML=`<div class="msg-in"><div class="msg-content"><div class="ai-body"><div class="ai-txt"><div class="err-box" style="margin:4px 0"><span class="err-msg">Image generation limit reached (${IMG_LIMIT}/day). Resets at midnight.</span></div></div></div></div></div>`;
+    ca.appendChild(row);scrollBot();
+    return;
+  }
+
   S.busy=true;const aiId='img'+Date.now();const ca=document.getElementById('chat-area');const row=document.createElement('div');row.className='msg-row ai';row.id=aiId;
   row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt"><div class="activity-wrap" data-state="imaging"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Generating Image</div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div></div></div></div></div></div></div>`;
   ca.appendChild(row);setStopMode(true);scrollBot();
@@ -2302,6 +2326,8 @@ async function genImage(convo,prompt){
     if(imgData.error)throw new Error(imgData.error);
     const imageUrl=imgData.url;
     if(!imageUrl)throw new Error('No image returned.');
+    /* Count this as a used generation only on success */
+    imgLimitInc();updateImgLimitDisplay();
     let savedUrl=imageUrl;
     try{
       const imgFetch=await fetch(imageUrl);
