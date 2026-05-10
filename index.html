@@ -26,8 +26,9 @@
 @font-face{font-family:"M";src:url("M.ttf")format("truetype");}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;}
-body{font-family:"M",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#000;color:#fff;-webkit-font-smoothing:antialiased;font-size:16px;overscroll-behavior:none;}
-button,input,textarea{font-family:"M";font-size:16px;color:inherit;}
+:root{--app-font:"M",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+body{font-family:var(--app-font);background:#000;color:#fff;-webkit-font-smoothing:antialiased;font-size:16px;overscroll-behavior:none;}
+button,input,textarea{font-family:var(--app-font);font-size:16px;color:inherit;}
 button{cursor:pointer;border:none;background:none;}
 input,textarea{outline:none;border:none;background:none;}
 ::-webkit-scrollbar{width:0;height:0;}
@@ -431,11 +432,14 @@ body.themed .s-row{border-bottom-color:var(--accent-border);}
 .s-row-info{flex:1;min-width:0}
 .s-name{font-size:14px;color:#ddd}
 .s-desc{font-size:12px;color:#555;margin-top:2px}
-.tog{width:48px;height:28px;background:#2a2a2a;border-radius:99px;position:relative;transition:background .2s;flex-shrink:0;cursor:pointer}
-.tog.on{background:#4ade80}
-body.themed .tog.on{background:var(--accent);}
-.tog::after{content:"";position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 4px rgba(0,0,0,.3)}
-.tog.on::after{transform:translateX(20px)}
+/* Pixel-art SVG toggle */
+.tog{width:50px;height:28px;flex-shrink:0;cursor:pointer;position:relative;display:inline-block;background:transparent;}
+.tog svg{width:100%;height:100%;display:block;shape-rendering:crispEdges;color:#3a3a3a;}
+.tog .tog-on{display:none;color:#4ade80;}
+.tog .tog-off{display:block;}
+.tog.on .tog-on{display:block;}
+.tog.on .tog-off{display:none;}
+body.themed .tog.on .tog-on{color:var(--accent);}
 .s-btn{padding:8px 14px;background:#2a1010;border:1px solid #3a1515;border-radius:8px;color:#e06060;font-size:13px;font-weight:600;transition:background .15s,transform .1s;cursor:pointer}
 .s-btn:active{background:#3a1515;transform:scale(.96)}
 
@@ -538,6 +542,17 @@ body.themed .speed-timer {
   <div id="input-area">
     <div class="input-box" id="input-box">
       <div class="input-tools">
+        <button class="mode-btn" id="think-btn" onclick="toggleMode('think')" title="Real model reasoning (only on capable models)">
+          <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
+            <rect x="2" y="0" width="4" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/>
+            <rect x="0" y="2" width="1" height="3"/><rect x="7" y="2" width="1" height="3"/>
+            <rect x="3" y="2" width="2" height="1"/><rect x="3" y="4" width="2" height="1"/>
+            <rect x="1" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/>
+            <rect x="2" y="6" width="4" height="1"/>
+            <rect x="3" y="7" width="2" height="1"/>
+          </svg>
+          Think
+        </button>
         <button class="mode-btn" id="web-btn" onclick="toggleMode('web')">
           <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges">
             <rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/>
@@ -1714,7 +1729,7 @@ async function* dripText(text, abortSignal, chunkSize=3, delayMs=22){
 
 async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,useSearch){
   const mDef=MODELS[modelKey]||MODELS['0'];let res;
-  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch}),signal:abortSignal});}
+  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch,think:(typeof modeOn==='function'&&modeOn('think'))}),signal:abortSignal});}
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
@@ -2308,7 +2323,7 @@ function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,
 
 function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)"></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)"></div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div><div class="s-desc">Keep history on device</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)"></div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div><div class="s-desc">Download all conversations as JSON</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div><div class="s-desc">Merge a previously exported JSON file</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div><div class="s-desc">Wipe all data and reload</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
+function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn" style="${fontKey==='M'?'border:1px solid #4ade80':''}" onclick="setFont('M')">M.ttf</button><button class="s-btn" style="${fontKey==='system'?'border:1px solid #4ade80':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
 function togSet(k,el){
   S.settings[k]=!S.settings[k];
   if(el)el.classList.toggle('on',S.settings[k]);
@@ -2329,19 +2344,75 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
 </script>
 
 <div id="model-toast">✦ Switch models for a better experience</div>
+
+<!-- First-boot font picker -->
+<div id="font-pop-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .35s ease">
+  <div id="font-pop" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:18px;max-width:380px;width:100%;padding:22px;transform:translateY(20px) scale(.96);transition:transform .4s cubic-bezier(.34,1.56,.64,1)">
+    <div style="font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Choose your font</div>
+    <div style="font-size:12px;color:#666;text-align:center;margin-bottom:16px">You can change this later.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="pickFont('M')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:14px;text-align:left;cursor:pointer;color:#fff;font-family:'M',sans-serif">
+        <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:16px;font-weight:700">M.ttf</div><div style="font-size:10px;font-weight:700;background:#4ade80;color:#000;padding:2px 7px;border-radius:99px;letter-spacing:.3px">RECOMMENDED</div></div>
+        <div style="font-size:11px;color:#888;margin-top:4px">The signature look</div>
+      </button>
+      <button onclick="pickFont('system')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:14px;text-align:left;cursor:pointer;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <div style="font-size:16px;font-weight:700">System default</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Use your device's standard font</div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
+/* Reusable pixel-art toggle SVG — shown in renderSettings */
+window.TOG_SVG='<svg viewBox="0 0 25 14" xmlns="http://www.w3.org/2000/svg"><g class="tog-off" fill="currentColor"><rect x="2" y="0" width="21" height="1"/><rect x="2" y="13" width="21" height="1"/><rect x="0" y="2" width="1" height="10"/><rect x="24" y="2" width="1" height="10"/><rect x="1" y="1" width="1" height="1"/><rect x="23" y="1" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="23" y="12" width="1" height="1"/><rect x="2" y="2" width="6" height="10" fill="#fff"/><rect x="2" y="2" width="1" height="1" fill="#bbb"/><rect x="7" y="2" width="1" height="1" fill="#bbb"/><rect x="2" y="11" width="1" height="1" fill="#bbb"/><rect x="7" y="11" width="1" height="1" fill="#bbb"/></g><g class="tog-on" fill="currentColor"><rect x="2" y="0" width="21" height="1"/><rect x="2" y="13" width="21" height="1"/><rect x="0" y="2" width="1" height="10"/><rect x="24" y="2" width="1" height="10"/><rect x="1" y="1" width="1" height="1"/><rect x="23" y="1" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="23" y="12" width="1" height="1"/><rect x="17" y="2" width="6" height="10" fill="#fff"/><rect x="17" y="2" width="1" height="1" fill="#bbb"/><rect x="22" y="2" width="1" height="1" fill="#bbb"/><rect x="17" y="11" width="1" height="1" fill="#bbb"/><rect x="22" y="11" width="1" height="1" fill="#bbb"/></g></svg>';
+
+/* Apply saved font on boot */
 (function(){
+  const saved=localStorage.getItem('vg_font');
+  if(saved==='system'){document.documentElement.style.setProperty('--app-font','-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif');}
+  else if(saved==='M'){document.documentElement.style.setProperty('--app-font','"M",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif');}
+})();
+
+window.setFont=function(key){
+  if(key==='system')document.documentElement.style.setProperty('--app-font','-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif');
+  else document.documentElement.style.setProperty('--app-font','"M",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif');
+  localStorage.setItem('vg_font',key);
+  if(typeof renderSettings==='function'&&document.getElementById('sheet-body'))renderSettings();
+};
+
+window.pickFont=function(key){
+  setFont(key);
+  localStorage.setItem('vg_font_chosen','1');
+  const ov=document.getElementById('font-pop-ov');
+  const pop=document.getElementById('font-pop');
+  if(pop)pop.style.transform='translateY(-10px) scale(.94)';
+  if(ov)ov.style.opacity='0';
+  setTimeout(()=>{if(ov)ov.style.display='none'; scheduleModelToast();},380);
+};
+
+function scheduleModelToast(){
   if(localStorage.getItem('mhint3'))return;
   localStorage.setItem('mhint3','1');
   setTimeout(function(){
-    var t=document.getElementById('model-toast');
-    if(!t)return;
+    var t=document.getElementById('model-toast'); if(!t)return;
     t.classList.add('show');
-    setTimeout(function(){
-      t.classList.remove('show');
-      t.classList.add('hide');
-    },4000);
-  },5600);
+    setTimeout(function(){t.classList.remove('show');t.classList.add('hide');},4000);
+  },1200);
+}
+
+(function(){
+  /* If font already chosen, skip popup and run toast on its own schedule. */
+  if(localStorage.getItem('vg_font_chosen')){
+    setTimeout(scheduleModelToast,5600);
+    return;
+  }
+  /* Otherwise, show the floating font picker first (after intro). */
+  setTimeout(function(){
+    const ov=document.getElementById('font-pop-ov'); const pop=document.getElementById('font-pop'); if(!ov)return;
+    ov.style.display='flex';
+    requestAnimationFrame(()=>{ov.style.opacity='1'; if(pop)pop.style.transform='translateY(0) scale(1)';});
+  },2200);
 })();
 
 
@@ -2355,19 +2426,19 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
    ════════════════════════════════════════════════════════════════════ */
 
 const CAPS = {
-  '0':         { search:true,  files:true,  vision:false, code:true,  image:false, humanizer:true  },
-  '00':        { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true  },
-  '000':       { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true  },
-  'V':         { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true  },
-  'VV':        { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true  },
-  'VVV':       { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true  },
-  'humanizer': { search:false, files:false, vision:false, code:false, image:false, humanizer:true  },
+  '0':         { search:true,  files:true,  vision:false, code:true,  image:false, humanizer:true,  think:false },
+  '00':        { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
+  '000':       { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
+  'V':         { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
+  'VV':        { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
+  'VVV':       { search:true,  files:true,  vision:false, code:true,  image:true,  humanizer:true,  think:false },
+  'humanizer': { search:false, files:false, vision:false, code:false, image:false, humanizer:true,  think:false },
 };
 function modelCaps(){return CAPS[S.model]||CAPS['0'];}
 function applyCapabilityGating(){
   try{
     const caps=modelCaps();
-    const map={'web-btn':'search','code-btn':'code','image-btn':'image','humanizer-btn':'humanizer'};
+    const map={'think-btn':'think','web-btn':'search','code-btn':'code','image-btn':'image','humanizer-btn':'humanizer'};
     for(const id in map){
       const el=document.getElementById(id); if(!el) continue;
       const ok=caps[map[id]];
@@ -2420,34 +2491,153 @@ window.__downloadZipFromAttr=async function(btn){
     setTimeout(()=>{btn.innerHTML=o;},1800);
   }catch(e){alert('Could not build zip: '+(e?.message||e));}
 };
-/* Wrap the existing markdown renderer to swap ```zip blocks for a button. */
+/* Wrap the existing markdown renderer to detect tool blocks
+   (zip / doc / chart / mermaid) and inject background-built download tools. */
 (function(){
   if(typeof window.renderMd!=='function') return;
   const _origRenderMd=window.renderMd;
+  /* Pixel-art download arrow icon */
+  const PX_DL_SVG='<svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="2" height="4"/><rect x="2" y="3" width="4" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="2" y="5" width="4" height="1"/><rect x="3" y="6" width="2" height="1"/><rect x="0" y="7" width="8" height="1"/></svg>';
+  const PX_GEAR_SVG='<svg width="10" height="10" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges" style="animation:spin 1.4s linear infinite"><rect x="3" y="0" width="2" height="1"/><rect x="3" y="7" width="2" height="1"/><rect x="0" y="3" width="1" height="2"/><rect x="7" y="3" width="1" height="2"/><rect x="2" y="2" width="4" height="4"/><rect x="3" y="3" width="2" height="2" fill="#000"/></svg>';
+  if(!document.getElementById('zip-tool-style')){
+    const st=document.createElement('style');st.id='zip-tool-style';
+    st.textContent='@keyframes spin{to{transform:rotate(360deg)}}.tool-card{margin:8px 0;padding:10px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:rgba(255,255,255,0.04);font-size:12px;color:#bbb;}.tool-steps{display:flex;flex-direction:column;gap:3px;margin:6px 0 0;font-family:var(--app-font);font-size:11px;color:#888}.tool-step{display:flex;align-items:center;gap:6px}.tool-step.done{color:#4ade80}.tool-step.cur{color:#fff}.tool-dl{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;cursor:pointer;font-size:12px;font-family:var(--app-font);margin-top:6px;shape-rendering:crispEdges}.tool-dl:active{transform:translateY(1px)}.tool-name{font-weight:600;font-size:13px}';
+    document.head.appendChild(st);
+  }
+  function _b64utf8(str){const bytes=new TextEncoder().encode(str);let bin='';for(const b of bytes)bin+=String.fromCharCode(b);return btoa(bin);}
+  /* Build a placeholder card; processed asynchronously after insert. */
+  function makeToolCard(kind,specJson){
+    const id='tc-'+Math.random().toString(36).slice(2,9);
+    const enc=btoa(encodeURIComponent(specJson));
+    let title='Bundle', sub='Preparing...';
+    try{const s=JSON.parse(specJson); title=s.name||(kind==='doc'?'document':'bundle.zip');}catch(_){}
+    return '<div class="tool-card" id="'+id+'" data-kind="'+kind+'" data-spec="'+enc+'"><div class="tool-name">'+esc(title)+'</div><div class="tool-sub" style="font-size:11px;opacity:.7">'+sub+'</div><div class="tool-steps"></div></div>';
+  }
+  /* Background processors */
+  async function processZip(card){
+    const spec=JSON.parse(decodeURIComponent(atob(card.dataset.spec)));
+    const stepsEl=card.querySelector('.tool-steps');
+    const subEl=card.querySelector('.tool-sub');
+    const files=spec.files||[];
+    const steps=[{label:'Collecting '+files.length+' file'+(files.length===1?'':'s')}].concat(files.map(f=>({label:'Writing '+f.path}))).concat([{label:'Compressing'},{label:'Finalizing '+(spec.name||'bundle.zip')}]);
+    stepsEl.innerHTML=steps.map((s,i)=>'<div class="tool-step" data-i="'+i+'">'+PX_GEAR_SVG.replace('animation','x')+' '+esc(s.label)+'</div>').join('');
+    const mark=(i,cls)=>{const el=stepsEl.querySelector('[data-i="'+i+'"]');if(el){el.className='tool-step '+cls;if(cls==='done')el.firstChild?.remove?.();}};
+    try{
+      const JSZip=await _ensureJSZip();
+      const zip=new JSZip();
+      mark(0,'done');
+      for(let i=0;i<files.length;i++){
+        const f=files[i];if(!f||typeof f.path!=='string')continue;
+        zip.file(f.path,typeof f.content==='string'?f.content:'');
+        mark(1+i,'done'); await new Promise(r=>setTimeout(r,15));
+      }
+      mark(1+files.length,'cur');
+      const blob=await zip.generateAsync({type:'blob'});
+      mark(1+files.length,'done'); mark(2+files.length,'done');
+      subEl.textContent='Ready ('+files.length+' file'+(files.length===1?'':'s')+')';
+      const btn=document.createElement('button');
+      btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(spec.name||'bundle.zip');
+      btn.onclick=()=>_downloadBlob(blob,spec.name||'bundle.zip');
+      card.appendChild(btn);
+    }catch(e){subEl.textContent='Build failed: '+(e?.message||e);}
+  }
+  async function processDoc(card){
+    const spec=JSON.parse(decodeURIComponent(atob(card.dataset.spec)));
+    const stepsEl=card.querySelector('.tool-steps');
+    const subEl=card.querySelector('.tool-sub');
+    const fmt=(spec.format||'').toLowerCase();
+    const allowed={pdf:'application/pdf',csv:'text/csv',md:'text/markdown',txt:'text/plain',html:'text/html',json:'application/json'};
+    if(!allowed[fmt]){subEl.textContent='Unsupported format: '+fmt;return;}
+    stepsEl.innerHTML=['Preparing '+fmt.toUpperCase(),'Encoding content','Finalizing '+(spec.name||'document.'+fmt)].map((s,i)=>'<div class="tool-step" data-i="'+i+'">• '+esc(s)+'</div>').join('');
+    const mark=(i,cls)=>{const el=stepsEl.querySelector('[data-i="'+i+'"]');if(el)el.className='tool-step '+cls;};
+    try{
+      mark(0,'done'); await new Promise(r=>setTimeout(r,40));
+      let blob;
+      if(fmt==='pdf'){
+        if(!window.jspdf){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=res;s.onerror=()=>rej(new Error('PDF lib failed'));document.head.appendChild(s);});}
+        const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'pt',format:'letter'});
+        const text=String(spec.content||''); const lines=doc.splitTextToSize(text,500); doc.setFontSize(11); doc.text(lines,40,50);
+        blob=doc.output('blob');
+      }else{
+        blob=new Blob([String(spec.content||'')],{type:allowed[fmt]});
+      }
+      mark(1,'done'); mark(2,'done');
+      subEl.textContent='Ready';
+      const btn=document.createElement('button');
+      btn.className='tool-dl';btn.innerHTML=PX_DL_SVG+' Download '+esc(spec.name||('document.'+fmt));
+      btn.onclick=()=>_downloadBlob(blob,spec.name||('document.'+fmt));
+      card.appendChild(btn);
+    }catch(e){subEl.textContent='Build failed: '+(e?.message||e);}
+  }
+  async function processChart(card){
+    const spec=JSON.parse(decodeURIComponent(atob(card.dataset.spec)));
+    const subEl=card.querySelector('.tool-sub');
+    const stepsEl=card.querySelector('.tool-steps');
+    stepsEl.remove();
+    try{
+      if(!window.Chart){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';s.onload=res;s.onerror=()=>rej(new Error('Chart lib failed'));document.head.appendChild(s);});}
+      const cnv=document.createElement('canvas');cnv.style.maxWidth='100%';cnv.style.background='#0a0a0a';cnv.style.borderRadius='8px';cnv.style.marginTop='6px';card.appendChild(cnv);
+      new window.Chart(cnv.getContext('2d'),{type:spec.type||'bar',data:{labels:spec.labels||[],datasets:[{label:spec.title||'',data:spec.data||[],backgroundColor:['#4a9eff','#4ade80','#facc15','#f472b6','#a78bfa','#fb923c']}]},options:{responsive:true,plugins:{legend:{labels:{color:'#bbb'}}},scales:(spec.type==='pie'?{}:{x:{ticks:{color:'#888'}},y:{ticks:{color:'#888'}}})}});
+      subEl.textContent=spec.title||(spec.type+' chart');
+    }catch(e){subEl.textContent='Chart failed: '+(e?.message||e);}
+  }
+  async function processMermaid(card){
+    const subEl=card.querySelector('.tool-sub');
+    const stepsEl=card.querySelector('.tool-steps');
+    stepsEl.remove();
+    const src=card.dataset.spec?decodeURIComponent(atob(card.dataset.spec)):'';
+    try{
+      if(!window.mermaid){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js';s.onload=res;s.onerror=()=>rej(new Error('Mermaid failed'));document.head.appendChild(s);});window.mermaid.initialize({startOnLoad:false,theme:'dark'});}
+      const id='m-'+Math.random().toString(36).slice(2,9);
+      const {svg}=await window.mermaid.render(id,src);
+      const wrap=document.createElement('div');wrap.style.background='#0a0a0a';wrap.style.borderRadius='8px';wrap.style.padding='8px';wrap.style.marginTop='6px';wrap.innerHTML=svg;card.appendChild(wrap);
+      subEl.textContent='Diagram';
+    }catch(e){subEl.textContent='Mermaid failed: '+(e?.message||e);}
+  }
+  /* Process newly inserted cards (mutation observer keeps it cheap). */
+  function processCards(root){
+    (root||document).querySelectorAll('.tool-card:not([data-done])').forEach(c=>{
+      c.dataset.done='1';
+      const k=c.dataset.kind;
+      if(k==='zip')processZip(c);
+      else if(k==='doc')processDoc(c);
+      else if(k==='chart')processChart(c);
+      else if(k==='mermaid')processMermaid(c);
+    });
+  }
+  const mo=new MutationObserver(muts=>{for(const m of muts)for(const n of m.addedNodes)if(n.nodeType===1)processCards(n);});
+  mo.observe(document.body,{childList:true,subtree:true});
+
   window.renderMd=function(text){
     if(typeof text!=='string') return _origRenderMd(text);
-    const ZIP_RE=/```zip\s*\n([\s\S]*?)```/gi;
     let html=_origRenderMd(text);
-    /* Re-scan source for zip fences (origRender already escaped) */
-    text.replace(ZIP_RE,(_,inner)=>{
-      try{
-        const spec=JSON.parse(inner.trim());
-        if(spec&&Array.isArray(spec.files)){
-          const enc=btoa(encodeURIComponent(JSON.stringify(spec)));
-          const fileCount=spec.files.length;
-          const name=esc(spec.name||'bundle.zip');
-          const btn=`<div class="zip-tool" style="margin:8px 0;padding:10px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:rgba(255,255,255,0.04);display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:0"><div style="font-weight:600">${name}</div><div style="font-size:11px;opacity:0.7">${fileCount} file${fileCount===1?'':'s'} ready to download</div></div><button class="zip-btn" data-zip="${enc}" onclick="__downloadZipFromAttr(this)" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;cursor:pointer;font-size:12px">Download .zip</button></div>`;
-          /* Replace the rendered code block (best-effort) with the tool card. */
-          const escapedInner=esc(inner.trim());
-          const codeBlockRe=new RegExp('<pre[^>]*><code[^>]*class="[^"]*language-zip[^"]*"[^>]*>[\\s\\S]*?<\\/code><\\/pre>','i');
-          if(codeBlockRe.test(html)) html=html.replace(codeBlockRe,btn);
-          else html=html.replace(/<pre[^>]*><code[^>]*>[\s\S]*?```zip[\s\S]*?<\/code><\/pre>/i,btn);
-          /* Also inject at end as guaranteed fallback. */
-          if(html.indexOf('class="zip-tool"')===-1) html+=btn;
-        }
-      }catch(_){}
-      return '';
+    /* Replace tool fences in source, then patch HTML by removing the rendered code block and appending tool card. */
+    const re=/```(zip|doc|chart|mermaid)\s*\n([\s\S]*?)```/gi;
+    let mm; const cards=[];
+    while((mm=re.exec(text))!==null){
+      const kind=mm[1].toLowerCase(); const inner=mm[2].trim();
+      let payload=inner;
+      if(kind!=='mermaid'){
+        try{ payload=JSON.stringify(JSON.parse(inner)); }catch(_){ continue; }
+      }
+      cards.push({kind,payload});
+    }
+    if(!cards.length) return html;
+    /* Strip the rendered <pre><code>…```kind…</code></pre> blocks (best-effort). */
+    cards.forEach(({kind})=>{
+      const langRe=new RegExp('<pre[^>]*><code[^>]*class="[^"]*language-'+kind+'[^"]*"[^>]*>[\\s\\S]*?<\\/code><\\/pre>','i');
+      html=html.replace(langRe,'');
     });
+    cards.forEach(({kind,payload})=>{
+      if(kind==='mermaid'){
+        const enc=btoa(encodeURIComponent(payload));
+        html+='<div class="tool-card" data-kind="mermaid" data-spec="'+enc+'"><div class="tool-name">Diagram</div><div class="tool-sub" style="font-size:11px;opacity:.7">Rendering...</div><div class="tool-steps"></div></div>';
+      }else{
+        html+=makeToolCard(kind,payload);
+      }
+    });
+    /* Schedule processor for cards that arrive via innerHTML (no MutationObserver fire). */
+    setTimeout(()=>processCards(),0);
     return html;
   };
 })();
