@@ -989,6 +989,11 @@ function applyColors(){
   applyModeButtons(c);
 }
 function applyModeButtons(c){
+  const tb=document.getElementById('think-btn');
+  if(tb){
+    if(modeOn('think')){tb.style.borderColor=C.violet.modeBorder;tb.style.color=C.violet.modeText;tb.style.background=C.violet.modeBg;}
+    else{tb.style.borderColor='#2a2a2a';tb.style.color='#555';tb.style.background='transparent';}
+  }
   const wb=document.getElementById('web-btn');
   if(wb){
     if(modeOn('web')){wb.style.borderColor=C.blue.modeBorder;wb.style.color=C.blue.modeText;wb.style.background=C.blue.modeBg;}
