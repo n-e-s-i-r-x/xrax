@@ -648,15 +648,15 @@ body.themed .speed-timer {
   <div class="mp-head" id="mp-head-lbl">Select Model</div>
   <div class="mp-item sel" id="mp-item-0" onclick="selectModel('0')">
     <div class="mp-label-row"><div class="mp-name">0</div></div>
-    <div class="mp-desc" id="mp-desc-0">Dumb. No thinking.</div>
+    <div class="mp-desc" id="mp-desc-0">Balanced.</div>
   </div>
   <div class="mp-item" id="mp-item-00" onclick="selectModel('00')">
     <div class="mp-label-row"><div class="mp-name">00</div><span class="mp-badge fast">Fast</span></div>
-    <div class="mp-desc" id="mp-desc-00">Fast. No thinking.</div>
+    <div class="mp-desc" id="mp-desc-00">Smart. Fast.</div>
   </div>
   <div class="mp-item" id="mp-item-000" onclick="selectModel('000')">
     <div class="mp-label-row"><div class="mp-name">000</div><span class="mp-badge rapid">Rapid</span></div>
-    <div class="mp-desc" id="mp-desc-000">Smartest. BackThinking.</div>
+    <div class="mp-desc" id="mp-desc-000">Highest. Fast</div>
   </div>
   <div style="height:1px;background:#1e1e1e;margin:4px 0;"></div>
   <div class="mp-item" id="mp-item-V" onclick="selectModel('V')">
@@ -665,11 +665,11 @@ body.themed .speed-timer {
   </div>
   <div class="mp-item" id="mp-item-VV" onclick="selectModel('VV')">
     <div class="mp-label-row"><div class="mp-name">VV</div><span class="mp-badge" style="background:rgba(255,45,120,0.12);color:#ff2d78;border:1px solid rgba(255,45,120,0.35);">Coding</span></div>
-    <div class="mp-desc" id="mp-desc-VV">Programming</div>
+    <div class="mp-desc" id="mp-desc-VV">Smartest. Programming.</div>
   </div>
   <div class="mp-item" id="mp-item-VVV" onclick="selectModel('VVV')">
     <div class="mp-label-row"><div class="mp-name">VVV</div><span class="mp-badge" style="background:rgba(249,115,22,0.15);color:#f97316;border:1px solid rgba(249,115,22,0.35);">Einstein</span></div>
-    <div class="mp-desc" id="mp-desc-VVV">Smartest. Slow</div>
+    <div class="mp-desc" id="mp-desc-VVV">Smartest. Slow.</div>
   </div>
 </div>
 
@@ -880,7 +880,7 @@ const MODELS={
   'VV' :{key:'VV', label:'VV', placeholder:'Message VV...', hasThink:false, temp:0.6},
   'VVV':{key:'VVV',label:'VVV',placeholder:'Message VVV...',hasThink:false, temp:0.6},
 };
-const BASE_DESCS={'0':'Dumb. No thinking.','00':'Fast. No thinking.','000':'Smartest. No Thinking.','V':'Smart. Uncensored.','VV':'Programming.','VVV':'Smartest. Slow'};
+const BASE_DESCS={'0':'Balanced.','00':'Smart. Fast.','000':'Highest. Fast.','V':'Smart. Uncensored.','VV':'Smartest. Programming.','VVV':'Smartest. Slow.'};
 
 const C={
   grey:  {
@@ -1185,7 +1185,7 @@ async function runHumanizer(userText,aiId){
       let live=answer;
       if(live.startsWith('```')){const nl=live.indexOf('\n');if(nl!==-1)live=live.slice(nl+1);}
       live=live.replace(/\n?```\s*$/,'');
-      txtEl.innerHTML=DOMPurify.sanitize(marked.parse(live||''))+'<span class="stream-cur"></span>';
+      txtEl.innerHTML=(window.renderMd||renderMd)(live||'')+'<span class="stream-cur"></span>';
       attachCodeBtns();
       if(S.settings.autoscroll)scrollBot();
     },150);
@@ -1706,7 +1706,7 @@ function appendPending(id,isCodeMode){
   row.id=id;
   if(isCodeMode)row.dataset.codemode='true';
 
-  if(m.hasThink){
+  if(m.hasThink && modeOn('think')){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
       <div class="ai-think streaming" id="${id}think" onclick="event.stopPropagation()"><div class="ai-think-hdr" onclick="event.stopPropagation();this.closest('.ai-think').classList.toggle('open')">
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
@@ -1846,7 +1846,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const thCont=document.getElementById(aiId+'thcont');
   const thLbl=document.getElementById(aiId+'thlbl');
   const awEl=document.getElementById(aiId+'aw');
-  const modelKey=S.model;const mDef=MODELS[modelKey]||MODELS['0'];const useThink=mDef.hasThink;
+  const modelKey=S.model;const mDef=MODELS[modelKey]||MODELS['0'];const useThink=mDef.hasThink && modeOn('think');
   // Build API messages: use plain text for history, only inject visionPayload for the last user turn
   // IMPORTANT: baseMsgs must use only the stored content (not modelContent which may have file ctx injected)
   // The extraCtx (date, search, code mode) is passed separately and injected server-side
@@ -1889,7 +1889,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const _renderAnswerNow=()=>{
     if(!txtEl)return;
     const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
+    txtEl.innerHTML=(window.renderMd||renderMd)(answerText)+'<span class="stream-cur"></span>';
     attachCodeBtns();
     if(S.settings.autoscroll)scrollBot();
   };
@@ -1963,7 +1963,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       const _renderNonThink=throttle(()=>{
         if(!txtEl)return;
         const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-        txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
+        txtEl.innerHTML=(window.renderMd||renderMd)(answerText)+'<span class="stream-cur"></span>';
         attachCodeBtns();
         if(S.settings.autoscroll)scrollBot();
       },150);
@@ -2003,7 +2003,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           const _renderReAnswer=throttle(()=>{
             if(!txtEl)return;
             const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-            txtEl.innerHTML=DOMPurify.sanitize(marked.parse(answerText))+'<span class="stream-cur"></span>';
+            txtEl.innerHTML=(window.renderMd||renderMd)(answerText)+'<span class="stream-cur"></span>';
             attachCodeBtns();if(S.settings.autoscroll)scrollBot();
           },150);
           for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,8000,S.abort.signal,false,false,true)){
@@ -2160,7 +2160,7 @@ async function continueMsg(idx){
 
   const _renderContinue=throttle(()=>{
     if(!txtEl)return;
-    txtEl.innerHTML=DOMPurify.sanitize(marked.parse(full+newChunk))+'<span class="stream-cur"></span>';
+    txtEl.innerHTML=(window.renderMd||renderMd)(full+newChunk)+'<span class="stream-cur"></span>';
     attachCodeBtns();
     if(S.settings.autoscroll)scrollBot();
   },150);
