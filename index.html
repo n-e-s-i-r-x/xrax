@@ -2366,7 +2366,7 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
 <div id="model-toast">✦ Switch models for a better experience</div>
 
 <!-- First-boot font picker -->
-<div id="font-pop-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .35s ease">
+<div id="font-pop-ov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .35s ease">
   <div id="font-pop" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:18px;max-width:380px;width:100%;padding:22px;transform:translateY(20px) scale(.96);transition:transform .4s cubic-bezier(.34,1.56,.64,1)">
     <div style="font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Choose your font</div>
     <div style="font-size:12px;color:#666;text-align:center;margin-bottom:16px">You can change this later.</div>
@@ -2378,6 +2378,41 @@ function esc(s){return String(s??'').replace(/&/g,"&amp;").replace(/</g,"&lt;").
       <button onclick="pickFont('system')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:14px;text-align:left;cursor:pointer;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
         <div style="font-size:16px;font-weight:700">System default</div>
         <div style="font-size:11px;color:#888;margin-top:4px">Use your device's standard font</div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- First-boot model picker (cannot dismiss) -->
+<div id="model-pop-ov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()">
+  <div id="model-pop" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:18px;max-width:380px;width:100%;padding:22px;transform:translateY(20px) scale(.96);transition:transform .4s cubic-bezier(.34,1.56,.64,1);max-height:88vh;overflow-y:auto">
+    <div style="font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Pick your first model</div>
+    <div style="font-size:12px;color:#666;text-align:center;margin-bottom:16px">You can change this later.</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button onclick="pickFirstModel('0')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
+        <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">0</div></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">Balanced.</div>
+      </button>
+      <button onclick="pickFirstModel('00')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
+        <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">00</div><span class="mp-badge fast">Fast</span></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">Smart. Fast.</div>
+      </button>
+      <button onclick="pickFirstModel('000')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
+        <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">000</div><span class="mp-badge rapid">Rapid</span></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">Highest. Fast.</div>
+      </button>
+      <div style="height:1px;background:#1e1e1e;margin:4px 0"></div>
+      <button onclick="pickFirstModel('V')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
+        <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">V</div></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">Smart. Uncensored.</div>
+      </button>
+      <button onclick="pickFirstModel('VV')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
+        <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">VV</div><span style="font-size:9.5px;font-weight:700;background:rgba(255,45,120,0.12);color:#ff2d78;border:1px solid rgba(255,45,120,0.35);padding:2px 7px;border-radius:99px;letter-spacing:.3px">Coding</span></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">Smartest. Programming.</div>
+      </button>
+      <button onclick="pickFirstModel('VVV')" style="background:#111;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;color:#fff">
+        <div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:700">VVV</div><span style="font-size:9.5px;font-weight:700;background:rgba(249,115,22,0.15);color:#f97316;border:1px solid rgba(249,115,22,0.35);padding:2px 7px;border-radius:99px;letter-spacing:.3px">Einstein</span></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">Smartest. Slow.</div>
       </button>
     </div>
   </div>
@@ -2406,9 +2441,24 @@ window.pickFont=function(key){
   localStorage.setItem('vg_font_chosen','1');
   const ov=document.getElementById('font-pop-ov');
   const pop=document.getElementById('font-pop');
+  /* Show model overlay underneath FIRST so the black background never disappears. */
+  const mov=document.getElementById('model-pop-ov');
+  const mpop=document.getElementById('model-pop');
+  if(!localStorage.getItem('vg_model_chosen') && mov){
+    mov.style.display='flex';
+    mov.style.opacity='1'; /* solid black instantly, no fade gap */
+    if(mpop)mpop.style.transform='translateY(20px) scale(.96)';
+  }
   if(pop)pop.style.transform='translateY(-10px) scale(.94)';
   if(ov)ov.style.opacity='0';
-  setTimeout(()=>{if(ov)ov.style.display='none'; scheduleModelToast();},380);
+  setTimeout(()=>{
+    if(ov)ov.style.display='none';
+    if(!localStorage.getItem('vg_model_chosen') && mpop){
+      requestAnimationFrame(()=>{mpop.style.transform='translateY(0) scale(1)';});
+    } else {
+      scheduleModelToast();
+    }
+  },380);
 };
 
 function scheduleModelToast(){
@@ -2421,18 +2471,42 @@ function scheduleModelToast(){
   },1200);
 }
 
+function showFirstModelPopup(){
+  if(localStorage.getItem('vg_model_chosen')){ scheduleModelToast(); return; }
+  const ov=document.getElementById('model-pop-ov');
+  const pop=document.getElementById('model-pop');
+  if(!ov)return;
+  ov.style.display='flex';
+  requestAnimationFrame(()=>{ov.style.opacity='1'; if(pop)pop.style.transform='translateY(0) scale(1)';});
+}
+
+window.pickFirstModel=function(key){
+  try{ if(typeof selectModel==='function') selectModel(key); else if(window.S){ S.model=key; } }catch(e){}
+  localStorage.setItem('vg_model_chosen','1');
+  const ov=document.getElementById('model-pop-ov');
+  const pop=document.getElementById('model-pop');
+  if(pop)pop.style.transform='translateY(-10px) scale(.94)';
+  if(ov)ov.style.opacity='0';
+  setTimeout(()=>{if(ov)ov.style.display='none'; scheduleModelToast();},380);
+};
+
 (function(){
-  /* If font already chosen, skip popup and run toast on its own schedule. */
-  if(localStorage.getItem('vg_font_chosen')){
+  const fontDone=localStorage.getItem('vg_font_chosen');
+  const modelDone=localStorage.getItem('vg_model_chosen');
+  if(fontDone && modelDone){
     setTimeout(scheduleModelToast,5600);
     return;
   }
-  /* Otherwise, show the floating font picker first (after intro). */
-  setTimeout(function(){
-    const ov=document.getElementById('font-pop-ov'); const pop=document.getElementById('font-pop'); if(!ov)return;
-    ov.style.display='flex';
-    requestAnimationFrame(()=>{ov.style.opacity='1'; if(pop)pop.style.transform='translateY(0) scale(1)';});
-  },2200);
+  if(!fontDone){
+    setTimeout(function(){
+      const ov=document.getElementById('font-pop-ov'); const pop=document.getElementById('font-pop'); if(!ov)return;
+      ov.style.display='flex';
+      requestAnimationFrame(()=>{ov.style.opacity='1'; if(pop)pop.style.transform='translateY(0) scale(1)';});
+    },2200);
+    return;
+  }
+  /* font done, model not done: show model popup directly after intro */
+  setTimeout(showFirstModelPopup,2200);
 })();
 
 
