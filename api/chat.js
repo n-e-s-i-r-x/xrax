@@ -17,6 +17,12 @@ const MODEL_MAP = {
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
   'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
 };
+/* Think capability: a model supports Think if hasReasoning OR hasPromptedThink is true.
+   This drives the UI gating — exported so index.html can read it dynamically. */
+const modelSupportsThink = (key) => {
+  const m = MODEL_MAP[key] ?? MODEL_MAP['0'];
+  return !!(m.hasReasoning || m.hasPromptedThink);
+};
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
 const modelEntry = (key) => MODEL_MAP[key] ?? MODEL_MAP['0'];
 
