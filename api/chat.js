@@ -10,7 +10,7 @@ export const config = { runtime: 'edge' };
 
 const MODEL_MAP = {
   '0':         { id: 'z-ai/glm-4.5-air:free',       hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  '00':        { id: 'openai/gpt-oss-120b:free',                  hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
+  '00':        { id: 'poolside/laguna-xs.2:free',                  hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'V':         { id: 'thedrummer/cydonia-24b-v4.1',              hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
   'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
