@@ -442,6 +442,11 @@ body.themed .s-row{border-bottom-color:var(--accent-border);}
 body.themed .tog.on .tog-on{color:var(--accent);}
 .s-btn{padding:8px 14px;background:#2a1010;border:1px solid #3a1515;border-radius:8px;color:#e06060;font-size:13px;font-weight:600;transition:background .15s,transform .1s;cursor:pointer}
 .s-btn:active{background:#3a1515;transform:scale(.96)}
+.s-font-btn{background:#141414;border-color:#2a2a2a;color:#888;}
+.s-font-btn.active{background:#0d2010;border-color:#4ade80;color:#4ade80;}
+.s-font-btn:active{transform:scale(.96);}
+@keyframes togBounce{0%{transform:scale(1)}35%{transform:scale(.85)}65%{transform:scale(1.1)}100%{transform:scale(1)}}
+.tog.tog-anim{animation:togBounce .25s cubic-bezier(.4,0,.2,1);}
 
 /* ── VIEW OVERLAY ── */
 #view-ov{position:fixed;inset:0;background:#000;z-index:10000;display:none;flex-direction:column}
@@ -2328,10 +2333,16 @@ function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,
 
 function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn" style="${fontKey==='M'?'border:1px solid #4ade80':''}" onclick="setFont('M')">M.ttf</button><button class="s-btn" style="${fontKey==='system'?'border:1px solid #4ade80':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
+function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn s-font-btn ${fontKey==='M'?'active':''}" onclick="setFont('M')">0v font</button><button class="s-btn s-font-btn ${fontKey==='system'?'active':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
 function togSet(k,el){
   S.settings[k]=!S.settings[k];
-  if(el)el.classList.toggle('on',S.settings[k]);
+  if(el){
+    el.classList.toggle('on',S.settings[k]);
+    el.classList.remove('tog-anim');
+    void el.offsetWidth;
+    el.classList.add('tog-anim');
+    setTimeout(()=>el.classList.remove('tog-anim'),260);
+  }
   if(k==='speedTimer'){
     const timerEl = document.getElementById('speed-timer');
     if(timerEl) timerEl.style.display = S.settings.speedTimer ? '' : 'none';
@@ -2448,9 +2459,12 @@ const CAPS = {
     if(!res.ok) return;
     const data = await res.json();
     for(const key of Object.keys(data)){
-      if(CAPS[key]) CAPS[key].think = !!data[key].think;
+      const supportsThink = !!data[key].think;
+      if(CAPS[key])   CAPS[key].think       = supportsThink;
+      if(MODELS[key]) MODELS[key].hasThink  = supportsThink;
     }
     applyCapabilityGating();
+    applyColors();
   }catch(_){}
 })();
 function modelCaps(){return CAPS[S.model]||CAPS['0'];}
