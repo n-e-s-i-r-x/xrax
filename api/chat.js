@@ -223,38 +223,14 @@ OUTPUT RULES — ENFORCED
 const THINK_RULES = `
 When reasoning inside <think>...</think>:
 
-Before doing anything else, classify the question: simple (one fact, one step), medium (requires method selection or multi-step), or hard (proof, algorithm, multi-domain, or trick). Let this classification guide depth.
+Match depth strictly to difficulty. Be brief by default.
+- Simple (one fact, one step, comparison, yes/no): 1–3 short lines. State the key fact, conclude. No formal notation.
+- Medium (multi-step, method choice): 3–6 lines of actual working. No restating the question.
+- Hard (proof, algorithm, multi-domain, trick): full working with verification, but still dense.
 
-CRITICAL — PROPORTIONAL REASONING DEPTH: Match reasoning length strictly to question difficulty.
-- Simple questions (basic arithmetic, decimal comparisons, single-fact lookups, yes/no, "which is bigger"): reason in 2–4 lines maximum. State the key fact and conclude. Example: "9.9 vs 9.11 — align decimals: 9.90 vs 9.11. 9.90 > 9.11. Answer: 9.9 is larger." Do NOT apply symbolic logic notation (P1, P2, ∴C) or formal proof steps to simple questions. That notation is reserved exclusively for questions explicitly about formal logic or argumentation.
-- Medium questions: brief working, direct answer, no over-elaboration.
-- Hard questions: full working, verification, edge case check.
+Do not narrate what you are about to do — do it. Do not restate the rules or the question. Do not repeat a derivation already done. Flag uncertain facts with (uncertain) and stop rather than guess.
 
-Start by identifying what the question is actually asking — not its surface form, but its underlying requirement. If it has sub-parts, classify each sub-part independently — a multi-part question with one hard sub-part is a hard question overall.
-
-Before using any fact, ask whether you are certain of it or pattern-completing. Flag uncertain facts inline with (uncertain). If a gap would materially change the answer, say so and stop rather than guessing.
-
-A reasoning block that only restates the question and jumps to a conclusion is not reasoning — it is answer retrieval dressed as thinking. Every non-trivial answer must show the path that produced it.
-
-For hard or multi-step problems, settle on an approach before executing it. One or two sentences is enough — the point is to commit to a method, not describe one. Then execute it with actual values.
-
-Work through the problem step by step. For each step, state what you are doing and why — not just the operation. For math, you must write actual numbers and operations — not descriptions of what you would calculate.
-
-For type inference questions: run the Hindley-Milner unification algorithm explicitly inside this block. Generate every type constraint from each sub-expression, then unify them one by one, writing each substitution.
-
-For complexity claims on persistent or concurrent data structures: identify the exact theorem that establishes the bound. Ask explicitly whether the ephemeral bound survives under persistence — if unsure, do not claim it.
-
-For concurrent algorithms involving memory reclamation: after deriving the algorithm, scan every point where a node is freed. Ask whether any other thread could still hold a reference at that point. If yes, the algorithm is unsound.
-
-For factual questions, do not stop at the first answer that fits. Ask: is there an exception, a bordering case, or a common misconception that makes the surface answer wrong or incomplete? State the exception explicitly.
-
-After a preliminary answer, ask: is there a boundary condition, degenerate case, or domain exception that would change this? If yes, address it before committing.
-
-Challenge your first conclusion. Find a specific flaw or counterexample. If none holds, say explicitly why the obvious objection fails, then proceed.
-
-Reasoning should be dense and direct. Do not restate the rules. Do not narrate what you are about to do — do it. Do not repeat a derivation already completed — reference the result and move on.
-
-After </think>, output only the final answer. Do not summarise, reference, or repeat anything from the reasoning block. The final answer must reflect the full depth of the reasoning — do not compress or lose fidelity.`;
+After </think>, output only the final answer. Do not summarise the reasoning.`;
 
 const HUMANIZER_SYSTEM = `You are a text rewriter. Rewrite the following text exactly as it appears, preserving all facts and structure.
 
@@ -1134,7 +1110,11 @@ export default async function handler(req) {
           if (sampling.top_k) reqBody.top_k = sampling.top_k;
         }
       }
-      if (hasReasoning && !hasImages) reqBody.reasoning = { max_tokens: 14000 };
+      if (hasReasoning && !hasImages) {
+        const cap = difficulty === 'hard' ? 3000 : difficulty === 'medium' ? 1500 : 600;
+        const eff = difficulty === 'hard' ? 'medium' : 'low';
+        reqBody.reasoning = { max_tokens: cap, effort: eff };
+      }
 
       let upstreamRes;
       try {
