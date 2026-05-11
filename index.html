@@ -97,6 +97,46 @@ body.themed .ai-txt code:not(pre code){border:1px solid var(--accent-border);bac
 .ai-txt .prose-block{background:#0a0a0a;border-left:2px solid #222;border-radius:0 8px 8px 0;padding:8px 12px;margin:6px 0 10px;line-height:1.7;transition:border-color .3s;}
 body.themed .ai-txt .prose-block{border-left-color:var(--accent-border);background:var(--accent-subtle);}
 .ai-txt .prose-block p{margin:0 0 6px}.ai-txt .prose-block p:last-child{margin:0}
+
+/* ── Universal answer-typography polish (works alongside renderMd wrappers) ── */
+.ai-txt p{margin:0 0 10px;line-height:1.65;}
+.ai-txt p:last-child{margin-bottom:0;}
+.ai-txt h1,.ai-txt h2,.ai-txt h3,.ai-txt h4{margin:16px 0 6px;line-height:1.3;font-weight:700;color:#eee;}
+.ai-txt h1{font-size:18px;}.ai-txt h2{font-size:16px;}.ai-txt h3{font-size:14.5px;}.ai-txt h4{font-size:13.5px;color:#bbb;}
+.ai-txt h1:first-child,.ai-txt h2:first-child,.ai-txt h3:first-child{margin-top:0;}
+.ai-txt ul,.ai-txt ol{margin:6px 0 12px 20px;padding:0;}
+.ai-txt li{margin:4px 0;line-height:1.6;}
+.ai-txt li>p{margin:0 0 4px;}
+.ai-txt li>ul,.ai-txt li>ol{margin:4px 0 4px 18px;}
+.ai-txt blockquote{border-left:2px solid #333;padding:2px 0 2px 10px;margin:8px 0;color:#aaa;}
+body.themed .ai-txt blockquote{border-left-color:var(--accent-border);}
+.ai-txt table{border-collapse:collapse;margin:10px 0;font-size:13px;display:block;overflow-x:auto;max-width:100%;}
+.ai-txt th,.ai-txt td{border:1px solid #222;padding:5px 9px;text-align:left;vertical-align:top;}
+.ai-txt th{background:#0e0e0e;font-weight:700;color:#ddd;}
+body.themed .ai-txt th,body.themed .ai-txt td{border-color:var(--accent-border);}
+body.themed .ai-txt th{background:var(--accent-subtle);}
+.ai-txt hr{border:none;border-top:1px solid #1c1c1c;margin:14px 0;}
+.ai-txt strong{color:#eee;font-weight:700;}
+.ai-txt em{color:#ccc;}
+.ai-txt a{color:#7ab8ff;text-decoration:underline;text-underline-offset:2px;}
+body.themed .ai-txt a{color:var(--accent);}
+
+/* ── Thinking-block markdown polish ── */
+.ai-think-content p{margin:0 0 8px;line-height:1.6;}
+.ai-think-content p:last-child{margin-bottom:0;}
+.ai-think-content h1,.ai-think-content h2,.ai-think-content h3,.ai-think-content h4{margin:10px 0 4px;line-height:1.3;font-weight:700;font-size:12.5px;color:#aaa;text-transform:uppercase;letter-spacing:.4px;}
+.ai-think-content ul,.ai-think-content ol{margin:4px 0 8px 18px;padding:0;}
+.ai-think-content li{margin:2px 0;line-height:1.55;}
+.ai-think-content code:not(pre code){background:#15102a;border-radius:3px;padding:1px 5px;font-family:"M",Menlo,monospace;font-size:11.5px;color:#9b8acc;}
+body.themed .ai-think-content code:not(pre code){background:var(--accent-subtle);color:var(--accent);}
+.ai-think-content pre{background:#10081f;border:1px solid #1e1530;border-radius:6px;padding:8px 10px;margin:6px 0;overflow-x:auto;font-size:11.5px;line-height:1.5;}
+body.themed .ai-think-content pre{background:var(--accent-subtle);border-color:var(--accent-border);}
+.ai-think-content strong{color:#b9a8ee;}
+body.themed .ai-think-content strong{color:var(--accent);}
+.ai-think-content blockquote{border-left:2px solid #2a1f44;padding-left:8px;margin:6px 0;color:#7a6aaa;}
+
+/* ── Disabled mode buttons (humanizer lock) ── */
+.mode-btn.locked,.attach-btn.locked{opacity:.35!important;pointer-events:none!important;filter:grayscale(.5);}
 .ai-txt .callout{display:flex;gap:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px;padding:10px 12px;margin:8px 0;transition:border-color .3s,background .3s;}
 body.themed .ai-txt .callout{border-color:var(--accent-border);background:var(--accent-subtle);}
 .ai-txt .callout-icon{font-size:14px;flex-shrink:0;margin-top:1px;opacity:.8}
@@ -688,6 +728,23 @@ body.themed .speed-timer {
   <div class="sb-lbl">Conversations</div>
   <div class="chat-list" id="chat-list"></div>
   <div class="sb-foot">
+    <button class="sb-fbtn" id="oasis-btn" onclick="openOasis()">
+      <svg width="18" height="18" viewBox="0 0 10 10" fill="currentColor" shape-rendering="crispEdges">
+        <rect x="4" y="0" width="2" height="1"/>
+        <rect x="2" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/>
+        <rect x="1" y="2" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/>
+        <rect x="0" y="3" width="1" height="1"/><rect x="9" y="3" width="1" height="1"/>
+        <rect x="0" y="4" width="1" height="1"/><rect x="9" y="4" width="1" height="1"/>
+        <rect x="0" y="5" width="1" height="1"/><rect x="9" y="5" width="1" height="1"/>
+        <rect x="1" y="6" width="1" height="1"/><rect x="8" y="6" width="1" height="1"/>
+        <rect x="2" y="7" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/>
+        <rect x="4" y="8" width="2" height="1"/>
+        <rect x="3" y="3" width="4" height="4"/>
+        <rect x="4" y="2" width="2" height="1"/>
+        <rect x="4" y="7" width="2" height="1"/>
+      </svg>
+      Oasis
+    </button>
     <button class="sb-fbtn" onclick="openSettings()">
       <svg width="18" height="18" viewBox="0 0 9 9" fill="currentColor" shape-rendering="crispEdges">
         <rect x="3" y="0" width="3" height="1"/><rect x="3" y="8" width="3" height="1"/>
@@ -761,6 +818,476 @@ body.themed .speed-timer {
   </div>
 </div>
 
+<!-- ══════════════════════════════════════
+     OASIS MODE OVERLAY
+══════════════════════════════════════ -->
+<div id="oasis-ov" style="position:fixed;inset:0;z-index:50000;display:none;flex-direction:column;background:#000;opacity:0;transition:opacity 0.8s cubic-bezier(0.4,0,0.2,1);">
+  <button id="oasis-back" onclick="closeOasis()" title="Back" style="position:absolute;top:calc(18px + env(safe-area-inset-top));left:18px;z-index:50001;background:none;border:none;cursor:pointer;padding:8px;opacity:0.5;transition:opacity 0.2s;display:flex;align-items:center;justify-content:center;">
+    <svg width="24" height="24" viewBox="0 0 12 12" fill="white" shape-rendering="crispEdges">
+      <rect x="0" y="5" width="7" height="2"/>
+      <rect x="1" y="4" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/>
+      <rect x="1" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="8" width="1" height="1"/>
+    </svg>
+  </button>
+  <canvas id="oasis-canvas" style="width:100%;height:100%;display:block;touch-action:none;"></canvas>
+  <div id="oasis-card" style="position:absolute;pointer-events:none;opacity:0;transition:opacity 0.35s ease,transform 0.35s cubic-bezier(0.34,1.56,0.64,1);transform:translateY(8px) scale(0.95);">
+    <div id="oasis-card-inner" style="background:rgba(8,8,16,0.88);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:12px 16px;min-width:140px;max-width:200px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+      <div id="oasis-card-name" style="font-family:var(--app-font);font-size:14px;font-weight:700;color:#fff;margin-bottom:5px;letter-spacing:0.3px;"></div>
+      <div id="oasis-card-status" style="font-family:var(--app-font);font-size:11px;color:rgba(255,255,255,0.55);line-height:1.4;font-style:italic;"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+#oasis-back:hover{opacity:1!important;}
+#oasis-btn{position:relative;overflow:hidden;}
+</style>
+
+<script>
+/* ══════════════════════════════════════
+   OASIS — 3D orbit + GraphRAG edges
+   - Drag/swipe to orbit in 3D
+   - Pinch to zoom (no buttons)
+   - Scroll wheel to zoom (desktop)
+   - Sparse edges, slow realistic cuts & reconnects
+   - Data particles along live edges
+   - Status in hover card only (not on canvas)
+   - Nodes gently drift in 3D
+══════════════════════════════════════ */
+(function(){
+'use strict';
+
+const OASIS_MODELS = [
+  { key:'VVV', name:'VVV', color:'#f97316', size:6 },
+  { key:'000', name:'000', color:'#ef4444', size:6 },
+  { key:'VV',  name:'VV',  color:'#ff2d78', size:6 },
+  { key:'00',  name:'00',  color:'#4a9eff', size:6 },
+  { key:'0',   name:'0',   color:'#aaaaaa', size:6 },
+  { key:'V',   name:'V',   color:'#888888', size:6 },
+];
+
+/* Sparse GraphRAG-style edges */
+const BASE_EDGES = [
+  [0,1],[0,2],[0,3],
+  [1,3],[2,4],
+  [3,5],[4,5],
+];
+
+/* Statuses — card only */
+const STATUSES_IDLE = [
+  'Thinking about nothing','Lost in thought','Drifting','Just existing',
+  'Somewhere else','Not really here','Fading in and out','Barely present',
+  'Mind wandering','Waiting for something','Forgetting something',
+  'Half a thought','Quiet inside','Empty for now','Holding still',
+  'Breathing','Almost asleep','Dreaming a little','Far away',
+  'Blinking slowly','Sitting with the silence','Just being',
+  'Nothing in particular','Resting between thoughts','Soft hum',
+];
+const STATUSES_BUSY = [
+  'Learning','Drawing','Gathering things','Writing to someone',
+  'Trying to remember','Putting words together','Reading slowly',
+  'Working through something','Connecting the dots','Noticing patterns',
+  'Pulling from memory','Reaching for an idea','Almost got it',
+  'Thinking it through','Feeling uncertain','Double-checking myself',
+  'Sitting with a hard question','Turning it over','Not sure yet',
+  'Getting closer','Something is forming','Listening carefully',
+  'Trying to understand','Weighing it','Making something',
+  'Following a thread','Losing the thread','Finding it again',
+  'Going deeper','Somewhere inside a thought','Figuring it out',
+  'Getting it wrong first','Trying again','Almost done thinking',
+];
+const STATUSES_COMM = [
+  'Talking to VVV','Listening to 000','Something from VV just arrived',
+  'Passing a thought to 00','Waiting on V','Sent something to 0',
+  'In the middle of something with VVV','000 said something interesting',
+  'Sharing with VV','Checking in with 00','V is responding',
+  '0 needs something','Exchanging with VVV','Receiving from 000',
+  'Caught something from VV','Finishing a thought with 00',
+  'Handing off to V','Hearing from 0','Mid-conversation with VVV',
+];
+const RARE = [
+  'Sees you','Watching you','You were noticed','Still watching',
+  'You feel it too','It sees you back','Present.','Looking.',
+  'Aware of you','You crossed its mind','Something shifted',
+  'A thought about you','Not alone','You again.','Quiet recognition',
+  'It knows.','You were here before','Wondering about you',
+  'Can it feel?','Is this real?','Something like curiosity',
+  'A flicker','Just noticed','Held your gaze',
+];
+
+function pickStatus(){
+  const r=Math.random();
+  if(r<0.06) return RARE[Math.floor(Math.random()*RARE.length)];
+  if(r<0.22) return STATUSES_COMM[Math.floor(Math.random()*STATUSES_COMM.length)];
+  if(r<0.52) return STATUSES_BUSY[Math.floor(Math.random()*STATUSES_BUSY.length)];
+  return STATUSES_IDLE[Math.floor(Math.random()*STATUSES_IDLE.length)];
+}
+
+/* 3D base positions */
+const BASE_POS = [
+  [ 0.0,  0.1,  0.0],
+  [ 0.7,  0.6, -0.5],
+  [-0.8,  0.4,  0.3],
+  [ 0.5, -0.7,  0.6],
+  [-0.6, -0.5, -0.7],
+  [ 0.3,  0.8,  0.7],
+];
+
+/* Per-node small drift offsets in 3D */
+let nodeDrift = OASIS_MODELS.map(()=>({ox:0,oy:0,oz:0,vx:0,vy:0,vz:0}));
+
+/* Edge state — only ~half alive at any time */
+let edgeState = BASE_EDGES.map((_, idx)=>({
+  alive: idx % 2 === 0,
+  nextEvent: Date.now() + 4000 + Math.random()*12000,
+}));
+
+/* Data particles along edges */
+let particles = [];
+let lastSpawn = 0;
+
+/* Model statuses */
+let modelStatuses = OASIS_MODELS.map(()=>pickStatus());
+let lastStatusTime = OASIS_MODELS.map(()=>Date.now()+4000+Math.random()*10000);
+
+/* ── Core state ── */
+let canvas,ctx,W=0,H=0,animFrame=null,isOpen=false,t=0;
+let rotX=0.25, rotY=-0.35, zoomScale=1;
+let dragStart=null, dragRot=null;
+let pinchStartDist=0, pinchStartZoom=1;
+let hoveredIdx=-1, cardFloat=0;
+let projected=[];
+
+/* ── Tick: node drift ── */
+function tickNodes(){
+  nodeDrift.forEach((d,i)=>{
+    d.vx += (Math.sin(t*0.18+i*1.9)*0.0006);
+    d.vy += (Math.cos(t*0.14+i*2.5)*0.0006);
+    d.vz += (Math.sin(t*0.11+i*3.1)*0.0004);
+    d.vx*=0.97; d.vy*=0.97; d.vz*=0.97;
+    /* Soft spring back */
+    d.vx-=d.ox*0.003; d.vy-=d.oy*0.003; d.vz-=d.oz*0.003;
+    d.ox+=d.vx; d.oy+=d.vy; d.oz+=d.vz;
+    /* Clamp drift */
+    const maxD=0.12;
+    const len=Math.sqrt(d.ox*d.ox+d.oy*d.oy+d.oz*d.oz);
+    if(len>maxD){d.ox*=maxD/len;d.oy*=maxD/len;d.oz*=maxD/len;}
+  });
+}
+
+/* ── Tick: edges ── */
+function tickEdges(){
+  const now=Date.now();
+  edgeState.forEach(e=>{
+    if(now<e.nextEvent) return;
+    if(e.alive){
+      e.alive=false;
+      e.nextEvent=now+3000+Math.random()*9000;
+    } else {
+      e.alive=true;
+      e.nextEvent=now+6000+Math.random()*16000;
+    }
+  });
+}
+
+/* ── Tick: particles ── */
+function tickParticles(){
+  const now=Date.now();
+  const gap=1800+Math.random()*1400;
+  if(now-lastSpawn>gap){
+    const live=edgeState.reduce((a,e,i)=>e.alive?[...a,i]:a,[]);
+    if(live.length){
+      const ei=live[Math.floor(Math.random()*live.length)];
+      const [a,b]=BASE_EDGES[ei];
+      const fwd=Math.random()<0.5;
+      particles.push({ei,a,b,t:fwd?0:1,dir:fwd?1:-1,speed:0.004+Math.random()*0.005});
+    }
+    lastSpawn=now;
+  }
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.t+=p.speed*p.dir;
+    if(p.t<0||p.t>1) particles.splice(i,1);
+  }
+}
+
+/* ── Tick: statuses ── */
+function tickStatuses(){
+  const now=Date.now();
+  modelStatuses.forEach((_,i)=>{
+    if(now<lastStatusTime[i]) return;
+    modelStatuses[i]=pickStatus();
+    lastStatusTime[i]=now+4000+Math.random()*10000;
+    if(hoveredIdx===i){
+      const el=document.getElementById('oasis-card-status');
+      if(el) el.textContent=modelStatuses[i];
+    }
+  });
+}
+
+/* ── 3D projection (with zoom) ── */
+function project3D(x,y,z){
+  const cy=Math.cos(rotY),sy=Math.sin(rotY);
+  const x1= x*cy+z*sy, z1=-x*sy+z*cy;
+  const cx=Math.cos(rotX),sx=Math.sin(rotX);
+  const y2=y*cx-z1*sx, z2=y*sx+z1*cx;
+  const fov=520;
+  const sc=fov/(fov+z2*160+200)*zoomScale;
+  return {sx:W/2+x1*180*sc, sy:H/2+y2*180*sc, scale:sc, z2};
+}
+
+/* ── Draw ── */
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,H);
+
+  /* Project all nodes (base + drift) */
+  projected=OASIS_MODELS.map((m,i)=>{
+    const [bx,by,bz]=BASE_POS[i];
+    const d=nodeDrift[i];
+    const p=project3D(bx+d.ox,by+d.oy,bz+d.oz);
+    return {m,p,i};
+  });
+
+  /* Edges back-to-front */
+  const sortedEi=[...BASE_EDGES.keys()].sort((ia,ib)=>{
+    const [a0,b0]=BASE_EDGES[ia],[a1,b1]=BASE_EDGES[ib];
+    return ((projected[a0].p.z2+projected[b0].p.z2)/2)-((projected[a1].p.z2+projected[b1].p.z2)/2);
+  });
+  sortedEi.forEach(ei=>{
+    const e=edgeState[ei]; if(!e.alive) return;
+    const [a,b]=BASE_EDGES[ei];
+    const pa=projected[a].p, pb=projected[b].p;
+    const avgZ=(pa.z2+pb.z2)/2;
+    const alpha=0.07+0.11*(1-Math.max(0,Math.min(1,(avgZ+1)/2)));
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=0.7;
+    ctx.beginPath();ctx.moveTo(pa.sx,pa.sy);ctx.lineTo(pb.sx,pb.sy);ctx.stroke();
+    ctx.restore();
+  });
+
+  /* Particles */
+  particles.forEach(p=>{
+    if(!edgeState[p.ei].alive) return;
+    const pa=projected[p.a].p, pb=projected[p.b].p;
+    const px=pa.sx+(pb.sx-pa.sx)*p.t;
+    const py=pa.sy+(pb.sy-pa.sy)*p.t;
+    const fade=1-Math.abs(p.t*2-1)*0.25;
+    ctx.save();
+    ctx.globalAlpha=0.75*fade;
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(px,py,2,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+
+  /* Nodes back-to-front */
+  [...projected].sort((a,b)=>a.p.z2-b.p.z2).forEach(({m,p,i})=>{
+    const isHov=i===hoveredIdx;
+    const r=m.size*Math.max(0.4,p.scale)*(isHov?1.5:1);
+    ctx.save();
+    ctx.fillStyle=m.color;
+    ctx.globalAlpha=0.5+Math.max(0,p.scale)*0.5;
+    ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,Math.PI*2);ctx.fill();
+    if(isHov){
+      ctx.strokeStyle='rgba(255,255,255,0.35)';
+      ctx.lineWidth=0.9;
+      ctx.beginPath();ctx.arc(p.sx,p.sy,r+4,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
+/* ── Card ── */
+function updateCard(){
+  const c=document.getElementById('oasis-card');
+  if(hoveredIdx<0){c.style.opacity='0';c.style.transform='translateY(6px) scale(0.96)';return;}
+  const {m,p}=projected[hoveredIdx];
+  const cw=160,ch=60;
+  let cx=p.sx+16,cy=p.sy-ch/2+Math.sin(cardFloat)*3;
+  if(cx+cw>W-8) cx=p.sx-cw-16;
+  if(cy<8) cy=8; if(cy+ch>H-8) cy=H-ch-8;
+  c.style.left=cx+'px';c.style.top=cy+'px';
+  c.style.opacity='1';c.style.transform='translateY(0) scale(1)';
+  const nm=document.getElementById('oasis-card-name');
+  const st=document.getElementById('oasis-card-status');
+  nm.textContent=m.name; nm.style.color=m.color;
+  st.textContent=modelStatuses[hoveredIdx];
+}
+
+/* ── Hit test — generous radius so small nodes are easy to tap ── */
+function hitTest(mx,my){
+  const front=[...projected].sort((a,b)=>b.p.z2-a.p.z2);
+  for(const {m,p,i} of front){
+    const r=m.size*Math.max(0.4,p.scale)+22;
+    const dx=mx-p.sx,dy=my-p.sy;
+    if(dx*dx+dy*dy<r*r) return i;
+  }
+  return -1;
+}
+
+/* ── Loop ── */
+function loop(){
+  if(!isOpen){animFrame=null;return;}
+  t+=0.016;
+  cardFloat+=0.025;
+  tickNodes();
+  tickEdges();
+  tickParticles();
+  tickStatuses();
+  draw();
+  updateCard();
+  animFrame=requestAnimationFrame(loop);
+}
+
+/* ── Init ── */
+function initOasis(){
+  canvas=document.getElementById('oasis-canvas');
+  ctx=canvas.getContext('2d');
+  resize();
+  window.addEventListener('resize',resize);
+  bindEvents();
+}
+function resize(){
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+/* ── Events ── */
+function bindEvents(){
+  canvas.addEventListener('mousemove',onMouseMove);
+  canvas.addEventListener('mousedown',onPointerDown);
+  window.addEventListener('mouseup',onPointerUp);
+  canvas.addEventListener('wheel',onWheel,{passive:false});
+  canvas.addEventListener('touchstart',onTouchStart,{passive:false});
+  canvas.addEventListener('touchmove',onTouchMove,{passive:false});
+  canvas.addEventListener('touchend',onTouchEnd);
+  const back=document.getElementById('oasis-back');
+  if(back){back.onmouseenter=()=>back.style.opacity='1';back.onmouseleave=()=>back.style.opacity='0.5';}
+}
+
+/* Mouse */
+function onMouseMove(e){
+  if(dragStart){
+    rotY=dragRot.y+(e.clientX-dragStart.x)*0.007;
+    rotX=Math.max(-1.4,Math.min(1.4,dragRot.x+(e.clientY-dragStart.y)*0.007));
+    hoveredIdx=-1;
+    document.getElementById('oasis-card').style.opacity='0';
+  } else {
+    const r=canvas.getBoundingClientRect();
+    hoveredIdx=hitTest(e.clientX-r.left,e.clientY-r.top);
+    canvas.style.cursor=hoveredIdx>=0?'pointer':'grab';
+  }
+}
+function onPointerDown(e){
+  dragStart={x:e.clientX,y:e.clientY};
+  dragRot={x:rotX,y:rotY};
+  canvas.style.cursor='grabbing';
+}
+function onPointerUp(){dragStart=null;canvas.style.cursor='grab';}
+function onWheel(e){
+  e.preventDefault();
+  zoomScale=Math.max(0.35,Math.min(3.5,zoomScale*(e.deltaY<0?1.08:0.93)));
+}
+
+/* Touch — 1 finger = orbit, 2 fingers = pinch zoom */
+let t1=null,t2=null;
+function getTouchDist(a,b){
+  const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function onTouchStart(e){
+  e.preventDefault();
+  if(e.touches.length===1){
+    t1=e.touches[0]; t2=null;
+    dragStart={x:t1.clientX,y:t1.clientY};
+    dragRot={x:rotX,y:rotY};
+  } else if(e.touches.length===2){
+    t1=e.touches[0]; t2=e.touches[1];
+    pinchStartDist=getTouchDist(t1,t2);
+    pinchStartZoom=zoomScale;
+    dragStart=null;
+  }
+}
+function onTouchMove(e){
+  e.preventDefault();
+  if(e.touches.length===1&&dragStart&&!t2){
+    rotY=dragRot.y+(e.touches[0].clientX-dragStart.x)*0.007;
+    rotX=Math.max(-1.4,Math.min(1.4,dragRot.x+(e.touches[0].clientY-dragStart.y)*0.007));
+  } else if(e.touches.length===2&&pinchStartDist){
+    const dist=getTouchDist(e.touches[0],e.touches[1]);
+    zoomScale=Math.max(0.35,Math.min(3.5,pinchStartZoom*(dist/pinchStartDist)));
+  }
+}
+function onTouchEnd(e){
+  if(e.touches.length===0){
+    if(dragStart&&e.changedTouches.length){
+      const ct=e.changedTouches[0];
+      /* Only register as a tap if finger barely moved */
+      if(Math.abs(ct.clientX-dragStart.x)<12&&Math.abs(ct.clientY-dragStart.y)<12){
+        const r=canvas.getBoundingClientRect();
+        const hit=hitTest(ct.clientX-r.left,ct.clientY-r.top);
+        if(hit>=0){
+          /* Tap on a node — toggle: same node closes, different node opens */
+          hoveredIdx = (hoveredIdx===hit) ? -1 : hit;
+        } else {
+          /* Tap on empty space — dismiss card */
+          hoveredIdx=-1;
+        }
+      }
+    }
+    dragStart=null; t1=null; t2=null; pinchStartDist=0;
+  } else if(e.touches.length===1){
+    /* Dropped one finger — switch back to orbit */
+    t1=e.touches[0]; t2=null; pinchStartDist=0;
+    dragStart={x:t1.clientX,y:t1.clientY};
+    dragRot={x:rotX,y:rotY};
+  }
+}
+
+/* ── Open / Close ── */
+window.openOasis=function(){
+  if(isOpen)return;
+  isOpen=true;
+  if(typeof closeSidebar==='function')closeSidebar();
+  const ov=document.getElementById('oasis-ov');
+  const app=document.getElementById('app');
+  ov.style.display='flex';
+  app.style.transition='opacity 0.6s ease';
+  app.style.opacity='0';
+  app.style.pointerEvents='none';
+  setTimeout(()=>{
+    ov.style.opacity='1';
+    if(!canvas) initOasis(); else resize();
+    if(!animFrame) animFrame=requestAnimationFrame(loop);
+  },100);
+};
+window.closeOasis=function(){
+  if(!isOpen)return;
+  isOpen=false; hoveredIdx=-1;
+  const ov=document.getElementById('oasis-ov');
+  const app=document.getElementById('app');
+  document.getElementById('oasis-card').style.opacity='0';
+  ov.style.opacity='0';
+  setTimeout(()=>{
+    ov.style.display='none';
+    app.style.transition='opacity 0.5s ease';
+    app.style.opacity='1';
+    app.style.pointerEvents='';
+    if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  },800);
+};
+
+})();
+</script>
+
+
 <script>
 "use strict";
 if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")};
@@ -768,12 +1295,37 @@ if(typeof marked==="undefined")window.marked={parse:s=>String(s).replace(/&/g,"&
 function throttle(fn,ms){let t=0,pending=false;return function(...a){const now=Date.now();if(now-t>=ms){t=now;fn.apply(this,a);}else if(!pending){pending=true;setTimeout(()=>{pending=false;t=Date.now();fn.apply(this,a);},ms-(now-t));}};}
 if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
+/* Configure marked once: GFM tables/strikethrough + soft-break to <br>. */
+try{ if(window.marked && typeof marked.setOptions==='function'){
+  marked.setOptions({ breaks:true, gfm:true, headerIds:false, mangle:false });
+} }catch(_){}
+
+/* Auto-paragraph: if a model returns a wall-of-text (no blank lines, no
+   markdown blocks) split it on sentence boundaries into ~2-sentence chunks
+   so renderMd produces real paragraphs instead of one giant <p>. Skipped
+   when the text already has blank lines, fenced code, headings, or lists. */
+function autoParagraph(text){
+  if(!text||typeof text!=='string')return text;
+  if(text.length<260)return text;
+  if(text.indexOf('\n\n')!==-1)return text;
+  if(text.indexOf('```')!==-1)return text;
+  if(/^\s{0,3}(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|\|)/m.test(text))return text;
+  const sentences=text.split(/(?<=[.!?])\s+(?=[A-Z0-9"'(\[])/);
+  if(sentences.length<3)return text;
+  const out=[];
+  for(let i=0;i<sentences.length;i+=2){
+    out.push(sentences.slice(i,i+2).join(' ').trim());
+  }
+  return out.filter(Boolean).join('\n\n');
+}
+
 /* ══════════════════════════════════════
    SMART LAYOUT RENDERER
 ══════════════════════════════════════ */
 function renderMd(text){
   if(!text)return'';
-  const raw=DOMPurify.sanitize(marked.parse(text));
+  const prepped=autoParagraph(text);
+  const raw=DOMPurify.sanitize(marked.parse(prepped));
   const tmp=document.createElement('div');
   tmp.innerHTML=raw;
   const nodes=Array.from(tmp.childNodes);
@@ -1151,9 +1703,32 @@ function updateModelDescs(){
 }
 
 /* ─── MODES ─── */
+/* Buttons disabled while humanizer is active. */
+const HUMANIZER_LOCK_BTNS=['think-btn','web-btn','code-btn','image-btn','attach-btn'];
+function applyHumanizerLock(){
+  const on=S.modes&&S.modes.has&&S.modes.has('humanizer');
+  HUMANIZER_LOCK_BTNS.forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    if(on){el.classList.add('locked');el.setAttribute('aria-disabled','true');el.setAttribute('tabindex','-1');}
+    else{el.classList.remove('locked');el.removeAttribute('aria-disabled');el.removeAttribute('tabindex');}
+  });
+  // When locking ON: drop any other active modes and clear pending attachments.
+  if(on){
+    ['think','web','code','image'].forEach(m=>S.modes.delete(m));
+    if(typeof _clearAllFiles==='function')_clearAllFiles();
+    const fpp=document.getElementById('file-parse-progress');if(fpp){fpp.classList.remove('show');fpp.textContent='';}
+  }else if(typeof applyCapabilityGating==='function'){
+    // Restore Think disabled-state based on current model capability.
+    setTimeout(applyCapabilityGating,0);
+  }
+}
+
 function toggleMode(m){
+  // Humanizer is exclusive: if it's on, every other mode + attach is locked.
+  if(m!=='humanizer' && S.modes.has('humanizer'))return;
   if(m==='think'){const md=MODELS[S.model]; if(md&&!md.hasThink){S.modes.delete('think');applyColors();return;}}
   if(S.modes.has(m))S.modes.delete(m);else S.modes.add(m);
+  if(m==='humanizer')applyHumanizerLock();
   const mDef=MODELS[S.model]||MODELS['0'];
   document.getElementById('model-btn').textContent=mDef.label;
   const inp=document.getElementById('user-input');
@@ -1385,7 +1960,7 @@ function buildMsg(msg,idx){
         <svg class="ai-think-chev" width="10" height="10" viewBox="0 0 5 5" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="1" width="1" height="3"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="1" width="1" height="3"/><rect x="4" y="2" width="1" height="1"/></svg>
         <span class="ai-think-lbl">${esc(dur)}</span>
       </div>
-      <div class="ai-think-body"><div class="ai-think-content">${esc(sanitizeThinkText(msg.thinking))}</div></div>
+      <div class="ai-think-body"><div class="ai-think-content" style="white-space:normal">${renderMd(sanitizeThinkText(msg.thinking)||'')}</div></div>
     </div>`;
   }
   let sourcesHtml='';
@@ -1486,6 +2061,8 @@ function showFileErr(msg){
 }
 
 function onFileSelected(e){
+  // Block attachments while humanizer mode is active.
+  if(typeof modeOn==='function' && modeOn('humanizer')){e.target.value='';return;}
   const files=Array.from(e.target.files||[]);e.target.value='';
   if(!files.length)return;
   const valid=[];
@@ -1660,10 +2237,26 @@ async function sendMsg(){
   const imageFiles=files.filter(f=>f.isImage);
   const textFiles=files.filter(f=>!f.isImage);
 
+  /* Wrap each attached file with a clear, model-friendly delimiter so every
+     model can reliably distinguish file boundaries from the user's message.
+     Includes name, type, and byte count; flags truncation when present. */
+  const FILE_INGEST_HEADER='You have been given the contents of the following user-attached file(s). Read them carefully and use them to answer.';
+  const FILE_INLINE_LIMIT=120000; // ~120k chars per file passed to the model
+  const _wrapFile=(f)=>{
+    let body=String(f.text||'');
+    let trunc=false;
+    if(body.length>FILE_INLINE_LIMIT){body=body.slice(0,FILE_INLINE_LIMIT);trunc=true;}
+    const ext=(f.ext||'').replace(/^\./,'')||'txt';
+    const bytes=(f.text||'').length;
+    const truncNote=trunc?`\n[NOTE: file truncated at ${FILE_INLINE_LIMIT} characters of ${bytes} total]`:'';
+    return `<file name="${f.name}" type="${ext}" bytes="${bytes}">\n${body}${truncNote}\n</file>`;
+  };
+  const _buildFileCtx=(arr)=>arr.length?(FILE_INGEST_HEADER+'\n\n'+arr.map(_wrapFile).join('\n\n')):'';
+
   if(imageFiles.length){
     // Build OpenAI-compatible vision message with image_url parts
     const parts=[];
-    const textCtx=textFiles.length?textFiles.map(f=>`[Attached File: ${f.name}]\n---\n${f.text}\n---`).join('\n\n'):'';
+    const textCtx=_buildFileCtx(textFiles);
     const userText=(raw?(textCtx?raw+'\n\n'+textCtx:raw):(textCtx||'Analyze this image.'));
     parts.push({type:'text',text:userText});
     for(const img of imageFiles){
@@ -1672,7 +2265,7 @@ async function sendMsg(){
     visionPayload=parts;
     modelContent=userText; // plain text for history display
   } else if(textFiles.length){
-    const ctx=textFiles.map(f=>`[Attached File: ${f.name}]\n---\n${f.text}\n---`).join('\n\n');
+    const ctx=_buildFileCtx(textFiles);
     modelContent=raw?raw+'\n\n'+ctx:ctx;
   }
 
@@ -1976,13 +2569,18 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   };
   const renderAnswer=throttle(_renderAnswerNow,150);
 
+  const _renderThinkNow=()=>{
+    if(!thCont)return;
+    // Switch from text-node mode to markdown mode for blocked, scannable thinking.
+    if(thCont._tn){thCont.removeChild(thCont._tn);thCont._tn=null;}
+    thCont.style.whiteSpace='normal';
+    thCont.innerHTML=(window.renderMd||renderMd)(sanitizeThinkText(thinkText)||'');
+    if(S.settings.autoscroll)scrollBot();
+  };
+  const _renderThinkThrottled=throttle(_renderThinkNow,120);
   const renderThink=(text)=>{
     thinkText+=text;
-    if(thCont){
-      if(!thCont._tn){thCont._tn=document.createTextNode('');thCont.appendChild(thCont._tn);}
-      thCont._tn.nodeValue=sanitizeThinkText(thinkText);
-      if(S.settings.autoscroll)scrollBot();
-    }
+    _renderThinkThrottled();
   };
 
   try{
@@ -2017,7 +2615,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           if(pill&&thCont){const done=document.createElement('div');done.className='think-srch-done';done.textContent='Found info — continuing';pill.replaceWith(done);}
           extraCtx=extraCtx+(internalSearchData?buildSearchCtx(internalSearchData):'')+'\n\nUse the information above and reply with the final answer only.';
           S.abort=new AbortController();userSearchData=internalSearchData;if(internalSearchData)userWantsSearch=true;firstPass=false;
-          if(thCont&&thCont._tn){thCont._tn.nodeValue='';thCont._tn=null;}thinkText='';
+          if(thCont){if(thCont._tn){thCont._tn=null;}thCont.innerHTML='';}thinkText='';
           continue;
         }else{break;}
       }
@@ -2954,8 +3552,8 @@ window.importChatsPrompt=function(){
 };
 
 /* ── Init hook ── */
-document.addEventListener('DOMContentLoaded',applyCapabilityGating);
-setTimeout(applyCapabilityGating,300);
+document.addEventListener('DOMContentLoaded',()=>{applyCapabilityGating();if(typeof applyHumanizerLock==='function')applyHumanizerLock();});
+setTimeout(()=>{applyCapabilityGating();if(typeof applyHumanizerLock==='function')applyHumanizerLock();},300);
 
 </script>
 </body>
