@@ -48,6 +48,31 @@ VIOLATIONS:
 - Explanatory text
 - Conversational filler`;
 
+/* Universal layout addendum — appended to every non-humanizer persona so all
+   models produce well-blocked, scannable output instead of wall-of-text. */
+const RESPONSE_FORMAT_RULES = `
+
+RESPONSE LAYOUT — MANDATORY
+- Break content into short paragraphs of at most 3 sentences. Insert a blank line between paragraphs.
+- For any answer longer than ~3 sentences, organize with markdown: use \`##\` or \`###\` headings for distinct sections, \`-\` bullets when listing 3+ items, and numbered lists for ordered steps.
+- Wrap every code, command, file path, JSON, or shell snippet in fenced code blocks with a language tag (\`\`\`js, \`\`\`bash, \`\`\`json, \`\`\`text). Never inline multi-line code.
+- Use inline \`code\` for identifiers, flags, filenames, and short literals.
+- Use GFM tables for any tabular comparison of 2+ columns.
+- Bold the key term of a definition once, not every keyword.
+- Never produce a single paragraph longer than ~80 words. Split it.
+- Do not pad with restatements, recap sentences, or "let me know if…" closers.
+- Never use decorative emoji. Functional symbols inside code blocks are fine.`;
+
+/* Visible thinking trace addendum — appended only when the model emits
+   <think> reasoning so the trace is also blocked and scannable. */
+const THINK_FORMAT_RULES = `
+
+THINK BLOCK LAYOUT — MANDATORY
+- Inside <think>...</think>, write in short paragraphs (1–2 sentences each), separated by blank lines.
+- Use \`### Plan\`, \`### Check\`, \`### Decision\` mini-headings when the trace has more than ~4 lines.
+- Use \`-\` bullets for option lists, candidate approaches, or checks.
+- Never produce one continuous paragraph of reasoning. Block it.`;
+
 /* Persona cores — addendum (CODE_AI + THINK_RULES + POW_AI) is concatenated
    at runtime via composePersona() so prompt literals stay clean. */
 const PERSONA_CORE = {
@@ -2030,7 +2055,7 @@ RULES FOR USING TOOLS
 function composePersona(modelKey) {
   if (modelKey === 'humanizer') return HUMANIZER_SYSTEM;
   const base = PERSONA_CORE[modelKey] ?? PERSONA_CORE['0'];
-  return base + CAPABILITIES_BLOCK;
+  return base + CAPABILITIES_BLOCK + RESPONSE_FORMAT_RULES;
 }
 
 /* Universal tool addendum — appended once, outside user-authored prompts.
@@ -2388,7 +2413,7 @@ async function fetchWithRetry(url, options, maxRetries = 4) {
 
 function buildPayload(persona, trimmedMsgs, hasPromptedThink, useSearch) {
   const thinkInstruction = hasPromptedThink
-    ? '\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between <think> and </think> appears in the final output.'
+    ? '\n\nOUTPUT FORMAT — MANDATORY:\nEvery response must begin with <think> followed by your brief internal reasoning, then </think>, then your answer. Nothing before <think>. Nothing between <think> and </think> appears in the final output.' + THINK_FORMAT_RULES
     : '';
   const searchAddendum = useSearch ? SEARCH_UNFILTERED_ADDENDUM : '';
   return [{ role: 'system', content: persona + thinkInstruction + searchAddendum }, ...trimmedMsgs];
