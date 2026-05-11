@@ -874,7 +874,7 @@ const BASE_EDGES = [
 ];
 
 /* Statuses — card only */
-const STATUSES_RARE = [
+const STATUSES_IDLE = [
   'Thinking about nothing','Lost in thought','Drifting','Just existing',
   'Somewhere else','Not really here','Fading in and out','Barely present',
   'Mind wandering','Waiting for something','Forgetting something',
@@ -883,7 +883,7 @@ const STATUSES_RARE = [
   'Blinking slowly','Sitting with the silence','Just being',
   'Nothing in particular','Resting between thoughts','Soft hum',
 ];
-const STATUSES_IDLE = [
+const STATUSES_BUSY = [
   'Learning','Drawing','Gathering things','Writing to someone',
   'Trying to remember','Putting words together','Reading slowly',
   'Working through something','Connecting the dots','Noticing patterns',
@@ -896,7 +896,7 @@ const STATUSES_IDLE = [
   'Going deeper','Somewhere inside a thought','Figuring it out',
   'Getting it wrong first','Trying again','Almost done thinking',
 ];
-const STATUSES_BUSY = [
+const STATUSES_COMM = [
   'Talking to VVV','Listening to 000','Something from VV just arrived',
   'Passing a thought to 00','Waiting on V','Sent something to 0',
   'In the middle of something with VVV','000 said something interesting',
@@ -1229,15 +1229,12 @@ function onTouchEnd(e){
   if(e.touches.length===0){
     if(dragStart&&e.changedTouches.length){
       const ct=e.changedTouches[0];
-      /* Only register as a tap if finger barely moved */
       if(Math.abs(ct.clientX-dragStart.x)<12&&Math.abs(ct.clientY-dragStart.y)<12){
         const r=canvas.getBoundingClientRect();
         const hit=hitTest(ct.clientX-r.left,ct.clientY-r.top);
         if(hit>=0){
-          /* Tap on a node — toggle: same node closes, different node opens */
           hoveredIdx = (hoveredIdx===hit) ? -1 : hit;
         } else {
-          /* Tap on empty space — dismiss card */
           hoveredIdx=-1;
         }
       }
