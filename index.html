@@ -880,7 +880,7 @@ const STATUS_CLOSE_RE = /<\/status>/i;
 function setActivityLabel(scopeEl, text){
   if(!scopeEl||!text)return;
   const lbl=scopeEl.querySelector('.activity-label');
-  if(lbl)lbl.textContent=text;
+  if(lbl){lbl.textContent=text;lbl.classList.remove('anim-dots');}
   const thLbl=scopeEl.querySelector('.ai-think-lbl');
   if(thLbl && thLbl.id && !thLbl.textContent.startsWith('Thought for'))thLbl.textContent=text;
 }
@@ -1807,7 +1807,7 @@ function appendPendingHumanizer(id){
   const row=document.createElement('div');
   row.className='msg-row ai';row.id=id;
   row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots"></div><div class="activity-sub" id="${id}sub"></div></div></div></div>
+    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">…</div><div class="activity-sub" id="${id}sub"></div></div></div></div>
   </div></div></div></div>`;
   ca.appendChild(row);setStopMode(true);scrollBot();
 }
@@ -1831,7 +1831,7 @@ function appendPending(id,isCodeMode){
   }else{
     const aState=isCodeMode?'coding':'writing';
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-      <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="${aState}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots"></div><div class="activity-sub" id="${id}sub"></div></div></div></div>
+      <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="${aState}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">…</div><div class="activity-sub" id="${id}sub"></div></div></div></div>
     </div></div></div></div>`;
   }
   ca.appendChild(row);
@@ -1850,7 +1850,7 @@ async function* dripText(text, abortSignal, chunkSize=3, delayMs=22){
 
 async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,useSearch){
   const mDef=MODELS[modelKey]||MODELS['0'];let res;
-  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch,think:(typeof modeOn==='function'&&modeOn('think')),chain:true}),signal:abortSignal});}
+  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch,think:(typeof modeOn==='function'&&modeOn('think'))}),signal:abortSignal});}
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
@@ -1995,7 +1995,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     if(txtEl){
       txtEl.style.display='';
       const aState=isCodeMode?'coding':'writing';
-      txtEl.innerHTML='<div class="activity-wrap" data-state="'+aState+'"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">'+(window._lastAiStatus||'')+'</div></div></div>';
+      txtEl.innerHTML='<div class="activity-wrap" data-state="'+aState+'"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">'+(window._lastAiStatus||'…')+'</div></div></div>';
     }
     if(S.settings.autoscroll)scrollBot();
   };
@@ -2117,7 +2117,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         if(sd){
           userSearchData=sd;userWantsSearch=true;
           const ctx2=extraCtx+buildSearchCtx(sd);
-          if(txtEl)txtEl.innerHTML='<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">'+(window._lastAiStatus||'')+'</div></div></div>';
+          if(txtEl)txtEl.innerHTML='<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">'+(window._lastAiStatus||'…')+'</div></div></div>';
           answerText='';S.abort=new AbortController();
           const _renderReAnswer=throttle(()=>{
             if(!txtEl)return;
