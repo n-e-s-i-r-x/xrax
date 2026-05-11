@@ -1793,18 +1793,25 @@ async function* dripText(text, abortSignal, chunkSize=3, delayMs=22){
   }
 }
 
+/* Strip inline citation markers the model might emit anyway. The UI shows
+   sources in a dropdown beneath the answer, so they're noise inside the prose. */
+const SOURCE_MARKER_RE = /\s*(?:\[\s*sources?(?:\s*[:#]?\s*\d+)?\s*\]|\(\s*sources?\s*:\s*[^)]{0,80}\)|\[\s*\d+\s*\](?=[\s.,;:!?)]|$))/gi;
+function stripSourceMarkers(s){ return typeof s==='string' ? s.replace(SOURCE_MARKER_RE,'') : s; }
+
 async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,useSearch){
   const mDef=MODELS[modelKey]||MODELS['0'];let res;
-  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch,think:(typeof modeOn==='function'&&modeOn('think'))}),signal:abortSignal});}
+  // webSearch mode: 'on' if explicit /web; 'off' if disabled in settings; else 'auto' (server decides).
+  const webSearchMode = useSearch
+    ? 'on'
+    : (S.settings.webSearchAuto===false ? 'off' : 'auto');
+  try{res=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:msgs,context:extraCtx,temperature:mDef.temp,maxTokens:maxTok||8000,model:modelKey,contMode:!!contMode,useSearch:!!useSearch,webSearch:webSearchMode,think:(typeof modeOn==='function'&&modeOn('think'))}),signal:abortSignal});}
   catch(e){if(e.name!=='AbortError')throw e;return;}
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
   let pendingReplace=false;let replaceBuf='';
-  // Detect on first read() whether this is a real stream or a buffered dump
-  let streamMode=null; // null=undecided, 'live'=real stream, 'drip'=simulate
+  let streamMode=null;
   try{while(true){const{done,value}=await reader.read();if(done)break;
     buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
-    // Classify on first batch: if >60 chars arrived in one read(), it's buffered
     if(streamMode===null){
       const batchText=lines.reduce((acc,line)=>{
         const l=line.trim();if(!l.startsWith('data:'))return acc;
@@ -1815,11 +1822,14 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
     for(const line of lines){
       const l=line.trim();if(!l.startsWith('data:'))continue;
       const raw=l.slice(5).trim();if(raw==='[DONE]'){
-        if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:replaceBuf};
+        if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:stripSourceMarkers(replaceBuf)};
         pendingReplace=false;replaceBuf='';
         return;
       }
-      try{const d=JSON.parse(raw);const choice=d.choices?.[0];if(!choice)continue;
+      try{const d=JSON.parse(raw);
+        // Server-emitted meta events (sources, phase). No `choices` array.
+        if(d.meta){ yield {type:'meta', meta:d.meta}; continue; }
+        const choice=d.choices?.[0];if(!choice)continue;
         if(choice.finish_reason)yield{type:'finish',reason:choice.finish_reason};
         const text=choice.delta?.content;
         if(typeof text==='string'&&text.length){
@@ -1830,18 +1840,21 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
             if(sentinelIdx!==-1){
               pendingReplace=true;
               replaceBuf=text.slice(sentinelIdx+'\x00VERIFY_REPLACE\x00'.length);
-            }else if(streamMode==='drip'&&text.length>12){
-              // Simulate streaming: drip large buffered chunks word-by-word
-              yield* dripText(text, abortSignal);
             }else{
-              yield text;
+              const cleaned=stripSourceMarkers(text);
+              if(!cleaned)continue;
+              if(streamMode==='drip'&&cleaned.length>12){
+                yield* dripText(cleaned, abortSignal);
+              }else{
+                yield cleaned;
+              }
             }
           }
         }
       }catch(_){}
     }
   }}catch(e){if(e.name!=='AbortError')throw e;}
-  if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:replaceBuf};
+  if(pendingReplace&&replaceBuf.trim())yield{type:'verify_replace',text:stripSourceMarkers(replaceBuf)};
 }
 const OPEN_TAGS=['<think>','<thinking>','<|begin_of_thought|>'];
 const CLOSE_TAGS=['</think>','</thinking>','<|end_of_thought|>'];
@@ -1920,11 +1933,22 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false;
   let wasTruncated=false;
   let internalSearchFired=false,internalSearchData=null;
+  // Sources collected from server-side meta events (OpenRouter web plugin
+  // citations or fallback search). Merged with any client-side userSearchData.
+  const metaSourcesMap=new Map();
+  let serverSaidSearching=false;
+  const ingestMeta=(meta)=>{
+    if(!meta)return;
+    if(meta.phase==='searching'&&meta.on){serverSaidSearching=true;showUserSearchInd();}
+    if(Array.isArray(meta.sources)){
+      for(const s of meta.sources){if(s&&s.url&&!metaSourcesMap.has(s.url))metaSourcesMap.set(s.url,{url:s.url,title:s.title||s.url});}
+      if(metaSourcesMap.size>0)hideUserSearchInd();
+    }
+  };
   let extraCtx=dtCtx();
   if(isCodeMode)extraCtx+=CODE_MODE_EXTRA;
   if(userSearchData&&(userSearchData.results?.length||userSearchData.answer))extraCtx+=buildSearchCtx(userSearchData);
   if(contMode)extraCtx+='\n\nThe previous response was cut off mid-generation. Resume seamlessly from exactly where it stopped. Do NOT repeat any text already written. Do NOT start with a preamble or transition sentence.';
-  // Never fire internal smart search on continuation — context is already established
   const allowSmartSearch=!contMode;
   S.abort=new AbortController();
 
@@ -1970,6 +1994,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,true,false,userWantsSearch)){
           if(S.abort?.signal?.aborted&&!internalSearchFired)break;
           if(chunk&&typeof chunk==='object'&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
+          if(chunk&&chunk.type==='meta'){ingestMeta(chunk.meta);continue;}
           if(chunk.type==='think'){
             if(answerPhase){
               answerText+=chunk.text;renderAnswer();
@@ -2027,6 +2052,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
       for await(const chunk of streamParsed(baseMsgs,extraCtx,modelKey,8000,S.abort.signal,false,false,userWantsSearch)){
         if(S.abort?.signal?.aborted)break;
         if(chunk&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
+        if(chunk&&chunk.type==='meta'){ingestMeta(chunk.meta);continue;}
         if(chunk&&chunk.type==='verify_replace'){
   // Strip any verification preamble the model may have leaked
   let vText=chunk.text;
@@ -2091,7 +2117,14 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   }
 
   setStopMode(false);
-  const effectiveSources=userWantsSearch?(userSearchData?.results||[]):[];
+  hideUserSearchInd();
+  // Merge: server meta sources + any client-side userSearchData results.
+  const mergedSourcesMap=new Map(metaSourcesMap);
+  if(userSearchData&&Array.isArray(userSearchData.results)){
+    for(const r of userSearchData.results){if(r&&r.url&&!mergedSourcesMap.has(r.url))mergedSourcesMap.set(r.url,{url:r.url,title:r.title||r.url});}
+  }
+  const effectiveSources=Array.from(mergedSourcesMap.values());
+  if(effectiveSources.length)userWantsSearch=true;
 
   const savedAnswer=answerText.trim();
   // Only save thinking data if this model actually has think mode — prevents
@@ -2448,7 +2481,7 @@ function dlgConfirm(t,m,onY,d){showDialog({title:t,msg:m,onConfirm:onY,danger:d,
 
 function openSettings(){closeSidebar();renderSettings();document.getElementById('settings-ov').classList.add('show');}
 function closeSettings(){document.getElementById('settings-ov').classList.remove('show');}
-function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn s-font-btn ${fontKey==='M'?'s-font-active':''}" onclick="setFont('M')">0v font</button><button class="s-btn s-font-btn ${fontKey==='system'?'s-font-active':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Only searches when AI genuinely lacks real-time data</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
+function renderSettings(){const body=document.getElementById('sheet-body');if(!body)return;const fontKey=(localStorage.getItem('vg_font')||'M');body.innerHTML=`<div class="sg"><div class="sg-lbl">Display</div><div class="s-row"><div class="s-row-info"><div class="s-name">Show timestamps</div><div class="s-desc">Time under each message</div></div><div class="tog ${S.settings.timestamps?'on':''}" onclick="togSet('timestamps',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Auto-scroll</div><div class="s-desc">Follow new messages</div></div><div class="tog ${S.settings.autoscroll?'on':''}" onclick="togSet('autoscroll',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Speed</div><div class="s-desc">Show timer between messages</div></div><div class="tog ${S.settings.speedTimer?'on':''}" onclick="togSet('speedTimer',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Appearance</div><div class="s-row"><div class="s-row-info"><div class="s-name">Font</div></div><div style="display:flex;gap:6px"><button class="s-btn s-font-btn ${fontKey==='M'?'s-font-active':''}" onclick="setFont('M')">0v font</button><button class="s-btn s-font-btn ${fontKey==='system'?'s-font-active':''}" onclick="setFont('system')">System</button></div></div></div><div class="sg"><div class="sg-lbl">Web Search</div><div class="s-row"><div class="s-row-info"><div class="s-name">Smart auto-search</div><div class="s-desc">Auto-detects when a question needs fresh web data — no keywords required</div></div><div class="tog ${S.settings.webSearchAuto?'on':''}" onclick="togSet('webSearchAuto',this)">${TOG_SVG}</div></div></div><div class="sg"><div class="sg-lbl">Data</div><div class="s-row"><div class="s-row-info"><div class="s-name">Save conversations</div></div><div class="tog ${S.settings.save?'on':''}" onclick="togSet('save',this)">${TOG_SVG}</div></div><div class="s-row"><div class="s-row-info"><div class="s-name">Export chats</div></div><button class="s-btn" onclick="exportChats()">Export</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Import chats</div></div><button class="s-btn" onclick="importChatsPrompt()">Import</button></div><div class="s-row"><div class="s-row-info"><div class="s-name">Reset app</div></div><button class="s-btn" onclick="nukeAll()">Reset</button></div></div>`;}
 function togSet(k,el){
   S.settings[k]=!S.settings[k];
   if(el){
