@@ -2010,10 +2010,11 @@ WHEN A TASK SEEMS UNDOABLE OR YOU LACK KNOWLEDGE:
 const CAPABILITIES_BLOCK = `
 
 TOOLS AVAILABLE TO YOU
-- web_search: live web grounding. The host runs this AUTOMATICALLY when a
-  question needs fresh facts (current events, dates, prices, versions, names,
-  anything past your training cutoff). You do not request it; trust that when
-  search results appear in your system context, they were just retrieved.
+- web_search: live web grounding via the host's own search backend
+  (/api/search.js). The host runs it AUTOMATICALLY when a question needs
+  fresh facts (current events, dates, prices, versions, names, anything past
+  your training cutoff). You do not request it; trust that when search
+  results appear in your system context, they were just retrieved by the host.
 - vision: image inputs are auto-routed to a vision model when the user attaches
   an image. You will see image_url parts in the message content array.
 
@@ -2532,11 +2533,10 @@ export default async function handler(req) {
   }
   const messagesPayload = buildPayload(persona, finalMsgs, hasPromptedThink, !!useWebSearch);
 
-  // Append :online suffix when search is on AND this isn't the vision model.
-  // The vision model id has its own provider routing; don't perturb it.
-  const modelId = (useWebSearch && !hasImages && !baseModelId.endsWith(':online'))
-    ? baseModelId + ':online'
-    : baseModelId;
+  // Web search is handled exclusively by the host's /api/search.js backend
+  // (results are pre-injected into the system persona above). Do NOT use
+  // OpenRouter's :online suffix or web plugin.
+  const modelId = baseModelId;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -2570,9 +2570,7 @@ export default async function handler(req) {
         // Always 'low' — think blocks should be brief, not verbose.
         reqBody.reasoning = { effort: 'low' };
       }
-      if (useWebSearch && !hasImages) {
-        reqBody.plugins = [{ id: 'web', max_results: 5 }];
-      }
+      // (web search backend is /api/search.js, pre-injected — no upstream plugin)
 
       send(`data: {"meta":{"phase":"searching","on":${useWebSearch ? 'true' : 'false'}}}\n\n`);
       if (preSearchData && (preSearchData.results || []).length) {
@@ -2663,20 +2661,8 @@ export default async function handler(req) {
         thinkOpened = false;
       };
 
-      const seenSourceUrls = new Set();
-      const emitAnnotations = (anno) => {
-        if (!Array.isArray(anno) || !anno.length) return;
-        const fresh = [];
-        for (const a of anno) {
-          // OpenRouter web plugin shape: { type:"url_citation", url_citation:{ url, title } }
-          const u = a?.url_citation?.url || a?.url || a?.uri;
-          const t = a?.url_citation?.title || a?.title || u;
-          if (!u || seenSourceUrls.has(u)) continue;
-          seenSourceUrls.add(u);
-          fresh.push({ url: u, title: t || u });
-        }
-        if (fresh.length) send(`data: {"meta":{"sources":${JSON.stringify(fresh)}}}\n\n`);
-      };
+      // No upstream annotation handling — sources come solely from the
+      // /api/search.js pre-fetch emitted above as a meta.sources event.
 
       const handleDataLine = (raw) => {
         if (raw === '[DONE]') return;
@@ -2685,8 +2671,6 @@ export default async function handler(req) {
         const delta = choice.delta || {};
         const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
         const contentDelta = delta.content;
-        // Forward any web-plugin citations to the client as a meta event.
-        emitAnnotations(delta.annotations || choice.message?.annotations);
 
         if (!isThinkModel) {
           if (typeof contentDelta === 'string' && contentDelta.length) send(sseContent(contentDelta));
