@@ -2292,10 +2292,10 @@ function makePromptedThinkFilter() {
   };
 }
 
-/* ─────────────── 6.5 CHAIN MODE + AI STATUS LABELS ─────────────── */
-/* These additions DO NOT modify any PERSONA_CORE / HUMANIZER_SYSTEM strings.
-   The status instruction and chain wrapper are concatenated at request-build
-   time only. */
+/* ─────────────── 6.5 AI STATUS LABELS ─────────────── */
+/* The status instruction is concatenated onto the persona at request-build
+   time so the model emits a short <status>LABEL</status> prelude that the
+   frontend strips and uses as the live typing indicator. */
 
 // Mandatory prelude appended (not edited into) the system message so the model
 // always emits a short AI-authored UI label before the answer. The frontend
@@ -2347,83 +2347,6 @@ async function generateStatusLabel(apiKey, userText, hint, signal) {
   return _cleanLabel(out);
 }
 
-/* Chain pipeline.
-   Flow (per the approved plan):
-     Router (deterministic classifyDifficulty) — free, no model call.
-     Generator stage:
-       easy   -> '0'
-       medium -> '00'
-       hard   -> parallel('000', 'VV') merged
-     Verifier stage: 'VVV' (fixed) — critiques and improves the draft.
-     Finalizer stage: user-selected model — handled by the existing streaming path.
-   This function returns an extra context string to inject into the finalizer's
-   system message. It does not mutate persona constants.
-*/
-async function runChainPipeline({ apiKey, modelKey, lastUserMsg, trimmed, signal }) {
-  const difficulty = classifyDifficulty(lastUserMsg) || 'easy';
-  // Pick generators that are different from the user's selected model when possible.
-  let generatorKeys;
-  if (difficulty === 'hard')        generatorKeys = ['000', 'VV'];
-  else if (difficulty === 'medium') generatorKeys = ['00'];
-  else                              generatorKeys = ['0'];
-  // Filter out the user-selected model from generators if it's in the list — keep chain distinct.
-  generatorKeys = generatorKeys.filter(k => k !== modelKey);
-  if (!generatorKeys.length) generatorKeys = [difficulty === 'hard' ? 'VVV' : '00'];
-
-  const verifierKey = (modelKey === 'VVV') ? '000' : 'VVV';
-
-  const baseHistory = trimmed.slice(-6).map(m => ({
-    role: m.role,
-    content: typeof m.content === 'string' ? m.content : (m.content?.find?.(p => p.type === 'text')?.text ?? ''),
-  })).filter(m => m.content);
-
-  // Generator stage(s) — non-streaming, run in parallel when there are multiple.
-  const generatorPromises = generatorKeys.map(async (gk) => {
-    const gEntry = modelEntry(gk);
-    const gSystem = composePersona(gk);
-    const messages = [
-      { role: 'system', content: gSystem },
-      ...baseHistory,
-    ];
-    const out = await callOpenRouterOnce(apiKey, gEntry.id, messages, {
-      maxTokens: 1400, temperature: 0.4, signal,
-    });
-    return { key: gk, text: out };
-  });
-  const drafts = await Promise.all(generatorPromises);
-  const draftBlock = drafts
-    .filter(d => d.text)
-    .map(d => `--- draft from ${d.key} ---\n${d.text}`)
-    .join('\n\n');
-  if (!draftBlock) return '';   // chain failed — caller falls back
-
-  // Verifier stage — critique & improve.
-  const vEntry = modelEntry(verifierKey);
-  const vSystem = composePersona(verifierKey);
-  const verifierUser =
-    `You are the verifier in a multi-model pipeline. Below are draft answer(s) produced by other models for the user's latest request. Identify any factual, logical, or formatting issues and return an improved, corrected version. Output the improved answer only — no preamble, no meta commentary.\n\nUser's latest request:\n"""${lastUserMsg || ''}"""\n\n${draftBlock}`;
-  const verified = await callOpenRouterOnce(apiKey, vEntry.id, [
-    { role: 'system', content: vSystem },
-    { role: 'user', content: verifierUser },
-  ], { maxTokens: 1800, temperature: 0.2, signal });
-
-  const bestDraft = verified || drafts.map(d => d.text).find(Boolean) || '';
-  if (!bestDraft) return '';
-
-  // Build extra context for the finalizer (user-selected model).
-  return [
-    '[INTERNAL CHAIN PIPELINE — DO NOT MENTION OR QUOTE TO THE USER]',
-    `Difficulty estimate: ${difficulty}.`,
-    `Generators used: ${drafts.map(d => d.key).join(', ')}.`,
-    `Verifier model: ${verifierKey}.`,
-    '',
-    'Verified intermediate answer:',
-    bestDraft,
-    '',
-    'Your job as the finalizer: produce the final user-facing answer. Keep what is correct, fix any remaining issues, apply your own style and any active toggles (search context, code formatting, etc.), and never reveal that a pipeline was used.',
-  ].join('\n');
-}
-
 /* ─────────────── 6. HANDLER ─────────────── */
 
 function sseError(text) {
@@ -2455,7 +2378,6 @@ export default async function handler(req) {
     context = '',
     think: userWantsThink = false,
     useSearch = false,
-    chain = true,
     statusOnly = false,
     statusHint = '',
     statusPrompt = '',
@@ -2487,8 +2409,6 @@ export default async function handler(req) {
   const hasPromptedThink = hasImages ? false : (!!mEntry.hasPromptedThink && !!userWantsThink);
   const isThinkModel     = hasReasoning || hasPromptedThink;
 
-  // (persona built after chain pipeline so _chainContext is initialized)
-
   /* Trim, dedupe, drop stale leaked-system assistant turns. */
   const LEAK_PATTERNS_MSG = [
     /^Universal Production System Prompt/m,
@@ -2517,21 +2437,7 @@ export default async function handler(req) {
   const lastUserMsg = lastUserText(trimmed);
   const difficulty = classifyDifficulty(lastUserMsg);
 
-  // Chain mode: run router -> generator(s) -> verifier on the server side, then
-  // pass the verified intermediate as extra context into the user's selected
-  // model (the finalizer). Skipped for vision and humanizer flows.
-  let _chainContext = '';
-  const _chainEligible = chain === true && !hasImages && modelKey !== 'humanizer';
-  if (_chainEligible) {
-    try {
-      _chainContext = await runChainPipeline({
-        apiKey, modelKey, lastUserMsg, trimmed, signal: req.signal,
-      });
-    } catch (_) { _chainContext = ''; }
-  }
-
-  const _baseCtx = [context, _chainContext].filter(Boolean).join('\n\n');
-  const persona = composePersona(modelKey) + (_baseCtx ? '\n\n' + _baseCtx : '') + STATUS_TAG_INSTRUCTION;
+  const persona = composePersona(modelKey) + (context ? '\n\n' + context : '') + STATUS_TAG_INSTRUCTION;
 
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
   const sampling = samplingParams(modelKey, difficulty);
