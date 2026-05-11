@@ -2487,8 +2487,7 @@ export default async function handler(req) {
   const hasPromptedThink = hasImages ? false : (!!mEntry.hasPromptedThink && !!userWantsThink);
   const isThinkModel     = hasReasoning || hasPromptedThink;
 
-  const _baseCtx = [context, _chainContext].filter(Boolean).join('\n\n');
-  const persona = composePersona(modelKey) + (_baseCtx ? '\n\n' + _baseCtx : '') + STATUS_TAG_INSTRUCTION;
+  // (persona built after chain pipeline so _chainContext is initialized)
 
   /* Trim, dedupe, drop stale leaked-system assistant turns. */
   const LEAK_PATTERNS_MSG = [
@@ -2530,6 +2529,10 @@ export default async function handler(req) {
       });
     } catch (_) { _chainContext = ''; }
   }
+
+  const _baseCtx = [context, _chainContext].filter(Boolean).join('\n\n');
+  const persona = composePersona(modelKey) + (_baseCtx ? '\n\n' + _baseCtx : '') + STATUS_TAG_INSTRUCTION;
+
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
   const sampling = samplingParams(modelKey, difficulty);
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
