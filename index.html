@@ -874,62 +874,6 @@ const MODELS={
   'VVV':{key:'VVV',label:'VVV',placeholder:'Message VVV...',hasThink:false, temp:0.6},
 };
 const BASE_DESCS={'0':'Normal.','00':'Fastest.','000':'Highest. Fast.','V':'Smart. Uncensored.','VV':'Smartest. Programming.','VVV':'Smartest. Slow.'};
-/* ─── AI-AUTHORED STATUS LABELS (replace hardcoded "Typing"/"Generating") ─── */
-const STATUS_OPEN_RE = /<status>/i;
-const STATUS_CLOSE_RE = /<\/status>/i;
-function setActivityLabel(scopeEl, text){
-  if(!scopeEl||!text)return;
-  const lbl=scopeEl.querySelector('.activity-label');
-  if(lbl){lbl.textContent=text;lbl.classList.remove('anim-dots');}
-  const thLbl=scopeEl.querySelector('.ai-think-lbl');
-  if(thLbl && thLbl.id && !thLbl.textContent.startsWith('Thought for'))thLbl.textContent=text;
-}
-function setActivityLabelById(id, text){
-  if(!id||!text)return;
-  const row=document.getElementById(id);
-  if(row)setActivityLabel(row,text);
-}
-async function fetchStatusLabel(prompt, hint){
-  try{
-    const r=await fetch('/api/chat.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statusOnly:true,statusPrompt:prompt||'',statusHint:hint||'',messages:[]})});
-    if(!r.ok)return'';
-    const j=await r.json();return(j&&j.label)?String(j.label):'';
-  }catch(_){return'';}
-}
-/* StatusStripper: removes <status>...</status> tags from a streaming text feed
-   and reports the inner label via cb(label). Returns the visible (stripped) text.
-   Stateful — keep one instance per stream. */
-function makeStatusStripper(onLabel){
-  let buf='';let inside=false;
-  return function feed(chunk){
-    if(typeof chunk!=='string'||!chunk)return chunk||'';
-    buf+=chunk;
-    let out='';
-    while(buf.length){
-      if(!inside){
-        const m=buf.match(/<status>/i);
-        if(!m){
-          // keep last 8 chars in buffer in case of partial '<status>'
-          const safe=Math.max(0,buf.length-8);
-          out+=buf.slice(0,safe);buf=buf.slice(safe);break;
-        }
-        out+=buf.slice(0,m.index);
-        buf=buf.slice(m.index+m[0].length);inside=true;
-      }else{
-        const m=buf.match(/<\/status>/i);
-        if(!m){
-          // wait for more
-          break;
-        }
-        const label=buf.slice(0,m.index).trim();
-        if(label&&typeof onLabel==='function')try{onLabel(label);}catch(_){}
-        buf=buf.slice(m.index+m[0].length);inside=false;
-      }
-    }
-    return out;
-  };
-}
-
 
 const C={
   grey:  {
@@ -1807,7 +1751,7 @@ function appendPendingHumanizer(id){
   const row=document.createElement('div');
   row.className='msg-row ai';row.id=id;
   row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">…</div><div class="activity-sub" id="${id}sub"></div></div></div></div>
+    <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Humanizing</div><div class="activity-sub" id="${id}sub">Rewriting for human feel…</div></div></div></div>
   </div></div></div></div>`;
   ca.appendChild(row);setStopMode(true);scrollBot();
 }
@@ -1830,8 +1774,9 @@ function appendPending(id,isCodeMode){
     </div></div></div></div>`;
   }else{
     const aState=isCodeMode?'coding':'writing';
+    const aLabel=isCodeMode?'Writing Code':'Typing';
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-      <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="${aState}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">…</div><div class="activity-sub" id="${id}sub"></div></div></div></div>
+      <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="${aState}"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">${aLabel}</div><div class="activity-sub" id="${id}sub">Composing a response</div></div></div></div>
     </div></div></div></div>`;
   }
   ca.appendChild(row);
@@ -1974,9 +1919,6 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   });
   let thinkText='',answerText='',tStart=Date.now(),thinkDurStr=null,answerPhase=false;
   let wasTruncated=false;
-  const _onStatus=(label)=>{window._lastAiStatus=label;const row=document.getElementById(aiId);if(row)setActivityLabel(row,label);};
-  const _stripAns=makeStatusStripper(_onStatus);
-  const _stripThk=makeStatusStripper(_onStatus);
   let internalSearchFired=false,internalSearchData=null;
   let extraCtx=dtCtx();
   if(isCodeMode)extraCtx+=CODE_MODE_EXTRA;
@@ -1995,7 +1937,8 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
     if(txtEl){
       txtEl.style.display='';
       const aState=isCodeMode?'coding':'writing';
-      txtEl.innerHTML='<div class="activity-wrap" data-state="'+aState+'"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">'+(window._lastAiStatus||'…')+'</div></div></div>';
+      const aLabel=isCodeMode?'Writing Code':'Writing';
+      txtEl.innerHTML='<div class="activity-wrap" data-state="'+aState+'"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">'+aLabel+'</div></div></div>';
     }
     if(S.settings.autoscroll)scrollBot();
   };
@@ -2028,19 +1971,17 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
           if(S.abort?.signal?.aborted&&!internalSearchFired)break;
           if(chunk&&typeof chunk==='object'&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
           if(chunk.type==='think'){
-            const _ct=_stripThk(chunk.text);
             if(answerPhase){
-              if(_ct){answerText+=_ct;renderAnswer();}
+              answerText+=chunk.text;renderAnswer();
             }else{
-              if(_ct)renderThink(_ct);
+              renderThink(chunk.text);
               if(firstPass&&!internalSearchFired&&allowSmartSearch&&!userSearchData&&thinkText.length>80&&detectUncertainty(thinkText)){
                 internalSearchFired=true;runWithSmartSearch=true;if(S.abort)S.abort.abort();break;
               }
             }
           }else if(chunk.type==='answer'){
             enterAnswerPhase();
-            const _ca=_stripAns(chunk.text);
-            if(_ca){answerText+=_ca;renderAnswer();}
+            answerText+=chunk.text;renderAnswer();
           }
         }
         if(runWithSmartSearch){
@@ -2104,9 +2045,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   continue;
 }
         const txt=(chunk&&chunk.text)||'';if(!txt)continue;
-        const _stripped=_stripAns(txt);
-        if(!_stripped)continue;
-        answerText+=_stripped;
+        answerText+=txt;
         if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderNonThink();}
       }
       if(!wasTruncated&&looksMidSentence(answerText))wasTruncated=true;
@@ -2117,7 +2056,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
         if(sd){
           userSearchData=sd;userWantsSearch=true;
           const ctx2=extraCtx+buildSearchCtx(sd);
-          if(txtEl)txtEl.innerHTML='<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label">'+(window._lastAiStatus||'…')+'</div></div></div>';
+          if(txtEl)txtEl.innerHTML='<div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Re-answering</div></div></div>';
           answerText='';S.abort=new AbortController();
           const _renderReAnswer=throttle(()=>{
             if(!txtEl)return;
@@ -2125,14 +2064,11 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
             txtEl.innerHTML=(window.renderMd||renderMd)(answerText)+'<span class="stream-cur"></span>';
             attachCodeBtns();if(S.settings.autoscroll)scrollBot();
           },150);
-          const _stripRe=makeStatusStripper(_onStatus);
           for await(const chunk of streamParsed(baseMsgs,ctx2,modelKey,8000,S.abort.signal,false,false,true)){
             if(S.abort?.signal?.aborted)break;
             if(chunk&&chunk.type==='finish'){if(isLengthFinish(chunk.reason))wasTruncated=true;continue;}
             const txt=(chunk&&chunk.text)||'';if(!txt)continue;
-            const _re=_stripRe(txt);
-            if(!_re)continue;
-            answerText+=_re;
+            answerText+=txt;
             if(txtEl){const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();_renderReAnswer();}
           }
         }
@@ -2378,9 +2314,8 @@ async function genImage(convo,prompt){
   }
 
   S.busy=true;const aiId='img'+Date.now();const ca=document.getElementById('chat-area');const row=document.createElement('div');row.className='msg-row ai';row.id=aiId;
-  row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt"><div class="activity-wrap" data-state="imaging"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots" id="${aiId}lbl"></div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div></div></div></div></div></div></div>`;
+  row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body"><div class="ai-txt"><div class="activity-wrap" data-state="imaging"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Generating Image</div><div class="activity-sub">${esc(prompt.slice(0,50))}${prompt.length>50?'...':''}</div></div></div></div></div></div></div></div>`;
   ca.appendChild(row);setStopMode(true);scrollBot();
-  fetchStatusLabel(prompt,'image generation').then(lbl=>{const el=document.getElementById(aiId+'lbl');if(el&&lbl)el.textContent=lbl;});
   try{
     const imgRes=await fetch('/api/image.js',{
       method:'POST',
