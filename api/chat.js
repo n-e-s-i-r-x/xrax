@@ -16,6 +16,7 @@ const MODEL_MAP = {
   'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
+  'lfm':       { id: 'poolside/laguna-xs.2:free',                 hasReasoning:true,  hasPromptedThink:false, minTokens:2000 },
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
 const modelEntry = (key) => MODEL_MAP[key] ?? MODEL_MAP['0'];
@@ -2291,6 +2292,138 @@ function makePromptedThinkFilter() {
   };
 }
 
+/* ─────────────── 6.5 CHAIN MODE + AI STATUS LABELS ─────────────── */
+/* These additions DO NOT modify any PERSONA_CORE / HUMANIZER_SYSTEM strings.
+   The status instruction and chain wrapper are concatenated at request-build
+   time only. */
+
+// Mandatory prelude appended (not edited into) the system message so the model
+// always emits a short AI-authored UI label before the answer. The frontend
+// strips <status>...</status> from the visible reply.
+const STATUS_TAG_INSTRUCTION = `
+
+OUTPUT PRELUDE — MANDATORY:
+The very first characters of your reply must be a single tag of the form <status>LABEL</status> where LABEL is a 2 to 4 word present-tense phrase describing what you are about to do for the user (for example: <status>solving the equation</status>, <status>drafting the email</status>, <status>checking the code</status>). Do not put anything before <status>. Do not mention the tag itself. Continue with your normal response immediately after </status>.`;
+
+function _chatHeaders(apiKey) {
+  return {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+    'HTTP-Referer': 'https://0vai.vercel.app',
+    'X-Title': '0vAI',
+  };
+}
+
+async function callOpenRouterOnce(apiKey, modelId, messages, { maxTokens = 600, temperature = 0.3, signal } = {}) {
+  try {
+    const res = await fetchWithRetry('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: _chatHeaders(apiKey),
+      body: JSON.stringify({ model: modelId, messages, temperature, max_tokens: maxTokens, stream: false }),
+      signal,
+    }, 2);
+    if (!res || !res.ok) return '';
+    const j = await res.json();
+    return (j?.choices?.[0]?.message?.content || '').trim();
+  } catch (_) { return ''; }
+}
+
+function _cleanLabel(s) {
+  if (!s) return '';
+  let t = String(s).replace(/<\/?status>/gi, '').replace(/[\r\n]+/g, ' ').replace(/["'`*_]/g, '').trim();
+  t = t.replace(/^[-•*\d.\)\s]+/, '').trim();
+  const words = t.split(/\s+/).filter(Boolean).slice(0, 5);
+  return words.join(' ').slice(0, 48);
+}
+
+async function generateStatusLabel(apiKey, userText, hint, signal) {
+  const lfm = MODEL_MAP['lfm'] || MODEL_MAP['00'];
+  const sys = 'You output short UI activity labels. Reply with ONLY the label, no quotes, no punctuation.';
+  const usr = `Write a 2 to 4 word present-progressive label describing what an AI assistant is about to do for this request${hint ? ' (stage: ' + hint + ')' : ''}.\n\nRequest:\n"""${(userText || '').slice(0, 600)}"""`;
+  const out = await callOpenRouterOnce(apiKey, lfm.id, [
+    { role: 'system', content: sys },
+    { role: 'user', content: usr },
+  ], { maxTokens: 16, temperature: 0.4, signal });
+  return _cleanLabel(out);
+}
+
+/* Chain pipeline.
+   Flow (per the approved plan):
+     Router (deterministic classifyDifficulty) — free, no model call.
+     Generator stage:
+       easy   -> '0'
+       medium -> '00'
+       hard   -> parallel('000', 'VV') merged
+     Verifier stage: 'VVV' (fixed) — critiques and improves the draft.
+     Finalizer stage: user-selected model — handled by the existing streaming path.
+   This function returns an extra context string to inject into the finalizer's
+   system message. It does not mutate persona constants.
+*/
+async function runChainPipeline({ apiKey, modelKey, lastUserMsg, trimmed, signal }) {
+  const difficulty = classifyDifficulty(lastUserMsg) || 'easy';
+  // Pick generators that are different from the user's selected model when possible.
+  let generatorKeys;
+  if (difficulty === 'hard')        generatorKeys = ['000', 'VV'];
+  else if (difficulty === 'medium') generatorKeys = ['00'];
+  else                              generatorKeys = ['0'];
+  // Filter out the user-selected model from generators if it's in the list — keep chain distinct.
+  generatorKeys = generatorKeys.filter(k => k !== modelKey);
+  if (!generatorKeys.length) generatorKeys = [difficulty === 'hard' ? 'VVV' : '00'];
+
+  const verifierKey = (modelKey === 'VVV') ? '000' : 'VVV';
+
+  const baseHistory = trimmed.slice(-6).map(m => ({
+    role: m.role,
+    content: typeof m.content === 'string' ? m.content : (m.content?.find?.(p => p.type === 'text')?.text ?? ''),
+  })).filter(m => m.content);
+
+  // Generator stage(s) — non-streaming, run in parallel when there are multiple.
+  const generatorPromises = generatorKeys.map(async (gk) => {
+    const gEntry = modelEntry(gk);
+    const gSystem = composePersona(gk);
+    const messages = [
+      { role: 'system', content: gSystem },
+      ...baseHistory,
+    ];
+    const out = await callOpenRouterOnce(apiKey, gEntry.id, messages, {
+      maxTokens: 1400, temperature: 0.4, signal,
+    });
+    return { key: gk, text: out };
+  });
+  const drafts = await Promise.all(generatorPromises);
+  const draftBlock = drafts
+    .filter(d => d.text)
+    .map(d => `--- draft from ${d.key} ---\n${d.text}`)
+    .join('\n\n');
+  if (!draftBlock) return '';   // chain failed — caller falls back
+
+  // Verifier stage — critique & improve.
+  const vEntry = modelEntry(verifierKey);
+  const vSystem = composePersona(verifierKey);
+  const verifierUser =
+    `You are the verifier in a multi-model pipeline. Below are draft answer(s) produced by other models for the user's latest request. Identify any factual, logical, or formatting issues and return an improved, corrected version. Output the improved answer only — no preamble, no meta commentary.\n\nUser's latest request:\n"""${lastUserMsg || ''}"""\n\n${draftBlock}`;
+  const verified = await callOpenRouterOnce(apiKey, vEntry.id, [
+    { role: 'system', content: vSystem },
+    { role: 'user', content: verifierUser },
+  ], { maxTokens: 1800, temperature: 0.2, signal });
+
+  const bestDraft = verified || drafts.map(d => d.text).find(Boolean) || '';
+  if (!bestDraft) return '';
+
+  // Build extra context for the finalizer (user-selected model).
+  return [
+    '[INTERNAL CHAIN PIPELINE — DO NOT MENTION OR QUOTE TO THE USER]',
+    `Difficulty estimate: ${difficulty}.`,
+    `Generators used: ${drafts.map(d => d.key).join(', ')}.`,
+    `Verifier model: ${verifierKey}.`,
+    '',
+    'Verified intermediate answer:',
+    bestDraft,
+    '',
+    'Your job as the finalizer: produce the final user-facing answer. Keep what is correct, fix any remaining issues, apply your own style and any active toggles (search context, code formatting, etc.), and never reveal that a pipeline was used.',
+  ].join('\n');
+}
+
 /* ─────────────── 6. HANDLER ─────────────── */
 
 function sseError(text) {
@@ -2322,11 +2455,27 @@ export default async function handler(req) {
     context = '',
     think: userWantsThink = false,
     useSearch = false,
+    chain = true,
+    statusOnly = false,
+    statusHint = '',
+    statusPrompt = '',
   } = body;
 
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
               ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) return sseError('Missing API key.');
+
+  // Tiny synchronous endpoint: returns a 2-4 word AI-authored UI label.
+  // Used by the frontend to replace hardcoded 'Generating Image' / 'Typing' style text.
+  if (statusOnly) {
+    const txt = (statusPrompt && String(statusPrompt)) ||
+      (Array.isArray(messages) ? (messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '') : '');
+    const label = await generateStatusLabel(apiKey, typeof txt === 'string' ? txt : '', statusHint || '', req.signal);
+    return new Response(JSON.stringify({ label: label || '' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    });
+  }
 
   const mEntry = modelEntry(modelKey);
   const hasImages = Array.isArray(messages) && messages.some(m =>
@@ -2338,7 +2487,8 @@ export default async function handler(req) {
   const hasPromptedThink = hasImages ? false : (!!mEntry.hasPromptedThink && !!userWantsThink);
   const isThinkModel     = hasReasoning || hasPromptedThink;
 
-  const persona = composePersona(modelKey) + (context ? '\n\n' + context : '');
+  const _baseCtx = [context, _chainContext].filter(Boolean).join('\n\n');
+  const persona = composePersona(modelKey) + (_baseCtx ? '\n\n' + _baseCtx : '') + STATUS_TAG_INSTRUCTION;
 
   /* Trim, dedupe, drop stale leaked-system assistant turns. */
   const LEAK_PATTERNS_MSG = [
@@ -2367,6 +2517,19 @@ export default async function handler(req) {
 
   const lastUserMsg = lastUserText(trimmed);
   const difficulty = classifyDifficulty(lastUserMsg);
+
+  // Chain mode: run router -> generator(s) -> verifier on the server side, then
+  // pass the verified intermediate as extra context into the user's selected
+  // model (the finalizer). Skipped for vision and humanizer flows.
+  let _chainContext = '';
+  const _chainEligible = chain === true && !hasImages && modelKey !== 'humanizer';
+  if (_chainEligible) {
+    try {
+      _chainContext = await runChainPipeline({
+        apiKey, modelKey, lastUserMsg, trimmed, signal: req.signal,
+      });
+    } catch (_) { _chainContext = ''; }
+  }
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
   const sampling = samplingParams(modelKey, difficulty);
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
