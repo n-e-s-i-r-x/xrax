@@ -16,7 +16,6 @@ const MODEL_MAP = {
   'VV':        { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
   'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
-  'lfm':       { id: 'poolside/laguna-xs.2:free',                 hasReasoning:true,  hasPromptedThink:false, minTokens:2000 },
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
 const modelEntry = (key) => MODEL_MAP[key] ?? MODEL_MAP['0'];
@@ -2292,61 +2291,6 @@ function makePromptedThinkFilter() {
   };
 }
 
-/* ─────────────── 6.5 AI STATUS LABELS ─────────────── */
-/* The status instruction is concatenated onto the persona at request-build
-   time so the model emits a short <status>LABEL</status> prelude that the
-   frontend strips and uses as the live typing indicator. */
-
-// Mandatory prelude appended (not edited into) the system message so the model
-// always emits a short AI-authored UI label before the answer. The frontend
-// strips <status>...</status> from the visible reply.
-const STATUS_TAG_INSTRUCTION = `
-
-OUTPUT PRELUDE — MANDATORY:
-The very first characters of your reply must be a single tag of the form <status>LABEL</status> where LABEL is a 2 to 4 word present-tense phrase describing what you are about to do for the user (for example: <status>solving the equation</status>, <status>drafting the email</status>, <status>checking the code</status>). Do not put anything before <status>. Do not mention the tag itself. Continue with your normal response immediately after </status>.`;
-
-function _chatHeaders(apiKey) {
-  return {
-    'Authorization': `Bearer ${apiKey}`,
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://0vai.vercel.app',
-    'X-Title': '0vAI',
-  };
-}
-
-async function callOpenRouterOnce(apiKey, modelId, messages, { maxTokens = 600, temperature = 0.3, signal } = {}) {
-  try {
-    const res = await fetchWithRetry('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: _chatHeaders(apiKey),
-      body: JSON.stringify({ model: modelId, messages, temperature, max_tokens: maxTokens, stream: false }),
-      signal,
-    }, 2);
-    if (!res || !res.ok) return '';
-    const j = await res.json();
-    return (j?.choices?.[0]?.message?.content || '').trim();
-  } catch (_) { return ''; }
-}
-
-function _cleanLabel(s) {
-  if (!s) return '';
-  let t = String(s).replace(/<\/?status>/gi, '').replace(/[\r\n]+/g, ' ').replace(/["'`*_]/g, '').trim();
-  t = t.replace(/^[-•*\d.\)\s]+/, '').trim();
-  const words = t.split(/\s+/).filter(Boolean).slice(0, 5);
-  return words.join(' ').slice(0, 48);
-}
-
-async function generateStatusLabel(apiKey, userText, hint, signal) {
-  const lfm = MODEL_MAP['lfm'] || MODEL_MAP['00'];
-  const sys = 'You output short UI activity labels. Reply with ONLY the label, no quotes, no punctuation.';
-  const usr = `Write a 2 to 4 word present-progressive label describing what an AI assistant is about to do for this request${hint ? ' (stage: ' + hint + ')' : ''}.\n\nRequest:\n"""${(userText || '').slice(0, 600)}"""`;
-  const out = await callOpenRouterOnce(apiKey, lfm.id, [
-    { role: 'system', content: sys },
-    { role: 'user', content: usr },
-  ], { maxTokens: 16, temperature: 0.4, signal });
-  return _cleanLabel(out);
-}
-
 /* ─────────────── 6. HANDLER ─────────────── */
 
 function sseError(text) {
@@ -2378,26 +2322,11 @@ export default async function handler(req) {
     context = '',
     think: userWantsThink = false,
     useSearch = false,
-    statusOnly = false,
-    statusHint = '',
-    statusPrompt = '',
   } = body;
 
   const apiKey = (typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined)
               ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) return sseError('Missing API key.');
-
-  // Tiny synchronous endpoint: returns a 2-4 word AI-authored UI label.
-  // Used by the frontend to replace hardcoded 'Generating Image' / 'Typing' style text.
-  if (statusOnly) {
-    const txt = (statusPrompt && String(statusPrompt)) ||
-      (Array.isArray(messages) ? (messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '') : '');
-    const label = await generateStatusLabel(apiKey, typeof txt === 'string' ? txt : '', statusHint || '', req.signal);
-    return new Response(JSON.stringify({ label: label || '' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-    });
-  }
 
   const mEntry = modelEntry(modelKey);
   const hasImages = Array.isArray(messages) && messages.some(m =>
@@ -2408,6 +2337,8 @@ export default async function handler(req) {
   const hasReasoning     = hasImages ? false : (!!mEntry.hasReasoning && !!userWantsThink);
   const hasPromptedThink = hasImages ? false : (!!mEntry.hasPromptedThink && !!userWantsThink);
   const isThinkModel     = hasReasoning || hasPromptedThink;
+
+  const persona = composePersona(modelKey) + (context ? '\n\n' + context : '');
 
   /* Trim, dedupe, drop stale leaked-system assistant turns. */
   const LEAK_PATTERNS_MSG = [
@@ -2436,9 +2367,6 @@ export default async function handler(req) {
 
   const lastUserMsg = lastUserText(trimmed);
   const difficulty = classifyDifficulty(lastUserMsg);
-
-  const persona = composePersona(modelKey) + (context ? '\n\n' + context : '') + STATUS_TAG_INSTRUCTION;
-
   const temp = effectiveTemperature(modelKey, temperature, lastUserMsg);
   const sampling = samplingParams(modelKey, difficulty);
   const effectiveMaxTokens = Math.max(maxTokens, mEntry.minTokens ?? 5000);
