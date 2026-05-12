@@ -2357,6 +2357,11 @@ async function runAgent({ persona, history, workspace, send, signal, reqUrl, api
   let triedFallback = false;
   let toolCalls = 0;
   let finishedSummary = '';
+  // Buffer the latest natural-language reply across turns so we emit it
+  // EXACTLY ONCE at the end instead of streaming the same text each iteration.
+  let pendingAssistantText = '';
+  let seenTexts = new Set(); // de-dupe identical text turns from the model
+  let nudged = false;
   send(sseMeta({ agent: { type: 'log', level: 'info', line: `agent online · model=${modelId}` } }));
 
   while (true) {
@@ -2389,18 +2394,42 @@ async function runAgent({ persona, history, workspace, send, signal, reqUrl, api
       ...(calls.length ? { tool_calls: calls } : {}),
     });
 
-    // Stream any free-form chat text — for conversational turns (no tools), use it as the reply.
-    if (text) send(sseContent(text + '\n'));
+    // Track the most recent natural-language text. Mid-loop text (with tool
+    // calls) is surfaced as a log line for the agent panel so the user can see
+    // the model's narration — but it is NOT streamed into the final reply,
+    // which is emitted exactly once after the loop ends. This prevents the
+    // model from "repeating itself" in the visible reply.
+    if (text) {
+      pendingAssistantText = text;
+      if (calls.length) {
+        const trimmed = text.length > 220 ? text.slice(0, 220) + '…' : text;
+        send(sseMeta({ agent: { type:'log', level:'info', line: trimmed } }));
+      }
+    }
 
     if (!calls.length) {
       const fr = choice?.finish_reason;
       // If the model gave a clean text reply with a terminal finish reason (stop/end),
       // treat it as the agent's final answer instead of nudging it forever.
       if (text && (fr === 'stop' || fr === 'end_turn' || fr === 'eos')) {
-        finishedSummary = text.slice(0, 500);
+        finishedSummary = text.slice(0, 2000);
         break;
       }
-      // Otherwise nudge once to call finish, then bail next iteration if still no tool.
+      // De-dupe: if the model already produced this same text once before
+      // without a tool call, don't keep nudging — break with what we have.
+      const sig = text || '<empty>';
+      if (seenTexts.has(sig)) {
+        finishedSummary = text ? text.slice(0, 2000) : '';
+        break;
+      }
+      seenTexts.add(sig);
+      // Nudge ONCE only. If we already nudged and still no tool call, bail
+      // out with the latest text rather than looping into repetition.
+      if (nudged) {
+        finishedSummary = text ? text.slice(0, 2000) : '';
+        break;
+      }
+      nudged = true;
       messages.push({ role: 'user', content: 'If the task is complete, call `finish` with a brief summary. Otherwise call the next required tool.' });
       toolCalls++;
       continue;
@@ -2446,9 +2475,14 @@ async function runAgent({ persona, history, workspace, send, signal, reqUrl, api
     if (finishedSummary) break;
   }
 
+  // Emit the final reply exactly once. Prefer the summary from the `finish`
+  // tool (or terminal stop), otherwise fall back to the latest assistant text
+  // we buffered across turns. This is the ONLY place we stream prose to the
+  // chat — preventing the agent from "repeating the same text" repeatedly.
+  const finalReply = (finishedSummary || pendingAssistantText || '').trim();
   send(sseMeta({ agent: { type:'workspace', files: ws.files, entry: ws.entry } }));
-  send(sseMeta({ agent: { type:'done', summary: finishedSummary || '' } }));
-  if (finishedSummary) send(sseContent(`\n${finishedSummary}`));
+  send(sseMeta({ agent: { type:'done', summary: finalReply.slice(0, 500) } }));
+  if (finalReply) send(sseContent(finalReply));
   send(`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n`);
   send(sseDone);
 }
