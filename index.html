@@ -2518,7 +2518,7 @@ window.AgentUI = (function(){
         setHeadDone();
         setBusy(false);
         renderVVPanel(aiId);
-        if(state.currentAiId) injectShowBtn(state.currentAiId);
+        if(state.currentAiId && Object.keys(state.workspace.files).length > 0) injectShowBtn(state.currentAiId);
         break;
     }
   }
@@ -2590,6 +2590,12 @@ window.AgentUI = (function(){
   function setHeadDone(){
     const root = state.currentAiId && document.getElementById(state.currentAiId+'vv');
     if(root) root.classList.add('vv-done');
+    // Complete progress bar
+    const progBar = state.currentAiId && document.getElementById(state.currentAiId+'vvbar');
+    if(progBar) progBar.style.width = '100%';
+    // Update head label
+    const headLbl = state.currentAiId && document.getElementById(state.currentAiId+'vv')?.querySelector('.vv-head-lbl');
+    if(headLbl) headLbl.textContent = 'VV is done';
   }
 
   /* ── renderer ── */
@@ -2602,10 +2608,28 @@ window.AgentUI = (function(){
     if(planWrap && planList){
       if(state.plan.steps.length){
         planWrap.style.display = '';
+        const total = state.plan.steps.length;
+        const done = state.plan.steps.filter(s=>s.status==='done').length;
+        const hasInProgress = state.plan.steps.some(s=>s.status==='in_progress');
+        // Update sec label with progress
+        const secLbl = document.getElementById(aiId+'vvseclbl') || planWrap.querySelector('.vv-sec-lbl');
+        if(secLbl){
+          if(done===total) secLbl.innerHTML = 'Plan &nbsp;<span style="color:#4ade80;letter-spacing:0;font-weight:600">✓ Done</span>';
+          else if(hasInProgress||done>0) secLbl.innerHTML = 'Plan &nbsp;<span style="color:#ff2d78;letter-spacing:0;font-weight:600">'+done+' / '+total+'</span>';
+          else secLbl.textContent = 'Plan';
+        }
+        // Drive progress bar
+        const progWrap = document.getElementById(aiId+'vvprog');
+        const progBar = document.getElementById(aiId+'vvbar');
+        if(progWrap && progBar){
+          progWrap.style.display = '';
+          const pct = total > 0 ? Math.round((done/total)*100) : 0;
+          progBar.style.width = Math.max(pct, hasInProgress?8:0) + '%';
+        }
         planList.innerHTML = state.plan.steps.map((s,i) =>
-          '<div class="vv-plan-row '+s.status+'">'
+          '<div class="vv-plan-row '+s.status+'" style="animation-delay:'+(i*35)+'ms">'
           + '<span class="vv-glyph"></span>'
-          + '<span class="vv-plan-num">'+(i+1)+'.</span>'
+          + '<span class="vv-plan-num">'+(i+1)+'</span>'
           + '<span class="vv-plan-text">'+escHtml(s.text)+'</span>'
           + '</div>'
         ).join('');
@@ -2788,45 +2812,95 @@ function viewCode(btn){
   else if(lang==='svg'){html=`<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;}
   else{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}
 /* ── VV Lovable-style Step Card Panel ── */
-.vv-panel.vv-ui{background:#0d0a18;border:1px solid #1f1830;border-radius:14px;padding:14px;margin-bottom:8px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 rgba(255,45,120,.04) inset;}
+.vv-panel.vv-ui{background:#0d0a18;border:1px solid #1f1830;border-radius:14px;padding:14px;margin-bottom:8px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 0 rgba(255,45,120,.04) inset;}
 .vv-panel .vv-head{display:flex;align-items:center;gap:10px;}
-.vv-panel .vv-orb{width:10px;height:10px;border-radius:50%;background:#ff2d78;box-shadow:0 0 10px #ff2d78,0 0 2px #ff2d78;animation:vvPulse 1.6s ease-in-out infinite;flex-shrink:0;}
+.vv-panel .vv-orb{width:9px;height:9px;border-radius:50%;background:#ff2d78;box-shadow:0 0 10px #ff2d78,0 0 2px #ff2d78;animation:vvPulse 1.6s ease-in-out infinite;flex-shrink:0;}
 .vv-panel.vv-done .vv-orb{animation:none;background:#4ade80;box-shadow:0 0 8px #4ade80;}
 .vv-panel .vv-head-lbl{font-size:12.5px;font-weight:700;color:#fff;letter-spacing:.3px;}
-.vv-panel .vv-head-sub{font-size:11px;color:#7a6aaa;font-family:Menlo,monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vv-panel .vv-head-sub{font-size:11px;color:#6a5a8a;font-family:Menlo,monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 @keyframes vvPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.25);opacity:.75;}}
-.vv-panel .vv-sec-lbl{font-size:9.5px;font-weight:700;color:#5a4f7a;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;}
+.vv-progress{height:2px;background:#1a1028;border-radius:2px;overflow:hidden;margin:-4px 0 0;}
+.vv-progress-bar{height:100%;background:linear-gradient(90deg,#ff2d78,#c026d3);border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+.vv-panel.vv-done .vv-progress-bar{background:linear-gradient(90deg,#4ade80,#22c55e);}
+.vv-panel .vv-sec-lbl{font-size:9px;font-weight:700;color:#4a3f6a;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+.vv-plan{background:#08060e;border:1px solid #12102a;border-radius:10px;padding:12px 12px 12px 10px;}
 .vv-plan-list{display:flex;flex-direction:column;gap:6px;}
-.vv-plan-row{display:flex;align-items:flex-start;gap:9px;padding:6px 10px;border-radius:8px;font-size:13px;line-height:1.45;color:#bcb0e0;background:#0a0814;border:1px solid #14102a;position:relative;overflow:hidden;}
-.vv-plan-row.in_progress{color:#fff;border-color:#3a1030;background:linear-gradient(90deg,#0a0814,#15102a,#0a0814);background-size:200% 100%;animation:vvSheen 1.8s linear infinite;}
-.vv-plan-row.done{color:#7a8a78;}
-.vv-plan-row.done .vv-plan-text{text-decoration:line-through;text-decoration-color:#2a3a28;}
-.vv-plan-row.error{color:#ff8aa6;border-color:#3a1030;}
-.vv-plan-num{font-family:Menlo,monospace;font-size:11px;color:#5a4f7a;flex-shrink:0;width:18px;}
-.vv-plan-text{flex:1;word-break:break-word;}
+/* ── VV Step Cards (agentic progress) ── */
+.vv-plan-list{display:flex;flex-direction:column;gap:0;position:relative;}
+/* vertical connector line */
+.vv-plan-list::before{content:'';position:absolute;left:19px;top:22px;bottom:22px;width:1px;background:linear-gradient(180deg,#2a1c4a,#1a1030);z-index:0;}
+
+@keyframes vvRowIn{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:translateX(0);}}
+.vv-plan-row{display:flex;align-items:flex-start;gap:12px;padding:9px 10px 9px 10px;border-radius:0;font-size:13px;line-height:1.45;color:#9b8acc;background:transparent;border:none;position:relative;z-index:1;transition:color .25s;animation:vvRowIn .25s ease both;}
+.vv-plan-row:first-child{padding-top:4px;}
+.vv-plan-row:last-child{padding-bottom:4px;}
+
+/* step icon circle */
+.vv-glyph{width:18px;height:18px;border-radius:50%;border:1.5px solid #2a223a;flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center;justify-content:center;position:relative;box-sizing:border-box;background:#0d0a18;transition:border-color .25s,background .25s,box-shadow .25s;z-index:1;}
+
+/* pending */
+.vv-plan-row.pending > .vv-glyph{border-color:#2a223a;background:#0d0a18;}
+.vv-plan-row.pending > .vv-glyph::after{content:'';width:5px;height:5px;border-radius:50%;background:#2a223a;}
+
+/* in_progress — spinner ring + glowing pink border */
+.vv-plan-row.in_progress{color:#e6dcfa;}
+.vv-plan-row.in_progress > .vv-glyph{border-color:transparent;background:#0d0a18;box-shadow:0 0 0 1.5px #ff2d78,0 0 8px rgba(255,45,120,.35);animation:none;}
+.vv-plan-row.in_progress > .vv-glyph::before{content:'';position:absolute;inset:-1.5px;border-radius:50%;border:1.5px solid transparent;border-top-color:#ff2d78;border-right-color:rgba(255,45,120,.3);animation:vvSpin .85s linear infinite;}
+.vv-plan-row.in_progress > .vv-glyph::after{content:'';width:4px;height:4px;border-radius:50%;background:#ff2d78;box-shadow:0 0 4px #ff2d78;}
+
+/* done — green fill + checkmark */
+.vv-plan-row.done > .vv-glyph{border-color:#22c55e;background:#0f2b1a;box-shadow:0 0 6px rgba(34,197,94,.2);}
+.vv-plan-row.done > .vv-glyph::before{content:'';position:absolute;left:4px;top:2px;width:5px;height:8px;border-right:1.5px solid #4ade80;border-bottom:1.5px solid #4ade80;transform:rotate(45deg);}
+.vv-plan-row.done > .vv-glyph::after{display:none;}
+.vv-plan-row.done{color:#4a5a48;}
+.vv-plan-row.done .vv-plan-text{text-decoration:line-through;text-decoration-color:#2a3a28;text-decoration-thickness:1px;}
+
+/* error — red X */
+.vv-plan-row.error > .vv-glyph{border-color:#ff5577;background:#1e0a10;box-shadow:0 0 6px rgba(255,85,119,.25);}
+.vv-plan-row.error > .vv-glyph::before{content:'✕';position:absolute;font-size:9px;color:#ff5577;font-weight:700;line-height:1;top:50%;left:50%;transform:translate(-50%,-50%);}
+.vv-plan-row.error > .vv-glyph::after{display:none;}
+.vv-plan-row.error{color:#ff8aa6;}
+.vv-plan-row.error .vv-plan-text{color:#ff8aa6;}
+
+.vv-plan-num{font-family:Menlo,monospace;font-size:10px;color:#5a4f7a;flex-shrink:0;width:14px;padding-top:2px;transition:color .25s;}
+.vv-plan-row.in_progress .vv-plan-num{color:#ff2d78;}
+.vv-plan-row.done .vv-plan-num{color:#2a3a28;}
+.vv-plan-text{flex:1;word-break:break-word;font-size:12.5px;transition:color .25s;}
+.vv-plan-row.in_progress .vv-plan-text{color:#fff;font-weight:500;}
+
 @keyframes vvSheen{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
-.vv-glyph{width:14px;height:14px;border-radius:50%;border:1.5px solid #2a223a;flex-shrink:0;margin-top:2px;display:inline-block;position:relative;box-sizing:border-box;}
-.vv-plan-row.in_progress > .vv-glyph,.vv-step.running > .vv-step-hdr > .vv-glyph{border-color:#ff2d78;border-top-color:transparent;animation:vvSpin .9s linear infinite;}
-.vv-plan-row.done > .vv-glyph,.vv-step.done > .vv-step-hdr > .vv-glyph{border-color:#4ade80;background:#4ade80;}
-.vv-plan-row.done > .vv-glyph::after,.vv-step.done > .vv-step-hdr > .vv-glyph::after{content:'';position:absolute;left:3px;top:1px;width:4px;height:7px;border-right:1.5px solid #0d0a18;border-bottom:1.5px solid #0d0a18;transform:rotate(45deg);}
-.vv-plan-row.error > .vv-glyph,.vv-step.error > .vv-step-hdr > .vv-glyph{border-color:#ff5577;background:#ff5577;}
 @keyframes vvSpin{to{transform:rotate(360deg);}}
-.vv-steps-list{display:flex;flex-direction:column;gap:6px;}
-.vv-step{background:#0a0814;border:1px solid #14102a;border-radius:9px;overflow:hidden;}
-.vv-step.error{border-color:#3a1030;}
-.vv-step.running{border-color:#2a1c4a;}
-.vv-step-hdr{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;background:none;border:none;cursor:pointer;color:#bcb0e0;font-size:12px;text-align:left;}
-.vv-step-hdr:hover{background:#10091e;}
-.vv-step-hdr > .vv-glyph{margin-top:0;}
-.vv-step-name{font-family:Menlo,monospace;font-weight:600;color:#e6dcfa;flex-shrink:0;}
-.vv-step-arg{font-family:Menlo,monospace;font-size:11px;color:#7a6aaa;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.vv-step-dt{font-family:Menlo,monospace;font-size:10.5px;color:#5a4f7a;flex-shrink:0;}
-.vv-step-chev{color:#5a4f7a;transition:transform .15s ease;flex-shrink:0;}
+
+/* ── Tool step cards ── */
+.vv-steps-list{display:flex;flex-direction:column;gap:5px;}
+.vv-step{background:#08060e;border:1px solid #16102a;border-radius:10px;overflow:hidden;transition:border-color .2s;}
+.vv-step.error{border-color:#3a1020;}
+.vv-step.running{border-color:#2a1850;box-shadow:0 0 0 1px rgba(255,45,120,.08);}
+.vv-step.done{border-color:#12221a;}
+.vv-step-hdr{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;background:none;border:none;cursor:pointer;color:#bcb0e0;font-size:12px;text-align:left;transition:background .15s;}
+.vv-step-hdr:hover{background:#100c1e;}
+/* glyph inside step header */
+.vv-step-hdr > .vv-glyph{margin-top:0;width:14px;height:14px;}
+.vv-step.running > .vv-step-hdr > .vv-glyph{border-color:transparent;background:#0d0a18;box-shadow:0 0 0 1px #ff2d78;}
+.vv-step.running > .vv-step-hdr > .vv-glyph::before{content:'';position:absolute;inset:-1px;border-radius:50%;border:1.5px solid transparent;border-top-color:#ff2d78;animation:vvSpin .85s linear infinite;}
+.vv-step.running > .vv-step-hdr > .vv-glyph::after{content:'';width:3px;height:3px;border-radius:50%;background:#ff2d78;}
+.vv-step.done > .vv-step-hdr > .vv-glyph{border-color:#22c55e;background:#0f2b1a;}
+.vv-step.done > .vv-step-hdr > .vv-glyph::before{content:'';position:absolute;left:3px;top:1px;width:4px;height:7px;border-right:1.5px solid #4ade80;border-bottom:1.5px solid #4ade80;transform:rotate(45deg);}
+.vv-step.error > .vv-step-hdr > .vv-glyph{border-color:#ff5577;background:#1e0a10;}
+.vv-step.error > .vv-step-hdr > .vv-glyph::before{content:'✕';position:absolute;font-size:8px;color:#ff5577;font-weight:700;line-height:1;top:50%;left:50%;transform:translate(-50%,-50%);}
+.vv-step-name{font-family:Menlo,monospace;font-weight:600;color:#e6dcfa;flex-shrink:0;font-size:11.5px;}
+.vv-step.done .vv-step-name{color:#5a7a68;}
+.vv-step-arg{font-family:Menlo,monospace;font-size:10.5px;color:#6a5a8a;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vv-step-dt{font-family:Menlo,monospace;font-size:10px;color:#4a3f6a;flex-shrink:0;}
+.vv-step.done .vv-step-dt{color:#2a5a40;}
+.vv-step-chev{color:#4a3f6a;transition:transform .15s ease;flex-shrink:0;font-size:11px;}
 .vv-step.open .vv-step-chev{transform:rotate(90deg);}
-.vv-step-body{display:none;border-top:1px solid #14102a;background:#06040e;}
+.vv-step-body{display:none;border-top:1px solid #12102a;background:#05030c;}
 .vv-step.open .vv-step-body{display:block;}
 .vv-step-pre{font-family:Menlo,monospace;font-size:11px;line-height:1.55;color:#bcb0e0;padding:10px 12px;margin:0;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto;}
-.vv-activity-list{display:flex;flex-direction:column;gap:1px;background:#06040e;border:1px solid #14102a;border-radius:8px;padding:8px 10px;max-height:130px;overflow-y:auto;font-family:Menlo,monospace;font-size:11px;line-height:1.55;color:#9b8acc;}
+
+/* ── Activity log ── */
+.vv-activity-list{display:flex;flex-direction:column;gap:1px;background:#05030c;border:1px solid #12102a;border-radius:8px;padding:8px 10px;max-height:110px;overflow-y:auto;font-family:Menlo,monospace;font-size:10.5px;line-height:1.55;color:#6a5a8a;}
 .vv-act-line.tool{color:#4a9eff;}
 .vv-act-line.error{color:#ff5577;}
 .vv-act-line.warn{color:#fbbf24;}
@@ -3223,13 +3297,14 @@ function appendPending(id,isCodeMode){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
       <div class="vv-panel vv-ui" id="${id}vv" style="display:none;">
         <div class="vv-head"><div class="vv-orb"></div><div class="vv-head-lbl">VV is working</div><div class="vv-head-sub" id="${id}vvsub">Starting up…</div></div>
-        <div class="vv-plan" id="${id}vvplan" style="display:none;"><div class="vv-sec-lbl">Plan</div><div class="vv-plan-list" id="${id}vvplanlist"></div></div>
-        <div class="vv-steps" id="${id}vvsteps" style="display:none;"><div class="vv-sec-lbl">Steps</div><div class="vv-steps-list" id="${id}vvstepslist"></div></div>
-        <div class="vv-activity" id="${id}vvact" style="display:none;"><div class="vv-sec-lbl">Activity</div><div class="vv-activity-list" id="${id}vvactlist"></div></div>
+        <div class="vv-progress" id="${id}vvprog" style="display:none;"><div class="vv-progress-bar" id="${id}vvbar" style="width:0%"></div></div>
+        <div class="vv-plan" id="${id}vvplan" style="display:none;"><div class="vv-sec-lbl" id="${id}vvseclbl">Plan</div><div class="vv-plan-list" id="${id}vvplanlist"></div></div>
+        <div class="vv-steps" id="${id}vvsteps" style="display:none;"><div class="vv-sec-lbl">Tool calls</div><div class="vv-steps-list" id="${id}vvstepslist"></div></div>
+        <div class="vv-activity" id="${id}vvact" style="display:none;"><div class="vv-sec-lbl">Log</div><div class="vv-activity-list" id="${id}vvactlist"></div></div>
       </div>
-      <div class="vv-reply" id="${id}vvreply">
-        <div class="vv-reply-loading" id="${id}vvload"><span></span><span></span><span></span></div>
-        <div class="ai-txt" id="${id}txt"></div>
+      <div class="vv-reply" id="${id}vvreply" style="background:none;border:none;padding:0;margin:0;">
+        <div class="vv-reply-loading" id="${id}vvload" style="display:none;"><span></span><span></span><span></span></div>
+        <div class="ai-txt" id="${id}txt"><div class="activity-wrap" data-state="writing"><div class="activity-orb"><div class="activity-orb-ring"></div><div class="activity-orb-dot"></div></div><div class="activity-right"><div class="activity-label anim-dots">Typing</div></div></div></div>
       </div>
     </div></div></div></div>`;
   } else {
@@ -3269,16 +3344,10 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
   if(!res.ok)throw new Error('HTTP '+res.status);
   const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
   let pendingReplace=false;let replaceBuf='';
-  let streamMode=null;
+  // Never use drip mode — it causes spam-like rapid re-renders for short responses.
+  // Just yield chunks as they arrive; the throttled render handles pacing.
   try{while(true){const{done,value}=await reader.read();if(done)break;
     buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()??'';
-    if(streamMode===null){
-      const batchText=lines.reduce((acc,line)=>{
-        const l=line.trim();if(!l.startsWith('data:'))return acc;
-        try{const d=JSON.parse(l.slice(5).trim());return acc+(d.choices?.[0]?.delta?.content||'');}catch(_){return acc;}
-      },'');
-      if(batchText.length>0) streamMode = batchText.length > 60 ? 'drip' : 'live';
-    }
     for(const line of lines){
       const l=line.trim();if(!l.startsWith('data:'))continue;
       const raw=l.slice(5).trim();if(raw==='[DONE]'){
@@ -3303,11 +3372,7 @@ async function* streamRaw(msgs,extraCtx,modelKey,maxTok,abortSignal,contMode,use
             }else{
               const cleaned=stripSourceMarkers(text);
               if(!cleaned)continue;
-              if(streamMode==='drip'&&cleaned.length>12){
-                yield* dripText(cleaned, abortSignal);
-              }else{
-                yield cleaned;
-              }
+              yield cleaned;
             }
           }
         }
@@ -3432,8 +3497,6 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   const _renderAnswerNow=()=>{
     if(!txtEl)return;
     const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove();
-    /* hide VV reply loader once first text arrives */
-    const vvLoad=document.getElementById(aiId+'vvload'); if(vvLoad && answerText) vvLoad.style.display='none';
     txtEl.innerHTML=(window.renderMd||renderMd)(answerText)+'<span class="stream-cur"></span>';
     attachCodeBtns();
     if(S.settings.autoscroll)scrollBot();
