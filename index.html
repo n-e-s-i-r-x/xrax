@@ -2442,26 +2442,111 @@ window.AgentUI = (function(){
   }
   function select(p){ state.selected = p; renderWsTree(); renderWsViewer(); }
 
-  /* ── "Show" button injected into chat message when done ── */
+  /* ── Contextual action bar injected OUTSIDE generated app content ── */
   function injectShowBtn(aiId){
     const row = document.getElementById(aiId); if(!row) return;
-    if(row.querySelector('.vv-show-btn')) return;
+    if(row.querySelector('.vv-action-bar')) return;
     const target = row.querySelector('.vv-reply') || row.querySelector('.ai-body');
     if(!target) return;
-    const btn = document.createElement('button');
-    btn.className = 'vv-show-btn';
-    btn.textContent = 'Show';
-    btn.onclick = function(e){ e.stopPropagation(); AgentUI.openPage(); };
-    target.appendChild(btn);
+
+    const bar = document.createElement('div');
+    bar.className = 'vv-action-bar';
+    const hasFiles = Object.keys(state.workspace.files||{}).length > 0;
+    const entry = state.workspace.entry || pickDefaultEntry();
+
+    bar.innerHTML =
+      (hasFiles && entry ? `<button class="vv-act-btn vv-act-primary" onclick="AgentUI.openPage();AgentUI.wsTab('prev')" title="Open preview">
+        <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="1" width="8" height="1"/><rect x="0" y="6" width="8" height="1"/><rect x="0" y="1" width="1" height="6"/><rect x="7" y="1" width="1" height="6"/><rect x="2" y="3" width="2" height="2"/><rect x="5" y="2" width="1" height="4"/></svg>
+        Open Preview
+      </button>` : '') +
+      `<button class="vv-act-btn" onclick="AgentUI.openPage();AgentUI.wsTab('files')" title="View files">
+        <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="1" y="0" width="4" height="1"/><rect x="0" y="1" width="1" height="7"/><rect x="7" y="1" width="1" height="7"/><rect x="0" y="7" width="8" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="1" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="2" y="3" width="4" height="1"/><rect x="2" y="5" width="4" height="1"/></svg>
+        View Files
+      </button>` +
+      `<button class="vv-act-btn" onclick="AgentUI.downloadZip()" title="Download ZIP">
+        <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="3" y="0" width="2" height="4"/><rect x="2" y="4" width="4" height="1"/><rect x="1" y="5" width="6" height="1"/><rect x="2" y="6" width="4" height="1"/><rect x="3" y="7" width="2" height="1"/><rect x="0" y="7" width="8" height="1"/></svg>
+        Download ZIP
+      </button>` +
+      `<button class="vv-act-btn" onclick="(function(){const inp=document.getElementById('user-input');if(inp){inp.focus();inp.placeholder='Describe what to change…';}})()" title="Edit app">
+        <svg width="12" height="12" viewBox="0 0 8 8" fill="currentColor" shape-rendering="crispEdges"><rect x="5" y="0" width="2" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="0" y="5" width="2" height="1"/><rect x="0" y="6" width="1" height="2"/></svg>
+        Edit App
+      </button>`;
+
+    target.appendChild(bar);
   }
 
   /* ── Event ingestion (lovable.dev-style step cards) ── */
+  /* ── Animated agent step flow ── */
+  const AGENT_STEPS_FLOW = [
+    { id: 'init',    label: 'Initializing workspace' },
+    { id: 'plan',    label: 'Planning structure' },
+    { id: 'gen',     label: 'Generating components' },
+    { id: 'write',   label: 'Writing files' },
+    { id: 'check',   label: 'Running checks' },
+    { id: 'launch',  label: 'Launching preview' },
+    { id: 'done',    label: 'Completed' },
+  ];
+
+  function initAgentSteps(aiId){
+    const el = document.getElementById(aiId+'vvagsteps');
+    if(!el || el._initDone) return;
+    el._initDone = true;
+    el.innerHTML = AGENT_STEPS_FLOW.map((s,i)=>
+      `<div class="vv-ag-step pending" id="${aiId}ags${s.id}" style="animation-delay:${i*60}ms">
+        <span class="vv-ag-dot"></span>
+        <span class="vv-ag-label">${s.label}</span>
+        <span class="vv-ag-status"></span>
+      </div>`
+    ).join('');
+    /* Start the init step immediately */
+    setAgentStep(aiId, 'init', 'running');
+  }
+
+  function setAgentStep(aiId, stepId, status){
+    const el = document.getElementById(aiId+'ags'+stepId);
+    if(!el) return;
+    el.className = 'vv-ag-step ' + status;
+    const statusEl = el.querySelector('.vv-ag-status');
+    if(status === 'done' && statusEl) statusEl.textContent = '✓';
+    else if(status === 'running' && statusEl) statusEl.textContent = '';
+    else if(statusEl) statusEl.textContent = '';
+  }
+
+  /* Advance agent steps based on event type */
+  let _agentPhase = 'init';
+  function advanceAgentSteps(aiId, eventType){
+    const phases = {
+      'init': ['init'],
+      'plan': ['plan'],
+      'tool_call': ['gen','write'],
+      'tool_result': ['write','check'],
+      'done': ['launch','done'],
+    };
+    const candidates = phases[eventType] || [];
+    const order = AGENT_STEPS_FLOW.map(s=>s.id);
+    const curIdx = order.indexOf(_agentPhase);
+
+    for(const c of candidates){
+      const ci = order.indexOf(c);
+      if(ci > curIdx){
+        // complete current
+        setAgentStep(aiId, _agentPhase, 'done');
+        // start next
+        _agentPhase = c;
+        setAgentStep(aiId, _agentPhase, 'running');
+        break;
+      }
+    }
+  }
+
   function revealPanel(aiId){
     if(!aiId) return;
     const p = document.getElementById(aiId+'vv');
     if(p && p.style.display==='none'){
       p.style.display='';
       p.classList.add('vv-fade-in');
+      // Init the animated agent steps
+      initAgentSteps(aiId);
       // Also clear the "Typing" indicator from the reply txt since agent is running
       const txtEl = document.getElementById(aiId+'txt');
       if(txtEl){ const aw=txtEl.querySelector('.activity-wrap');if(aw)aw.remove(); }
@@ -2483,9 +2568,15 @@ window.AgentUI = (function(){
         if((ev.name||'') === 'plan'){
           ingestPlan(ev.args);
           setHeadSub('Planning…');
+          advanceAgentSteps(aiId, 'plan');
+          updateHeadLabel(aiId, 'Planning…');
         } else {
           openStep(ev);
-          setHeadSub((ev.name||'tool') + (ev.args && ev.args.path ? ' · ' + String(ev.args.path) : ''));
+          const toolName = ev.name || 'tool';
+          const pathHint = ev.args && ev.args.path ? ' · ' + String(ev.args.path).split('/').pop() : '';
+          setHeadSub(toolName + pathHint);
+          advanceAgentSteps(aiId, 'tool_call');
+          updateHeadLabel(aiId, toolLabelFor(toolName));
           if(state.plan.steps.length){
             const cur = state.plan.cursor;
             if(cur < state.plan.steps.length && state.plan.steps[cur].status === 'pending'){
@@ -2503,6 +2594,7 @@ window.AgentUI = (function(){
           pushActivity('✗ ' + (ev.name||'') + ' — ' + (ev.summary||''), 'error');
         } else {
           advancePlanCursor();
+          advanceAgentSteps(aiId, 'tool_result');
           if(ev.summary) pushActivity('✓ ' + (ev.name||'') + ' — ' + ev.summary, 'tool');
         }
         renderVVPanel(aiId);
@@ -2524,12 +2616,26 @@ window.AgentUI = (function(){
         break;
       case 'done':
         finalizePlan();
+        advanceAgentSteps(aiId, 'done');
         setHeadSub(ev.summary || 'Done');
         setHeadDone();
         setBusy(false);
         renderVVPanel(aiId);
         if(state.currentAiId && Object.keys(state.workspace.files).length > 0) injectShowBtn(state.currentAiId);
         break;
+    }
+  }
+
+  function toolLabelFor(name){
+    const map = { write_file:'Writing files…', read_file:'Reading file…', edit_file:'Editing file…', plan:'Planning…', finish:'Finishing up…', web_search:'Searching web…', fetch_url:'Fetching URL…', log:'Logging…', set_preview_entry:'Setting preview…', delete_file:'Deleting file…', rename_file:'Renaming file…' };
+    return map[name] || (name ? name.replace(/_/g,' ')+'…' : 'Working…');
+  }
+
+  function updateHeadLabel(aiId, text){
+    const collapse = aiId && document.getElementById(aiId+'vvcollapse');
+    const headLbl = collapse && collapse.querySelector('.vv-head-lbl');
+    if(headLbl && !document.getElementById(aiId+'vv')?.classList.contains('vv-done')){
+      headLbl.textContent = text;
     }
   }
 
@@ -2607,21 +2713,46 @@ window.AgentUI = (function(){
   function setHeadDone(){
     const root = state.currentAiId && document.getElementById(state.currentAiId+'vv');
     if(root) root.classList.add('vv-done');
-    // Complete progress bar
+    // Complete progress bar — stop shimmer if running, set to 100%
     const progBar = state.currentAiId && document.getElementById(state.currentAiId+'vvbar');
-    if(progBar) progBar.style.width = '100%';
+    if(progBar){ progBar.style.animation = ''; progBar.style.marginLeft = '0'; progBar.style.width = '100%'; }
     // Update head label to "Done"
     const collapse = state.currentAiId && document.getElementById(state.currentAiId+'vvcollapse');
     const headLbl = collapse && collapse.querySelector('.vv-head-lbl');
     if(headLbl) headLbl.textContent = 'Done';
     // Auto-collapse the panel when work is done (less noise)
-    if(collapse) collapse.classList.remove('open');
+    setTimeout(()=>{ if(collapse) collapse.classList.remove('open'); }, 800);
+    // Mark all agent steps done
+    if(state.currentAiId){
+      AGENT_STEPS_FLOW.forEach(s => setAgentStep(state.currentAiId, s.id, 'done'));
+    }
   }
 
   /* ── renderer ── */
   function renderVVPanel(aiId){
     if(!aiId) return;
     const root = document.getElementById(aiId+'vv'); if(!root) return;
+
+    /* Progress bar — always shown, driven by plan completion */
+    const progWrap = document.getElementById(aiId+'vvprog');
+    const progBar = document.getElementById(aiId+'vvbar');
+    if(progWrap && progBar){
+      progWrap.style.display = '';
+      const total = state.plan.steps.length;
+      if(total > 0){
+        const done = state.plan.steps.filter(s=>s.status==='done').length;
+        const hasInProgress = state.plan.steps.some(s=>s.status==='in_progress');
+        const pct = Math.round((done/total)*100);
+        progBar.style.animation = '';
+        progBar.style.width = Math.max(pct, hasInProgress?12:4) + '%';
+      } else {
+        // No plan yet — shimmer
+        if(!progBar.style.animation || progBar.style.animation === ''){
+          progBar.style.width = '30%';
+          progBar.style.animation = 'vvProgShimmer 2s ease-in-out infinite';
+        }
+      }
+    }
 
     const planWrap = document.getElementById(aiId+'vvplan');
     const planList = document.getElementById(aiId+'vvplanlist');
@@ -2635,16 +2766,8 @@ window.AgentUI = (function(){
         const secLbl = document.getElementById(aiId+'vvseclbl') || planWrap.querySelector('.vv-sec-lbl');
         if(secLbl){
           if(done===total) secLbl.innerHTML = 'Plan &nbsp;<span style="color:#4ade80;letter-spacing:0;font-weight:600">✓ Done</span>';
-          else if(hasInProgress||done>0) secLbl.innerHTML = 'Plan &nbsp;<span style="color:#ff2d78;letter-spacing:0;font-weight:600">'+done+' / '+total+'</span>';
+          else if(hasInProgress||done>0) secLbl.innerHTML = 'Plan &nbsp;<span style="color:#888;letter-spacing:0;font-weight:600">'+done+' / '+total+'</span>';
           else secLbl.textContent = 'Plan';
-        }
-        // Drive progress bar
-        const progWrap = document.getElementById(aiId+'vvprog');
-        const progBar = document.getElementById(aiId+'vvbar');
-        if(progWrap && progBar){
-          progWrap.style.display = '';
-          const pct = total > 0 ? Math.round((done/total)*100) : 0;
-          progBar.style.width = Math.max(pct, hasInProgress?8:0) + '%';
         }
         planList.innerHTML = state.plan.steps.map((s,i) =>
           '<div class="vv-plan-row '+s.status+'" style="animation-delay:'+(i*35)+'ms">'
@@ -2744,6 +2867,7 @@ window.AgentUI = (function(){
       state.busy = true;
       resetVVState();
       state.currentAiId = aiId || null;
+      _agentPhase = 'init';
     }
   }
 
@@ -2797,7 +2921,7 @@ window.AgentUI = (function(){
     }
   }
   function attachShowToLatestVV(){
-    /* Re-injection on conversation reload: append Show to the LAST VV ai row if files exist */
+    /* Re-injection on conversation reload: append action bar to the LAST VV ai row if files exist */
     if(!Object.keys(state.workspace.files||{}).length) return;
     const rows = document.querySelectorAll('.msg-row.ai');
     let last = null;
@@ -2806,13 +2930,8 @@ window.AgentUI = (function(){
       const m = c.msgs[+idx]; if(m && m.modelKey==='VV') last = r;
     });
     if(!last) return;
-    if(last.querySelector('.vv-show-btn')) return;
-    const body = last.querySelector('.ai-body'); if(!body) return;
-    const btn = document.createElement('button');
-    btn.className='vv-show-btn';
-    btn.textContent='Show';
-    btn.onclick=function(e){ e.stopPropagation(); openPage(); };
-    body.appendChild(btn);
+    if(last.querySelector('.vv-action-bar')) return;
+    injectShowBtn(last.id);
   }
 
   return { openPage, closePage, wsTab, handle, select, downloadZip, refreshPreview, getWorkspace, onSendStart, syncTrigger, finalizeRow, attachShowToLatestVV, injectShowBtn, _state: state };
@@ -2925,11 +3044,38 @@ function viewCode(btn){
 .vv-act-line.error{color:#ff5577;}
 .vv-act-line.warn{color:#fbbf24;}
 .vv-act-line.done{color:#4ade80;}
-/* ── VV "Show workspace" button — understated, like a pill ── */
-.vv-show-btn{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:7px 14px;background:#111;border:1px solid #2a2a2a;border-radius:8px;color:#aaa;font-size:12px;font-weight:500;cursor:pointer;transition:border-color .15s,color .15s,background .15s;}
-.vv-show-btn:hover{border-color:#444;color:#fff;background:#181818;}
-.vv-show-btn:active{background:#0e0e0e;}
-.vv-show-btn::before{content:'';width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 5px rgba(74,222,128,.5);flex-shrink:0;}
+/* ── VV Action Bar (replaces old Show button) ── */
+.vv-action-bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding:0;}
+.vv-act-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;border:1px solid #242424;background:#0e0e0e;color:#888;}
+.vv-act-btn:hover{border-color:#383838;color:#ccc;background:#141414;}
+.vv-act-btn:active{transform:scale(.95);}
+.vv-act-primary{border-color:#2a3a2a;background:#0a150a;color:#4ade80;}
+.vv-act-primary:hover{border-color:#3a5a3a;color:#6df0a0;background:#0f1f0f;}
+
+/* ── VV Animated Agent Step Flow ── */
+@keyframes vvAgStepIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+@keyframes vvAgDotSpin{to{transform:rotate(360deg);}}
+@keyframes vvAgDotPulse{0%,100%{opacity:.4;transform:scale(.8);}50%{opacity:1;transform:scale(1.1);}}
+.vv-agent-steps{display:flex;flex-direction:column;gap:0;padding:10px 12px;position:relative;}
+.vv-agent-steps::before{content:'';position:absolute;left:19px;top:24px;bottom:24px;width:1px;background:#1a1a1a;z-index:0;}
+.vv-ag-step{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12px;line-height:1.4;color:#444;position:relative;z-index:1;opacity:0;animation:vvAgStepIn .3s ease forwards;}
+.vv-ag-dot{width:16px;height:16px;border-radius:50%;border:1px solid #222;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;position:relative;background:#080808;transition:border-color .3s,background .3s,box-shadow .3s;box-sizing:border-box;z-index:1;}
+/* pending dot */
+.vv-ag-step.pending .vv-ag-dot::after{content:'';width:4px;height:4px;border-radius:50%;background:#1e1e1e;}
+/* running dot — spinning ring */
+.vv-ag-step.running{color:#ddd;}
+.vv-ag-step.running .vv-ag-dot{border-color:transparent;box-shadow:0 0 0 1px #555;}
+.vv-ag-step.running .vv-ag-dot::before{content:'';position:absolute;inset:-1px;border-radius:50%;border:1px solid transparent;border-top-color:#aaa;border-right-color:rgba(200,200,200,.3);animation:vvAgDotSpin .7s linear infinite;}
+.vv-ag-step.running .vv-ag-dot::after{content:'';width:3px;height:3px;border-radius:50%;background:#bbb;animation:vvAgDotPulse 1s ease-in-out infinite;}
+/* done dot — checkmark */
+.vv-ag-step.done{color:#3a5a3a;}
+.vv-ag-step.done .vv-ag-dot{border-color:#2a5a2a;background:#071307;}
+.vv-ag-step.done .vv-ag-dot::before{content:'';position:absolute;left:4px;top:2px;width:4px;height:7px;border-right:1.5px solid #4ade80;border-bottom:1.5px solid #4ade80;transform:rotate(45deg);}
+.vv-ag-step.done .vv-ag-dot::after{display:none;}
+.vv-ag-label{flex:1;font-size:11.5px;transition:color .25s;}
+.vv-ag-step.running .vv-ag-label{color:#eee;font-weight:500;}
+.vv-ag-step.done .vv-ag-label{text-decoration:line-through;text-decoration-color:#2a3a2a;text-decoration-thickness:1px;}
+.vv-ag-status{font-size:10px;color:#3a6a3a;font-family:Menlo,monospace;flex-shrink:0;min-width:14px;text-align:right;}
 /* VV reply — looks like a normal AI message, zero extra chrome */
 .vv-reply{margin-top:0;display:flex;flex-direction:column;align-items:flex-start;}
 .vv-reply .ai-txt{width:100%;}
@@ -2973,10 +3119,11 @@ function viewCode(btn){
 .vv-panel .vv-body{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1);}
 .vv-panel .vv-collapse.open .vv-body{max-height:500px;overflow-y:auto;}
 
-/* Progress bar — thin line below header */
+/* Progress bar — thin line below header, always shown during work */
 .vv-progress{height:1px;background:#1a1a1a;overflow:hidden;margin:0;}
-.vv-progress-bar{height:100%;background:linear-gradient(90deg,#333,#555);transition:width .5s cubic-bezier(.4,0,.2,1);}
+.vv-progress-bar{height:100%;background:linear-gradient(90deg,#333,#555);transition:width .6s cubic-bezier(.4,0,.2,1);}
 .vv-panel.vv-done .vv-progress-bar{background:#2a5a2a;}
+@keyframes vvProgShimmer{0%{margin-left:-60%;width:50%;}100%{margin-left:110%;width:50%;}}
 
 /* Plan steps inside body */
 .vv-panel .vv-plan{padding:10px 12px;display:flex;flex-direction:column;gap:0;position:relative;}
@@ -3426,12 +3573,13 @@ function appendPending(id,isCodeMode){
         <div class="vv-collapse" id="${id}vvcollapse">
           <div class="vv-head" onclick="(function(el){el.closest('.vv-collapse').classList.toggle('open');})(this)">
             <div class="vv-orb"></div>
-            <div class="vv-head-lbl">Working…</div>
+            <div class="vv-head-lbl">Initializing…</div>
             <div class="vv-head-sub" id="${id}vvsub"></div>
             <span class="vv-head-chev">›</span>
           </div>
-          <div class="vv-progress" id="${id}vvprog" style="display:none;"><div class="vv-progress-bar" id="${id}vvbar" style="width:0%"></div></div>
+          <div class="vv-progress" id="${id}vvprog"><div class="vv-progress-bar" id="${id}vvbar" style="width:0%"></div></div>
           <div class="vv-body">
+            <div class="vv-agent-steps" id="${id}vvagsteps"></div>
             <div class="vv-plan" id="${id}vvplan" style="display:none;"><div class="vv-sec-lbl" id="${id}vvseclbl">Steps</div><div class="vv-plan-list" id="${id}vvplanlist"></div></div>
             <div class="vv-steps" id="${id}vvsteps" style="display:none;"><div class="vv-steps-list" id="${id}vvstepslist"></div></div>
             <div class="vv-activity" id="${id}vvact" style="display:none;"><div class="vv-activity-list" id="${id}vvactlist"></div></div>
