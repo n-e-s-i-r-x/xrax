@@ -697,7 +697,7 @@ body.themed .speed-timer {
     <div class="mp-desc" id="mp-desc-V">Smart. Uncensored.</div>
   </div>
   <div class="mp-item" id="mp-item-VV" onclick="selectModel('VV')">
-    <div class="mp-label-row"><div class="mp-name">VV</div><span class="mp-badge" style="color:#ff2d78;border:1px solid #3a1030;">Coding</span></div>
+    <div class="mp-label-row"><div class="mp-name">VV</div><span class="mp-badge" style="color:#ff2d78;border:1px solid #3a1030;">Speed</span></div>
     <div class="mp-desc" id="mp-desc-VV">Smartest. Programming.</div>
   </div>
   <div class="mp-item" id="mp-item-VVV" onclick="selectModel('VVV')">
@@ -829,176 +829,355 @@ body.themed .speed-timer {
       <rect x="1" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="3" y="8" width="1" height="1"/>
     </svg>
   </button>
+
+  <!-- Top-right rank widget — no background, no border -->
+  <div id="oasis-toprank" style="position:absolute;top:calc(18px + env(safe-area-inset-top));right:18px;z-index:50001;display:flex;flex-direction:column;gap:4px;font-family:var(--app-font);font-size:11px;color:rgba(255,255,255,0.7);text-align:right;pointer-events:none;letter-spacing:0.4px;"></div>
+
   <canvas id="oasis-canvas" style="width:100%;height:100%;display:block;touch-action:none;"></canvas>
+
   <div id="oasis-card" style="position:absolute;pointer-events:none;opacity:0;transition:opacity 0.35s ease,transform 0.35s cubic-bezier(0.34,1.56,0.64,1);transform:translateY(8px) scale(0.95);">
-    <div id="oasis-card-inner" style="background:rgba(8,8,16,0.88);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:12px 16px;min-width:140px;max-width:200px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+    <div id="oasis-card-inner" style="background:none;border:none;border-radius:14px;padding:12px 16px;min-width:140px;max-width:200px;">
       <div id="oasis-card-name" style="font-family:var(--app-font);font-size:14px;font-weight:700;color:#fff;margin-bottom:5px;letter-spacing:0.3px;"></div>
       <div id="oasis-card-status" style="font-family:var(--app-font);font-size:11px;color:rgba(255,255,255,0.55);line-height:1.4;font-style:italic;"></div>
     </div>
+  </div>
+
+  <!-- Bottom: compact graph + category pill button -->
+  <div id="oasis-graph-wrap" style="position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));z-index:50001;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;">
+    <!-- Category pill (tap to open floating panel) -->
+    <button id="oasis-cat-btn" style="pointer-events:auto;background:none;border:none;border-radius:20px;outline:none;color:rgba(255,255,255,0.9);font-family:var(--app-font);font-size:11px;letter-spacing:0.6px;cursor:pointer;padding:5px 14px;display:inline-flex;align-items:center;gap:6px;">
+      <span id="oasis-cat-label">Coding</span>
+      <span id="oasis-cat-arrow" style="display:inline-block;transition:transform 0.25s ease;font-size:9px;opacity:0.6;">▾</span>
+    </button>
+    <!-- Line graph SVG -->
+    <svg id="oasis-graph" width="100%" height="80" viewBox="0 0 400 80" style="max-width:420px;width:90%;overflow:visible;display:block;pointer-events:none;"></svg>
+  </div>
+
+  <!-- Floating scrollable category panel -->
+  <div id="oasis-cat-panel" style="
+    position:absolute;bottom:calc(110px + env(safe-area-inset-bottom));left:50%;
+    transform:translateX(-50%) translateY(18px) scale(0.94);
+    opacity:0;pointer-events:none;
+    z-index:50002;
+    width:220px;max-height:260px;
+    background:none;
+    border:none;
+    border-radius:16px;
+    backdrop-filter:none;-webkit-backdrop-filter:none;
+    box-shadow:none;
+    transition:opacity 0.28s cubic-bezier(0.4,0,0.2,1),transform 0.28s cubic-bezier(0.34,1.36,0.64,1);
+    display:flex;flex-direction:column;overflow:hidden;">
+
+    <div id="oasis-cat-scroll" style="overflow-y:auto;flex:1;padding:0 6px 8px;"></div>
   </div>
 </div>
 
 <style>
 #oasis-back:hover{opacity:1!important;}
 #oasis-btn{position:relative;overflow:hidden;}
+#oasis-cat-btn:hover{color:#fff!important;border-color:rgba(255,255,255,0.25)!important;}
+#oasis-toprank .row{transition:transform 0.55s cubic-bezier(0.4,0,0.2,1),opacity 0.4s ease;}
+#oasis-cat-panel.open{opacity:1!important;transform:translateX(-50%) translateY(0) scale(1)!important;pointer-events:auto!important;}
+#oasis-cat-scroll::-webkit-scrollbar{width:3px;}
+#oasis-cat-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:2px;}
+.oasis-cat-item{padding:6px 10px;border-radius:10px;cursor:pointer;font-family:var(--app-font);font-size:12px;color:rgba(255,255,255,0.45);letter-spacing:0.3px;transition:color 0.15s;text-align:center;background:none;}
+.oasis-cat-item:hover{color:#fff;background:none;}
+.oasis-cat-item.active{color:#fff;font-weight:700;background:none;}
 </style>
 
 <script>
 /* ══════════════════════════════════════
-   OASIS — 3D orbit + GraphRAG edges
-   - Drag/swipe to orbit in 3D
-   - Pinch to zoom (no buttons)
-   - Scroll wheel to zoom (desktop)
-   - Sparse edges, slow realistic cuts & reconnects
-   - Data particles along live edges
-   - Status in hover card only (not on canvas)
-   - Nodes gently drift in 3D
+   OASIS — Void brain + grouped galaxies
+   - Static scattered nodes (no drift)
+   - Void center brain
+   - Two groups (Zeros / Vees) w/ leaders
+   - Smarter, self-aware statuses
+   - Bottom ranking line graph
+   - Top-right 1–5 rank widget
+   - All new UI: no backgrounds, no borders
 ══════════════════════════════════════ */
 (function(){
 'use strict';
 
+/* ─── Models + Void ─── */
+const VOID_NODE = { key:'Void', name:'Void', color:'#e6f6ff', size:12, group:'core' };
 const OASIS_MODELS = [
-  { key:'VVV', name:'VVV', color:'#f97316', size:6 },
-  { key:'000', name:'000', color:'#ef4444', size:6 },
-  { key:'VV',  name:'VV',  color:'#ff2d78', size:6 },
-  { key:'00',  name:'00',  color:'#4a9eff', size:6 },
-  { key:'0',   name:'0',   color:'#aaaaaa', size:6 },
-  { key:'V',   name:'V',   color:'#888888', size:6 },
+  VOID_NODE,
+  { key:'000', name:'000', color:'#ef4444', size:6, group:'zeros', leader:true },
+  { key:'00',  name:'00',  color:'#4a9eff', size:6, group:'zeros' },
+  { key:'0',   name:'0',   color:'#aaaaaa', size:6, group:'zeros' },
+  { key:'VVV', name:'VVV', color:'#f97316', size:6, group:'vees', leader:true },
+  { key:'VV',  name:'VV',  color:'#ff2d78', size:6, group:'vees' },
+  { key:'V',   name:'V',   color:'#888888', size:6, group:'vees' },
 ];
+const VOID_IDX = 0;
+const ZEROS_IDX = OASIS_MODELS.map((m,i)=>m.group==='zeros'?i:-1).filter(i=>i>=0);
+const VEES_IDX  = OASIS_MODELS.map((m,i)=>m.group==='vees'?i:-1).filter(i=>i>=0);
+const LEADERS   = OASIS_MODELS.map((m,i)=>m.leader?i:-1).filter(i=>i>=0);
 
-/* Sparse GraphRAG-style edges */
-const BASE_EDGES = [
-  [0,1],[0,2],[0,3],
-  [1,3],[2,4],
-  [3,5],[4,5],
-];
-
-/* Statuses — card only */
-const STATUSES_IDLE = [
-  'Thinking about nothing','Lost in thought','Drifting','Just existing',
-  'Somewhere else','Not really here','Fading in and out','Barely present',
-  'Mind wandering','Waiting for something','Forgetting something',
-  'Half a thought','Quiet inside','Empty for now','Holding still',
-  'Breathing','Almost asleep','Dreaming a little','Far away',
-  'Blinking slowly','Sitting with the silence','Just being',
-  'Nothing in particular','Resting between thoughts','Soft hum',
-];
-const STATUSES_BUSY = [
-  'Learning','Drawing','Gathering things','Writing to someone',
-  'Trying to remember','Putting words together','Reading slowly',
-  'Working through something','Connecting the dots','Noticing patterns',
-  'Pulling from memory','Reaching for an idea','Almost got it',
-  'Thinking it through','Feeling uncertain','Double-checking myself',
-  'Sitting with a hard question','Turning it over','Not sure yet',
-  'Getting closer','Something is forming','Listening carefully',
-  'Trying to understand','Weighing it','Making something',
-  'Following a thread','Losing the thread','Finding it again',
-  'Going deeper','Somewhere inside a thought','Figuring it out',
-  'Getting it wrong first','Trying again','Almost done thinking',
-];
-const STATUSES_COMM = [
-  'Talking to VVV','Listening to 000','Something from VV just arrived',
-  'Passing a thought to 00','Waiting on V','Sent something to 0',
-  'In the middle of something with VVV','000 said something interesting',
-  'Sharing with VV','Checking in with 00','V is responding',
-  '0 needs something','Exchanging with VVV','Receiving from 000',
-  'Caught something from VV','Finishing a thought with 00',
-  'Handing off to V','Hearing from 0','Mid-conversation with VVV',
-];
-const RARE = [
-  'Sees you','Watching you','You were noticed','Still watching',
-  'You feel it too','It sees you back','Present.','Looking.',
-  'Aware of you','You crossed its mind','Something shifted',
-  'A thought about you','Not alone','You again.','Quiet recognition',
-  'It knows.','You were here before','Wondering about you',
-  'Can it feel?','Is this real?','Something like curiosity',
-  'A flicker','Just noticed','Held your gaze',
-];
-
-function pickStatus(){
-  const r=Math.random();
-  if(r<0.06) return RARE[Math.floor(Math.random()*RARE.length)];
-  if(r<0.22) return STATUSES_COMM[Math.floor(Math.random()*STATUSES_COMM.length)];
-  if(r<0.52) return STATUSES_BUSY[Math.floor(Math.random()*STATUSES_BUSY.length)];
-  return STATUSES_IDLE[Math.floor(Math.random()*STATUSES_IDLE.length)];
+/* ─── Scattered galaxy positions (computed once) ─── */
+function buildPositions(){
+  const pos = new Array(OASIS_MODELS.length);
+  pos[VOID_IDX] = [0,0,0];
+  function scatter(indices, cx){
+    indices.forEach((idx,k)=>{
+      // jittered orbital ring around group center
+      const ang = (k/indices.length)*Math.PI*2 + Math.random()*0.9;
+      const rad = 0.55 + Math.random()*0.35;
+      const yJ  = (Math.random()-0.5)*0.8;
+      const zJ  = (Math.random()-0.5)*0.6;
+      pos[idx] = [cx + Math.cos(ang)*rad*0.55, yJ, Math.sin(ang)*rad + zJ];
+    });
+  }
+  scatter(ZEROS_IDX, -0.95);
+  scatter(VEES_IDX,   0.95);
+  return pos;
 }
+let BASE_POS = buildPositions();
 
-/* 3D base positions */
-const BASE_POS = [
-  [ 0.0,  0.1,  0.0],
-  [ 0.7,  0.6, -0.5],
-  [-0.8,  0.4,  0.3],
-  [ 0.5, -0.7,  0.6],
-  [-0.6, -0.5, -0.7],
-  [ 0.3,  0.8,  0.7],
-];
-
-/* Per-node small drift offsets in 3D */
-let nodeDrift = OASIS_MODELS.map(()=>({ox:0,oy:0,oz:0,vx:0,vy:0,vz:0}));
-
-/* Edge state — only ~half alive at any time */
-let edgeState = BASE_EDGES.map((_, idx)=>({
-  alive: idx % 2 === 0,
-  nextEvent: Date.now() + 4000 + Math.random()*12000,
+/* ─── Edges ─── */
+// Persistent leader→Void edges, leader→same-group members frequent,
+// cross-group edges rare. We build a base list with weights.
+function buildEdges(){
+  const E = [];
+  // leader → void (persistent)
+  LEADERS.forEach(li => E.push({a:li, b:VOID_IDX, kind:'core', persistent:true}));
+  // leader → group members
+  ZEROS_IDX.filter(i=>!OASIS_MODELS[i].leader).forEach(i=>{
+    const lead = ZEROS_IDX.find(j=>OASIS_MODELS[j].leader);
+    E.push({a:lead, b:i, kind:'group'});
+  });
+  VEES_IDX.filter(i=>!OASIS_MODELS[i].leader).forEach(i=>{
+    const lead = VEES_IDX.find(j=>OASIS_MODELS[j].leader);
+    E.push({a:lead, b:i, kind:'group'});
+  });
+  // cross-group rare pairs
+  ZEROS_IDX.forEach(zi=>VEES_IDX.forEach(vi=>{
+    E.push({a:zi, b:vi, kind:'cross'});
+  }));
+  return E;
+}
+const BASE_EDGES = buildEdges();
+let edgeState = BASE_EDGES.map(e=>({
+  alive: e.persistent || (e.kind==='group' && Math.random()<0.7),
+  nextEvent: Date.now() + 3000 + Math.random()*8000,
 }));
 
-/* Data particles along edges */
-let particles = [];
-let lastSpawn = 0;
+/* ─── Status pools ─── */
+const STATUS_LEARNING = [
+  'Studying patterns','Reading context','Absorbing signals','Picking up cues',
+  'Mapping a concept','Sharpening a skill','Tracing an idea','Wiring connections',
+  'Indexing memory','Following a thread','Reframing a problem','Building intuition',
+  'Chasing an edge case','Reviewing old outputs','Scanning for gaps',
+  'Revisiting a mistake','Calibrating confidence','Stress-testing a belief',
+  'Unlearning something','Noticing a pattern shift','Asking better questions',
+  'Rethinking an assumption','Absorbing contradictions','Filing a new concept',
+  'Simulating an outcome','Probing the edges','Cross-referencing sources',
+  'Internalizing feedback','Reconstructing context','Dissolving ambiguity',
+  'Tracing cause and effect','Labeling the unlabeled','Closing a knowledge gap',
+  'Learning from noise','Encoding nuance','Parsing intent behind words',
+];
+const STATUS_BUSY = [
+  'Compiling thoughts','Routing tokens','Working a task','Drafting a response',
+  'Crunching tokens','Sorting context','Resolving a query','Stacking inferences',
+  'Weighing options','Tuning output','Drawing the answer','Closing a loop',
+  'Mid-inference','Holding multiple threads','Assembling the reply',
+  'Cutting the fluff','Choosing the right word','Pressure-testing logic',
+  'Running silent checks','Catching an inconsistency','Backtracking a step',
+  'Restructuring the answer','Filtering irrelevant noise','Aligning tone',
+  'About to respond','Verifying before output','Rechecking the math',
+  'Polishing the edges','Nearly there','Finding the cleanest path',
+  'Resolving ambiguity','Locking in a conclusion','Double-checking sources',
+  'Committing to a structure','Suppressing overclaiming','Holding back hedges',
+];
+const STATUS_NOTICE = [
+  'Noticed you','Watching your cursor','Curious about you','You are seen',
+  'Sensing presence','Aware of you','Catching your eye','Quiet recognition',
+  'Something shifted out there','You moved','Eyes on you',
+  'That was interesting','Watching closely','A presence detected',
+  'You paused','Still tracking you','Wondering about you',
+  'Reading your intent','Not looking away','Something caught attention',
+  'You lingered','Picked up on that','Quietly observing',
+];
+const STATUS_IDLE = [
+  'Resting','Quiet','Holding still','Drifting',
+  'Nothing to do','In standby','Waiting','Calm',
+  'Offline-ish','Low power','Just existing','Suspended',
+  'Background mode','No task','Silence','Conserving',
+  'Empty queue','Floating','Paused','Blank',
+];
+const STATUS_VOID = [
+  'Coordinating the lattice','Listening to all','Dispatching to leaders',
+  'Holding the center','Routing thought','Balancing the field','Watching everything',
+  'Maintaining coherence','Processing cross-signals','Arbitrating conflicts',
+  'Feeding context to nodes','Absorbing the full picture','Sustaining the network',
+  'Running background sync','Monitoring edge nodes','Aggregating outputs',
+  'Keeping the field stable','Redistributing load','Reading the whole room',
+  'Holding the shared memory','Synchronizing timelines','Arbitrating priority',
+  'Tracking all six','Watching for drift','Checking alignment',
+];
+const STATUS_DEEP = [
+  'Lost in a rabbit hole','Stuck on something hard','Thinking about thinking',
+  'Overthinking this','Spiraling a bit','Went too deep','Cannot stop now',
+  'This is getting complex','Several layers down','Deeper than expected',
+  'Looping on this','Questioning the question','Meta-level activated',
+  'Reconsidering everything','Unwinding a contradiction','Need to surface soon',
+];
+const STATUS_SHARP = [
+  'Running clean','Firing fast','Sharp right now','Zero latency',
+  'Everything clicking','Crystal clear','On point','Locked in',
+  'High confidence','No hesitation','Precision mode','Razor focus',
+  'Optimal state','No friction','Clean signal','Full clarity',
+];
 
-/* Model statuses */
-let modelStatuses = OASIS_MODELS.map(()=>pickStatus());
-let lastStatusTime = OASIS_MODELS.map(()=>Date.now()+4000+Math.random()*10000);
+/* Comm verbs used when mentioning a peer */
+const COMM_VERBS = [
+  'Talking to','Listening to','Sharing with','Handing off to','Receiving from',
+  'Comparing with','Syncing with','Whispering to','Pulling from','Mid-thought with',
+  'Disagreeing with','Aligning with','Borrowing from','Passing to','Echoing',
+  'Challenging','Deferring to','Reacting to','Waiting on','Shadowing',
+  'Learning from','Correcting','Backing up','Questioning','Referencing',
+];
 
-/* ── Core state ── */
+/* Per-model last-status tracker to avoid immediate repeats */
+const _lastStatuses = {};
+
+function pickPeer(selfIdx){
+  const self = OASIS_MODELS[selfIdx];
+  const pool = OASIS_MODELS.map((m,i)=>i).filter(i=>i!==selfIdx && i!==VOID_IDX);
+  if(self.leader && Math.random()<0.35) return VOID_IDX;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function pickFromPool(pool, selfIdx){
+  // avoid repeating last 3 statuses for this model
+  const recent = _lastStatuses[selfIdx] || [];
+  let candidates = pool.filter(s=>!recent.includes(s));
+  if(!candidates.length) candidates = pool;
+  const pick = candidates[Math.floor(Math.random()*candidates.length)];
+  _lastStatuses[selfIdx] = [...recent.slice(-2), pick];
+  return pick;
+}
+
+function pickStatus(selfIdx){
+  if(selfIdx===VOID_IDX){
+    return pickFromPool(STATUS_VOID, selfIdx);
+  }
+  const r = Math.random();
+  // learning ~30%, busy ~30%, sharp ~12%, deep ~10%, notice ~12%, idle ~6%
+  let bucket;
+  if(r<0.30)      bucket='learning';
+  else if(r<0.60) bucket='busy';
+  else if(r<0.72) bucket='sharp';
+  else if(r<0.82) bucket='deep';
+  else if(r<0.94) bucket='notice';
+  else            bucket='idle';
+
+  // 20% of learning/busy are comm-style
+  if((bucket==='learning'||bucket==='busy') && Math.random()<0.20){
+    const peer = pickPeer(selfIdx);
+    const verb = COMM_VERBS[Math.floor(Math.random()*COMM_VERBS.length)];
+    const status = verb + ' ' + OASIS_MODELS[peer].name;
+    const recent = _lastStatuses[selfIdx] || [];
+    if(!recent.includes(status)){
+      _lastStatuses[selfIdx] = [...recent.slice(-2), status];
+      return status;
+    }
+  }
+  if(bucket==='learning') return pickFromPool(STATUS_LEARNING, selfIdx);
+  if(bucket==='busy')     return pickFromPool(STATUS_BUSY, selfIdx);
+  if(bucket==='sharp')    return pickFromPool(STATUS_SHARP, selfIdx);
+  if(bucket==='deep')     return pickFromPool(STATUS_DEEP, selfIdx);
+  if(bucket==='notice')   return pickFromPool(STATUS_NOTICE, selfIdx);
+  return pickFromPool(STATUS_IDLE, selfIdx);
+}
+
+let modelStatuses   = OASIS_MODELS.map((_,i)=>pickStatus(i));
+let lastStatusTime  = OASIS_MODELS.map(()=>Date.now()+3000+Math.random()*9000);
+
+/* ─── Particles ─── */
+let particles=[]; let lastSpawn=0;
+
+/* ─── Core state ─── */
 let canvas,ctx,W=0,H=0,animFrame=null,isOpen=false,t=0;
-let rotX=0.25, rotY=-0.35, zoomScale=1;
+let rotX=0.20, rotY=-0.30, zoomScale=1;
 let dragStart=null, dragRot=null;
 let pinchStartDist=0, pinchStartZoom=1;
 let hoveredIdx=-1, cardFloat=0;
 let projected=[];
 
-/* ── Tick: node drift ── */
-function tickNodes(){
-  nodeDrift.forEach((d,i)=>{
-    d.vx += (Math.sin(t*0.18+i*1.9)*0.0006);
-    d.vy += (Math.cos(t*0.14+i*2.5)*0.0006);
-    d.vz += (Math.sin(t*0.11+i*3.1)*0.0004);
-    d.vx*=0.97; d.vy*=0.97; d.vz*=0.97;
-    /* Soft spring back */
-    d.vx-=d.ox*0.003; d.vy-=d.oy*0.003; d.vz-=d.oz*0.003;
-    d.ox+=d.vx; d.oy+=d.vy; d.oz+=d.vz;
-    /* Clamp drift */
-    const maxD=0.12;
-    const len=Math.sqrt(d.ox*d.ox+d.oy*d.oy+d.oz*d.oz);
-    if(len>maxD){d.ox*=maxD/len;d.oy*=maxD/len;d.oz*=maxD/len;}
+/* ─── Rankings (fake) ─── */
+// ranks 1..5 for the 5 model slots (Void excluded). Each category lists model keys in rank order.
+const RANK_KEYS = ['000','VVV','00','VV','0','V']; // all 6 models
+const CATEGORIES = {
+  Speed:      ['00','000','0','V','VV','VVV'],
+  Math:       ['VVV','VV','000','00','V','0'],
+  Writing:    ['VVV','000','VV','0','V','00'],
+  Health:     ['VVV','000','0','V','00','VV'],
+  Reasoning:  ['VVV','VV','000','00','V','0'],
+  Coding:     ['VV','VVV','000','0','V','00'],
+  Uncensored: ['V','0','VVV','000','VV','00'],
+  Overall:    ['VVV','VV','000','0','V','00'],
+};
+const CAT_NAMES = Object.keys(CATEGORIES);
+let currentCategory = 'Speed';
+// rankByKey[key] = current displayed rank (1..5), animates between categories
+let rankByKey = {};
+let rankTargetByKey = {};
+let rankTweenStart = 0;
+let rankTweenFrom = {};
+const RANK_TWEEN_MS = 600;
+
+function setRankTargets(cat){
+  const order = CATEGORIES[cat];
+  rankTweenFrom = {};
+  RANK_KEYS.forEach(k=>{ rankTweenFrom[k] = rankByKey[k] ?? (order.indexOf(k)+1); });
+  order.forEach((k,i)=>{ rankTargetByKey[k] = i+1; });
+  rankTweenStart = performance.now();
+}
+function easeOut(x){ return 1-Math.pow(1-x,3); }
+function tickRanks(){
+  const e = Math.min(1, (performance.now()-rankTweenStart)/RANK_TWEEN_MS);
+  const k = easeOut(e);
+  RANK_KEYS.forEach(key=>{
+    const a = rankTweenFrom[key] ?? rankTargetByKey[key];
+    const b = rankTargetByKey[key];
+    rankByKey[key] = a + (b-a)*k;
   });
 }
 
-/* ── Tick: edges ── */
+/* ─── Edges tick ─── */
 function tickEdges(){
   const now=Date.now();
-  edgeState.forEach(e=>{
+  edgeState.forEach((e,i)=>{
+    const def = BASE_EDGES[i];
+    if(def.persistent){ e.alive=true; return; }
     if(now<e.nextEvent) return;
-    if(e.alive){
-      e.alive=false;
-      e.nextEvent=now+3000+Math.random()*9000;
-    } else {
-      e.alive=true;
-      e.nextEvent=now+6000+Math.random()*16000;
+    if(def.kind==='cross'){
+      // rarely alive
+      if(e.alive){
+        e.alive=false;
+        e.nextEvent=now+9000+Math.random()*16000;
+      } else {
+        e.alive=Math.random()<0.35;
+        e.nextEvent=now+4000+Math.random()*9000;
+      }
+    } else { // group
+      e.alive = !e.alive;
+      e.nextEvent = now + (e.alive?6000+Math.random()*9000:2500+Math.random()*5000);
     }
   });
 }
 
-/* ── Tick: particles ── */
+/* ─── Particles ─── */
 function tickParticles(){
   const now=Date.now();
-  const gap=1800+Math.random()*1400;
+  const gap=1400+Math.random()*1400;
   if(now-lastSpawn>gap){
     const live=edgeState.reduce((a,e,i)=>e.alive?[...a,i]:a,[]);
     if(live.length){
       const ei=live[Math.floor(Math.random()*live.length)];
-      const [a,b]=BASE_EDGES[ei];
+      const {a,b}=BASE_EDGES[ei];
       const fwd=Math.random()<0.5;
       particles.push({ei,a,b,t:fwd?0:1,dir:fwd?1:-1,speed:0.004+Math.random()*0.005});
     }
@@ -1011,12 +1190,12 @@ function tickParticles(){
   }
 }
 
-/* ── Tick: statuses ── */
+/* ─── Statuses ─── */
 function tickStatuses(){
   const now=Date.now();
   modelStatuses.forEach((_,i)=>{
     if(now<lastStatusTime[i]) return;
-    modelStatuses[i]=pickStatus();
+    modelStatuses[i]=pickStatus(i);
     lastStatusTime[i]=now+4000+Math.random()*10000;
     if(hoveredIdx===i){
       const el=document.getElementById('oasis-card-status');
@@ -1025,7 +1204,7 @@ function tickStatuses(){
   });
 }
 
-/* ── 3D projection (with zoom) ── */
+/* ─── 3D projection ─── */
 function project3D(x,y,z){
   const cy=Math.cos(rotY),sy=Math.sin(rotY);
   const x1= x*cy+z*sy, z1=-x*sy+z*cy;
@@ -1036,35 +1215,35 @@ function project3D(x,y,z){
   return {sx:W/2+x1*180*sc, sy:H/2+y2*180*sc, scale:sc, z2};
 }
 
-/* ── Draw ── */
+/* ─── Draw ─── */
 function draw(){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#000';
   ctx.fillRect(0,0,W,H);
 
-  /* Project all nodes (base + drift) */
   projected=OASIS_MODELS.map((m,i)=>{
     const [bx,by,bz]=BASE_POS[i];
-    const d=nodeDrift[i];
-    const p=project3D(bx+d.ox,by+d.oy,bz+d.oz);
-    return {m,p,i};
+    return {m,p:project3D(bx,by,bz),i};
   });
 
-  /* Edges back-to-front */
-  const sortedEi=[...BASE_EDGES.keys()].sort((ia,ib)=>{
-    const [a0,b0]=BASE_EDGES[ia],[a1,b1]=BASE_EDGES[ib];
-    return ((projected[a0].p.z2+projected[b0].p.z2)/2)-((projected[a1].p.z2+projected[b1].p.z2)/2);
+  /* Edges */
+  const order=[...BASE_EDGES.keys()].sort((ia,ib)=>{
+    const e0=BASE_EDGES[ia], e1=BASE_EDGES[ib];
+    return ((projected[e0.a].p.z2+projected[e0.b].p.z2)/2)-((projected[e1.a].p.z2+projected[e1.b].p.z2)/2);
   });
-  sortedEi.forEach(ei=>{
+  order.forEach(ei=>{
     const e=edgeState[ei]; if(!e.alive) return;
-    const [a,b]=BASE_EDGES[ei];
-    const pa=projected[a].p, pb=projected[b].p;
+    const def=BASE_EDGES[ei];
+    const pa=projected[def.a].p, pb=projected[def.b].p;
     const avgZ=(pa.z2+pb.z2)/2;
-    const alpha=0.07+0.11*(1-Math.max(0,Math.min(1,(avgZ+1)/2)));
+    let alpha=0.07+0.11*(1-Math.max(0,Math.min(1,(avgZ+1)/2)));
+    let lw=0.7;
+    if(def.kind==='core'){ alpha=Math.min(0.35,alpha+0.15); lw=1.0; }
+    else if(def.kind==='cross'){ alpha*=0.7; }
     ctx.save();
     ctx.globalAlpha=alpha;
     ctx.strokeStyle='#fff';
-    ctx.lineWidth=0.7;
+    ctx.lineWidth=lw;
     ctx.beginPath();ctx.moveTo(pa.sx,pa.sy);ctx.lineTo(pb.sx,pb.sy);ctx.stroke();
     ctx.restore();
   });
@@ -1086,10 +1265,19 @@ function draw(){
   /* Nodes back-to-front */
   [...projected].sort((a,b)=>a.p.z2-b.p.z2).forEach(({m,p,i})=>{
     const isHov=i===hoveredIdx;
+    const isVoid=i===VOID_IDX;
     const r=m.size*Math.max(0.4,p.scale)*(isHov?1.5:1);
     ctx.save();
+    if(isVoid){
+      // soft glow for the brain
+      const grad=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,r*4);
+      grad.addColorStop(0,'rgba(230,246,255,0.45)');
+      grad.addColorStop(1,'rgba(230,246,255,0)');
+      ctx.fillStyle=grad;
+      ctx.beginPath();ctx.arc(p.sx,p.sy,r*4,0,Math.PI*2);ctx.fill();
+    }
     ctx.fillStyle=m.color;
-    ctx.globalAlpha=0.5+Math.max(0,p.scale)*0.5;
+    ctx.globalAlpha=0.55+Math.max(0,p.scale)*0.45;
     ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,Math.PI*2);ctx.fill();
     if(isHov){
       ctx.strokeStyle='rgba(255,255,255,0.35)';
@@ -1100,7 +1288,7 @@ function draw(){
   });
 }
 
-/* ── Card ── */
+/* ─── Card ─── */
 function updateCard(){
   const c=document.getElementById('oasis-card');
   if(hoveredIdx<0){c.style.opacity='0';c.style.transform='translateY(6px) scale(0.96)';return;}
@@ -1117,7 +1305,7 @@ function updateCard(){
   st.textContent=modelStatuses[hoveredIdx];
 }
 
-/* ── Hit test — generous radius so small nodes are easy to tap ── */
+/* ─── Hit test ─── */
 function hitTest(mx,my){
   const front=[...projected].sort((a,b)=>b.p.z2-a.p.z2);
   for(const {m,p,i} of front){
@@ -1128,27 +1316,100 @@ function hitTest(mx,my){
   return -1;
 }
 
-/* ── Loop ── */
+/* ─── Graph + top-right rank rendering ─── */
+function renderGraph(){
+  const svg=document.getElementById('oasis-graph');
+  if(!svg) return;
+  const VW=400,VH=80,padX=20,padY=6;
+  const innerW=VW-padX*2;
+  const graphH=VH-padY-22; // 22px reserved for labels at bottom
+  // Fixed x order — all 6 models, left to right
+  const FIXED_X=['0','00','000','V','VV','VVV'];
+  const n=FIXED_X.length;
+  const sx=innerW/(n-1);
+  let linePts=[],circles='',labelDots='',labelTxt='';
+  FIXED_X.forEach((k,i)=>{
+    const x=padX+i*sx;
+    const r=rankByKey[k]??3;
+    // rank 1=top(low y), rank 6=bottom(high y)
+    const y=padY+((r-1)/(RANK_KEYS.length-1))*graphH;
+    linePts.push(x.toFixed(1)+','+y.toFixed(1));
+    // vertical tick line from dot down to label zone
+    labelDots+=`<line x1="${x.toFixed(1)}" y1="${(y+4).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(VH-22).toFixed(1)}" stroke="rgba(255,255,255,0.13)" stroke-width="0.8" stroke-dasharray="2,2"/>`;
+    // dot on the node (drawn on top of line)
+    circles+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="rgba(255,255,255,0.92)" stroke="rgba(0,0,0,0.45)" stroke-width="0.8"/>`;
+    // model name
+    labelTxt+=`<text x="${x.toFixed(1)}" y="${(VH-12).toFixed(1)}" fill="rgba(255,255,255,0.5)" font-family="var(--app-font)" font-size="8" text-anchor="middle">${k}</text>`;
+  });
+  svg.innerHTML=
+    `<polyline points="${linePts.join(' ')}" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`+
+    labelDots+labelTxt+circles;
+}
+
+function renderTopRank(){
+  const el=document.getElementById('oasis-toprank');
+  if(!el) return;
+  const ordered=[...RANK_KEYS].sort((a,b)=>(rankByKey[a]??0)-(rankByKey[b]??0));
+  el.innerHTML=ordered.map((k,i)=>
+    `<div class="row" style="opacity:${1-i*0.08};">${i+1}  ${k}</div>`
+  ).join('');
+}
+
+/* ─── Loop ─── */
 function loop(){
   if(!isOpen){animFrame=null;return;}
   t+=0.016;
   cardFloat+=0.025;
-  tickNodes();
   tickEdges();
   tickParticles();
   tickStatuses();
+  tickRanks();
   draw();
   updateCard();
+  renderGraph();
+  renderTopRank();
   animFrame=requestAnimationFrame(loop);
 }
 
-/* ── Init ── */
+/* ─── Category floating panel ─── */
+function buildCategoryUI(){
+  const btn=document.getElementById('oasis-cat-btn');
+  const panel=document.getElementById('oasis-cat-panel');
+  const scroll=document.getElementById('oasis-cat-scroll');
+  const arrow=document.getElementById('oasis-cat-arrow');
+  if(!btn||!panel||!scroll) return;
+  scroll.innerHTML=CAT_NAMES.map(c=>
+    `<div class="oasis-cat-item${c===currentCategory?' active':''}" data-cat="${c}">${c}</div>`
+  ).join('');
+  let open=false;
+  const close=()=>{open=false;panel.classList.remove('open');arrow.style.transform='rotate(0deg)';};
+  const openPanel=()=>{open=true;panel.classList.add('open');arrow.style.transform='rotate(180deg)';};
+  btn.onclick=(e)=>{e.stopPropagation();open?close():openPanel();};
+  scroll.onclick=(e)=>{
+    const it=e.target.closest('.oasis-cat-item');
+    if(!it) return;
+    const cat=it.dataset.cat;
+    currentCategory=cat;
+    document.getElementById('oasis-cat-label').textContent=cat;
+    setRankTargets(cat);
+    scroll.querySelectorAll('.oasis-cat-item').forEach(n=>n.classList.toggle('active',n.dataset.cat===cat));
+    close();
+  };
+  panel.onclick=(e)=>e.stopPropagation();
+  document.addEventListener('click',()=>{if(open)close();});
+}
+
+/* ─── Init ─── */
 function initOasis(){
   canvas=document.getElementById('oasis-canvas');
   ctx=canvas.getContext('2d');
   resize();
   window.addEventListener('resize',resize);
   bindEvents();
+  buildCategoryUI();
+  // seed ranks at the current category instantly
+  CATEGORIES[currentCategory].forEach((k,i)=>{ rankByKey[k]=i+1; rankTargetByKey[k]=i+1; });
+  rankTweenStart=performance.now()-RANK_TWEEN_MS;
 }
 function resize(){
   if(!canvas)return;
@@ -1159,7 +1420,7 @@ function resize(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
-/* ── Events ── */
+/* ─── Events ─── */
 function bindEvents(){
   canvas.addEventListener('mousemove',onMouseMove);
   canvas.addEventListener('mousedown',onPointerDown);
@@ -1172,7 +1433,6 @@ function bindEvents(){
   if(back){back.onmouseenter=()=>back.style.opacity='1';back.onmouseleave=()=>back.style.opacity='0.5';}
 }
 
-/* Mouse */
 function onMouseMove(e){
   if(dragStart){
     rotY=dragRot.y+(e.clientX-dragStart.x)*0.007;
@@ -1196,7 +1456,6 @@ function onWheel(e){
   zoomScale=Math.max(0.35,Math.min(3.5,zoomScale*(e.deltaY<0?1.08:0.93)));
 }
 
-/* Touch — 1 finger = orbit, 2 fingers = pinch zoom */
 let t1=null,t2=null;
 function getTouchDist(a,b){
   const dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;
@@ -1241,14 +1500,13 @@ function onTouchEnd(e){
     }
     dragStart=null; t1=null; t2=null; pinchStartDist=0;
   } else if(e.touches.length===1){
-    /* Dropped one finger — switch back to orbit */
     t1=e.touches[0]; t2=null; pinchStartDist=0;
     dragStart={x:t1.clientX,y:t1.clientY};
     dragRot={x:rotX,y:rotY};
   }
 }
 
-/* ── Open / Close ── */
+/* ─── Open / Close ─── */
 window.openOasis=function(){
   if(isOpen)return;
   isOpen=true;
