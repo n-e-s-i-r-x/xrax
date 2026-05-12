@@ -2329,8 +2329,10 @@ window.AgentUI = (function(){
     workspace: { files: {}, entry: '' },
     selected: null,
     busy: false,
-    /* per-generation terminal lines rendered inline in the pending row */
-    termLines: [],
+    /* per-generation panel state (lovable.dev-style) */
+    plan: { steps: [], cursor: 0 },
+    steps: [],
+    activity: [],
     currentAiId: null,
   };
   const STORAGE_KEY = '0vai_vv_workspaces';
@@ -2454,29 +2456,211 @@ window.AgentUI = (function(){
     body.appendChild(btn);
   }
 
-  /* ── Event ingestion ── */
+  /* ── Event ingestion (lovable.dev-style step cards) ── */
   function handle(ev){
     if(!ev || typeof ev !== 'object') return;
+    const aiId = state.currentAiId;
     switch(ev.type){
       case 'log':
-        appendTermLine(ev.line || '', ev.level || 'info');
+        pushActivity(ev.line || '', ev.level || 'info');
+        renderVVPanel(aiId);
         break;
-      case 'tool_call':
-        appendTermLine('→ ' + (ev.name||'?') + '(' + summarizeArgs(ev.args) + ')', 'tool');
+      case 'tool_call': {
+        if((ev.name||'') === 'plan'){
+          ingestPlan(ev.args);
+          setHeadSub('Planning…');
+        } else {
+          openStep(ev);
+          setHeadSub((ev.name||'tool') + (ev.args && ev.args.path ? ' · ' + String(ev.args.path) : ''));
+          if(state.plan.steps.length){
+            const cur = state.plan.cursor;
+            if(cur < state.plan.steps.length && state.plan.steps[cur].status === 'pending'){
+              state.plan.steps[cur].status = 'in_progress';
+            }
+          }
+        }
+        renderVVPanel(aiId);
         break;
-      case 'tool_result':
-        appendTermLine((ev.ok?'✓ ':'✗ ') + (ev.name||'') + ' — ' + (ev.summary||''), ev.ok ? 'tool' : 'error');
+      }
+      case 'tool_result': {
+        closeLastStep(ev);
+        if(ev.ok === false){
+          markPlanError();
+          pushActivity('✗ ' + (ev.name||'') + ' — ' + (ev.summary||''), 'error');
+        } else {
+          advancePlanCursor();
+          if(ev.summary) pushActivity('✓ ' + (ev.name||'') + ' — ' + ev.summary, 'tool');
+        }
+        renderVVPanel(aiId);
         break;
+      }
+      case 'plan_step': {
+        if(typeof ev.index === 'number' && state.plan.steps[ev.index]){
+          state.plan.steps[ev.index].status = ev.status || 'done';
+          if(ev.status === 'done' || ev.status === 'error'){
+            state.plan.cursor = Math.max(state.plan.cursor, ev.index + 1);
+          }
+        }
+        renderVVPanel(aiId);
+        break;
+      }
       case 'workspace':
         state.workspace = { files: { ...(ev.files||{}) }, entry: ev.entry || state.workspace.entry || '' };
         persist();
         break;
       case 'done':
-        appendTermLine('● done — ' + (ev.summary||'agent finished'), 'done');
+        finalizePlan();
+        setHeadSub(ev.summary || 'Done');
+        setHeadDone();
         setBusy(false);
+        renderVVPanel(aiId);
         if(state.currentAiId) injectShowBtn(state.currentAiId);
         break;
     }
+  }
+
+  /* ── plan + step state ── */
+  function resetVVState(){
+    state.plan = { steps: [], cursor: 0 };
+    state.steps = [];
+    state.activity = [];
+  }
+  function ingestPlan(args){
+    let steps = [];
+    if(args && Array.isArray(args.steps)) steps = args.steps;
+    else if(typeof args === 'string') steps = args.split(/\r?\n/).map(s=>s.replace(/^\s*[-*\d.)\s]+/,'').trim()).filter(Boolean);
+    else if(args && typeof args === 'object'){
+      const v = args.steps || args.plan || args.checklist;
+      if(Array.isArray(v)) steps = v;
+      else if(typeof v === 'string') steps = v.split(/\r?\n/).map(s=>s.replace(/^\s*[-*\d.)\s]+/,'').trim()).filter(Boolean);
+    }
+    const prev = state.plan.steps.slice();
+    state.plan.steps = steps.map(label => {
+      const text = String(label||'').slice(0, 200);
+      const match = prev.find(p => p.text === text);
+      return { text, status: match ? match.status : 'pending' };
+    });
+    if(state.plan.cursor > state.plan.steps.length) state.plan.cursor = state.plan.steps.length;
+  }
+  function openStep(ev){
+    state.steps.push({ name: ev.name||'tool', args: ev.args||null, status:'running', summary:'', t0: Date.now(), dt: 0 });
+  }
+  function closeLastStep(ev){
+    for(let i=state.steps.length-1; i>=0; i--){
+      const s = state.steps[i];
+      if(s.status === 'running' && (!ev.name || s.name === ev.name)){
+        s.status = (ev.ok === false) ? 'error' : 'done';
+        s.summary = ev.summary || s.summary;
+        s.dt = Date.now() - s.t0;
+        return;
+      }
+    }
+  }
+  function advancePlanCursor(){
+    const cur = state.plan.cursor;
+    if(cur < state.plan.steps.length){
+      const c = state.plan.steps[cur];
+      if(c.status === 'in_progress'){
+        c.status = 'done';
+        state.plan.cursor = cur + 1;
+      }
+    }
+  }
+  function markPlanError(){
+    const cur = state.plan.cursor;
+    if(cur < state.plan.steps.length) state.plan.steps[cur].status = 'error';
+  }
+  function finalizePlan(){
+    state.plan.steps.forEach(s => { if(s.status === 'in_progress' || s.status === 'pending') s.status = 'done'; });
+    state.steps.forEach(s => { if(s.status === 'running'){ s.status = 'done'; s.dt = Date.now() - s.t0; } });
+  }
+  function pushActivity(text, level){
+    if(!text) return;
+    state.activity.push({ text:String(text), level: level||'info' });
+    if(state.activity.length > 80) state.activity = state.activity.slice(-80);
+  }
+  function setHeadSub(t){
+    const el = state.currentAiId && document.getElementById(state.currentAiId+'vvsub');
+    if(el) el.textContent = String(t||'');
+  }
+  function setHeadDone(){
+    const root = state.currentAiId && document.getElementById(state.currentAiId+'vv');
+    if(root) root.classList.add('vv-done');
+  }
+
+  /* ── renderer ── */
+  function renderVVPanel(aiId){
+    if(!aiId) return;
+    const root = document.getElementById(aiId+'vv'); if(!root) return;
+
+    const planWrap = document.getElementById(aiId+'vvplan');
+    const planList = document.getElementById(aiId+'vvplanlist');
+    if(planWrap && planList){
+      if(state.plan.steps.length){
+        planWrap.style.display = '';
+        planList.innerHTML = state.plan.steps.map((s,i) =>
+          '<div class="vv-plan-row '+s.status+'">'
+          + '<span class="vv-glyph"></span>'
+          + '<span class="vv-plan-num">'+(i+1)+'.</span>'
+          + '<span class="vv-plan-text">'+escHtml(s.text)+'</span>'
+          + '</div>'
+        ).join('');
+      } else { planWrap.style.display = 'none'; }
+    }
+
+    const stepsWrap = document.getElementById(aiId+'vvsteps');
+    const stepsList = document.getElementById(aiId+'vvstepslist');
+    if(stepsWrap && stepsList){
+      if(state.steps.length){
+        stepsWrap.style.display = '';
+        const openSet = stepsList.__openSet || new Set();
+        stepsList.innerHTML = state.steps.map((s,i) => {
+          const isErr = s.status === 'error';
+          const isOpen = openSet.has(i) || isErr;
+          const argSum = s.args ? summarizeArgs(s.args) : '';
+          const dt = s.dt ? (s.dt+'ms') : '';
+          return '<div class="vv-step '+s.status+(isOpen?' open':'')+'" data-i="'+i+'">'
+            + '<button class="vv-step-hdr" onclick="(function(b){var c=b.parentNode,o=c.classList.toggle(\'open\');var l=c.parentNode;l.__openSet=l.__openSet||new Set();if(o)l.__openSet.add(+c.dataset.i);else l.__openSet.delete(+c.dataset.i);})(this)">'
+              + '<span class="vv-glyph"></span>'
+              + '<span class="vv-step-name">'+escHtml(s.name)+'</span>'
+              + '<span class="vv-step-arg">'+escHtml(argSum)+'</span>'
+              + '<span class="vv-step-dt">'+escHtml(dt)+'</span>'
+              + '<span class="vv-step-chev">›</span>'
+            + '</button>'
+            + '<div class="vv-step-body"><pre class="vv-step-pre">'+escHtml(formatStepDetail(s))+'</pre></div>'
+            + '</div>';
+        }).join('');
+        stepsList.__openSet = openSet;
+      } else { stepsWrap.style.display = 'none'; }
+    }
+
+    const actWrap = document.getElementById(aiId+'vvact');
+    const actList = document.getElementById(aiId+'vvactlist');
+    if(actWrap && actList){
+      if(state.activity.length){
+        actWrap.style.display = '';
+        actList.innerHTML = state.activity.slice(-12).map(a =>
+          '<div class="vv-act-line '+a.level+'">'+escHtml(a.text)+'</div>'
+        ).join('');
+        actList.scrollTop = actList.scrollHeight;
+      } else { actWrap.style.display = 'none'; }
+    }
+
+    if(window.S && S.settings && S.settings.autoscroll !== false){
+      const ca = document.getElementById('chat-area');
+      if(ca) ca.scrollTop = ca.scrollHeight;
+    }
+  }
+
+  function formatStepDetail(s){
+    const lines = [];
+    if(s.args){
+      try { lines.push('args: ' + JSON.stringify(s.args, null, 2)); }
+      catch(_) { lines.push('args: [unserializable]'); }
+    }
+    if(s.summary) lines.push('result: ' + s.summary);
+    if(s.status === 'error') lines.push('status: error');
+    return lines.join('\n\n') || '(no details)';
   }
 
   function summarizeArgs(a){
@@ -2510,7 +2694,7 @@ window.AgentUI = (function(){
   function onSendStart(aiId){
     if(window.S && S.model === 'VV'){
       state.busy = true;
-      state.termLines = [];
+      resetVVState();
       state.currentAiId = aiId || null;
     }
   }
@@ -2564,16 +2748,53 @@ function viewCode(btn){
   else if(lang==='json'){try{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(JSON.stringify(JSON.parse(code),null,2))}</body></html>`;}catch(e){html=`<body style="background:#111;color:#f66;padding:20px">Invalid JSON</body>`;}}
   else if(lang==='svg'){html=`<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;}
   else{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}
-/* ── VV Inline Terminal ── */
-.vv-term{font-family:Menlo,monospace;font-size:11.5px;line-height:1.6;color:#9b8acc;background:#06040e;border:1px solid #1a1530;border-radius:10px;padding:10px 12px;margin-bottom:8px;max-height:220px;overflow-y:auto;word-break:break-word;}
-.vv-term:empty{display:none;}
-.vv-term-line{padding:1.5px 0;}
-.vv-term-line.tool{color:#4a9eff;}
-.vv-term-line.error{color:#ff5577;}
-.vv-term-line.warn{color:#fbbf24;}
-.vv-term-line.done{color:#4ade80;}
+/* ── VV Lovable-style Step Card Panel ── */
+.vv-panel.vv-ui{background:#0d0a18;border:1px solid #1f1830;border-radius:14px;padding:14px;margin-bottom:8px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 rgba(255,45,120,.04) inset;}
+.vv-panel .vv-head{display:flex;align-items:center;gap:10px;}
+.vv-panel .vv-orb{width:10px;height:10px;border-radius:50%;background:#ff2d78;box-shadow:0 0 10px #ff2d78,0 0 2px #ff2d78;animation:vvPulse 1.6s ease-in-out infinite;flex-shrink:0;}
+.vv-panel.vv-done .vv-orb{animation:none;background:#4ade80;box-shadow:0 0 8px #4ade80;}
+.vv-panel .vv-head-lbl{font-size:12.5px;font-weight:700;color:#fff;letter-spacing:.3px;}
+.vv-panel .vv-head-sub{font-size:11px;color:#7a6aaa;font-family:Menlo,monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@keyframes vvPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.25);opacity:.75;}}
+.vv-panel .vv-sec-lbl{font-size:9.5px;font-weight:700;color:#5a4f7a;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;}
+.vv-plan-list{display:flex;flex-direction:column;gap:6px;}
+.vv-plan-row{display:flex;align-items:flex-start;gap:9px;padding:6px 10px;border-radius:8px;font-size:13px;line-height:1.45;color:#bcb0e0;background:#0a0814;border:1px solid #14102a;position:relative;overflow:hidden;}
+.vv-plan-row.in_progress{color:#fff;border-color:#3a1030;background:linear-gradient(90deg,#0a0814,#15102a,#0a0814);background-size:200% 100%;animation:vvSheen 1.8s linear infinite;}
+.vv-plan-row.done{color:#7a8a78;}
+.vv-plan-row.done .vv-plan-text{text-decoration:line-through;text-decoration-color:#2a3a28;}
+.vv-plan-row.error{color:#ff8aa6;border-color:#3a1030;}
+.vv-plan-num{font-family:Menlo,monospace;font-size:11px;color:#5a4f7a;flex-shrink:0;width:18px;}
+.vv-plan-text{flex:1;word-break:break-word;}
+@keyframes vvSheen{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.vv-glyph{width:14px;height:14px;border-radius:50%;border:1.5px solid #2a223a;flex-shrink:0;margin-top:2px;display:inline-block;position:relative;box-sizing:border-box;}
+.vv-plan-row.in_progress > .vv-glyph,.vv-step.running > .vv-step-hdr > .vv-glyph{border-color:#ff2d78;border-top-color:transparent;animation:vvSpin .9s linear infinite;}
+.vv-plan-row.done > .vv-glyph,.vv-step.done > .vv-step-hdr > .vv-glyph{border-color:#4ade80;background:#4ade80;}
+.vv-plan-row.done > .vv-glyph::after,.vv-step.done > .vv-step-hdr > .vv-glyph::after{content:'';position:absolute;left:3px;top:1px;width:4px;height:7px;border-right:1.5px solid #0d0a18;border-bottom:1.5px solid #0d0a18;transform:rotate(45deg);}
+.vv-plan-row.error > .vv-glyph,.vv-step.error > .vv-step-hdr > .vv-glyph{border-color:#ff5577;background:#ff5577;}
+@keyframes vvSpin{to{transform:rotate(360deg);}}
+.vv-steps-list{display:flex;flex-direction:column;gap:6px;}
+.vv-step{background:#0a0814;border:1px solid #14102a;border-radius:9px;overflow:hidden;}
+.vv-step.error{border-color:#3a1030;}
+.vv-step.running{border-color:#2a1c4a;}
+.vv-step-hdr{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;background:none;border:none;cursor:pointer;color:#bcb0e0;font-size:12px;text-align:left;}
+.vv-step-hdr:hover{background:#10091e;}
+.vv-step-hdr > .vv-glyph{margin-top:0;}
+.vv-step-name{font-family:Menlo,monospace;font-weight:600;color:#e6dcfa;flex-shrink:0;}
+.vv-step-arg{font-family:Menlo,monospace;font-size:11px;color:#7a6aaa;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vv-step-dt{font-family:Menlo,monospace;font-size:10.5px;color:#5a4f7a;flex-shrink:0;}
+.vv-step-chev{color:#5a4f7a;transition:transform .15s ease;flex-shrink:0;}
+.vv-step.open .vv-step-chev{transform:rotate(90deg);}
+.vv-step-body{display:none;border-top:1px solid #14102a;background:#06040e;}
+.vv-step.open .vv-step-body{display:block;}
+.vv-step-pre{font-family:Menlo,monospace;font-size:11px;line-height:1.55;color:#bcb0e0;padding:10px 12px;margin:0;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto;}
+.vv-activity-list{display:flex;flex-direction:column;gap:1px;background:#06040e;border:1px solid #14102a;border-radius:8px;padding:8px 10px;max-height:130px;overflow-y:auto;font-family:Menlo,monospace;font-size:11px;line-height:1.55;color:#9b8acc;}
+.vv-act-line.tool{color:#4a9eff;}
+.vv-act-line.error{color:#ff5577;}
+.vv-act-line.warn{color:#fbbf24;}
+.vv-act-line.done{color:#4ade80;}
 /* "Show" button that appears in chat when VV finishes */
-.vv-show-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 16px;background:none;border:1.5px solid #3a1030;border-radius:10px;color:#ff2d78;font-size:12px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:background .15s,border-color .15s;}
+.vv-show-btn{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:9px 18px;background:linear-gradient(180deg,#1a0a18,#0d0610);border:1px solid #3a1030;border-radius:10px;color:#ff2d78;font-size:12px;font-weight:700;letter-spacing:.6px;cursor:pointer;transition:transform .12s ease,background .15s,border-color .15s,box-shadow .15s;}
+.vv-show-btn:hover{transform:translateY(-1px);border-color:#ff2d78;box-shadow:0 4px 14px rgba(255,45,120,.18);}
 .vv-show-btn:active{background:#15060e;border-color:#ff2d78;}
 .vv-show-btn::before{content:'';width:7px;height:7px;border-radius:50%;background:#ff2d78;box-shadow:0 0 6px #ff2d78;flex-shrink:0;}
 /* Workspace page tabs */
@@ -2946,9 +3167,15 @@ function appendPending(id,isCodeMode){
       <div class="ai-txt" id="${id}txt" style="display:none"></div>
     </div></div></div></div>`;
   } else if(isVV){
-    /* VV: inline terminal replaces Typing... */
+    /* VV: lovable.dev-style step-card panel replaces Typing... */
+    row.dataset.model='VV';
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
-      <div class="vv-term" id="${id}term"></div>
+      <div class="vv-panel vv-ui" id="${id}vv">
+        <div class="vv-head"><div class="vv-orb"></div><div class="vv-head-lbl">VV is working</div><div class="vv-head-sub" id="${id}vvsub">Starting up…</div></div>
+        <div class="vv-plan" id="${id}vvplan" style="display:none;"><div class="vv-sec-lbl">Plan</div><div class="vv-plan-list" id="${id}vvplanlist"></div></div>
+        <div class="vv-steps" id="${id}vvsteps" style="display:none;"><div class="vv-sec-lbl">Steps</div><div class="vv-steps-list" id="${id}vvstepslist"></div></div>
+        <div class="vv-activity" id="${id}vvact" style="display:none;"><div class="vv-sec-lbl">Activity</div><div class="vv-activity-list" id="${id}vvactlist"></div></div>
+      </div>
       <div class="ai-txt" id="${id}txt"></div>
     </div></div></div></div>`;
   } else {
