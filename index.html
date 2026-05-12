@@ -1523,8 +1523,10 @@ window.openOasis=function(){
   /* Hide agent panel so it doesn't bleed through during the fade */
   const agentPanel=document.getElementById('agent-panel');
   const agentOv=document.getElementById('agent-panel-overlay');
+  const wsPage=document.getElementById('ws-page');
   if(agentPanel){agentPanel.style.visibility='hidden';}
   if(agentOv){agentOv.style.visibility='hidden';}
+  if(wsPage){wsPage.style.visibility='hidden';}
   const ov=document.getElementById('oasis-ov');
   const app=document.getElementById('app');
   ov.style.display='flex';
@@ -1554,8 +1556,10 @@ window.closeOasis=function(){
     setTimeout(()=>{
       const agentPanel=document.getElementById('agent-panel');
       const agentOv=document.getElementById('agent-panel-overlay');
+      const wsPage=document.getElementById('ws-page');
       if(agentPanel){agentPanel.style.visibility='';}
       if(agentOv){agentOv.style.visibility='';}
+      if(wsPage){wsPage.style.visibility='';}
     },520);
   },800);
 };
@@ -1701,7 +1705,7 @@ const MODELS={
   'VV' :{key:'VV', label:'VV', placeholder:'Message VV...', hasThink:false, temp:0.6},
   'VVV':{key:'VVV',label:'VVV',placeholder:'Message VVV...',hasThink:false, temp:0.6},
 };
-const BASE_DESCS={'0':'Normal.','00':'Fastest.','000':'Highest. Fast.','V':'Smart. Uncensored.','VV':'Coding agent. Builds, previews, exports.','VVV':'Smartest. Slow.'};
+const BASE_DESCS={'0':'Normal.','00':'Fastest.','000':'Highest. Fast.','V':'Smart. Uncensored.','VV':'Coding. Agent.','VVV':'Smartest. Slow.'};
 
 const C={
   grey:  {
@@ -2287,56 +2291,47 @@ function downloadCode(btn){
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 </script>
-<!-- ─── VV AGENT PANEL ─── -->
-<div id="agent-panel-overlay" onclick="AgentUI.close()"></div>
-<div id="agent-panel" aria-hidden="true">
-  <div class="ap-head">
-    <div class="ap-title">VV · Agent</div>
-    <button class="ap-close" onclick="AgentUI.close()">Close</button>
+<!-- ─── VV WORKSPACE PAGE ─── -->
+<div id="ws-page" style="position:fixed;inset:0;z-index:8000;background:#000;display:none;flex-direction:column;opacity:0;transition:opacity .25s ease;">
+  <div id="ws-topbar" style="flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 12px;background:#000;border-bottom:1px solid #1a1530;padding-top:env(safe-area-inset-top);height:calc(52px + env(safe-area-inset-top));">
+    <button onclick="AgentUI.closePage()" style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#888;background:none;border:none;cursor:pointer;flex-shrink:0;">
+      <svg width="18" height="18" viewBox="0 0 7 7" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="3" width="5" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/></svg>
+    </button>
+    <div style="flex:1;font-size:13px;font-weight:700;color:#ff2d78;letter-spacing:.5px;">VV · Workspace</div>
+    <button class="ap-btn" onclick="AgentUI.downloadZip()" style="flex-shrink:0;">↓ Download .zip</button>
   </div>
-  <div class="ap-tabs">
-    <button class="ap-tab active" data-tab="steps" onclick="AgentUI.tab('steps')">Steps</button>
-    <button class="ap-tab" data-tab="files" onclick="AgentUI.tab('files')">Files</button>
-    <button class="ap-tab" data-tab="term" onclick="AgentUI.tab('term')">Terminal</button>
-    <button class="ap-tab" data-tab="prev" onclick="AgentUI.tab('prev')">Preview</button>
+  <div id="ws-tabs" style="display:flex;border-bottom:1px solid #1a1530;background:#06040e;flex-shrink:0;">
+    <button class="ws-tab active" data-tab="files" onclick="AgentUI.wsTab('files')">Files</button>
+    <button class="ws-tab" data-tab="prev" onclick="AgentUI.wsTab('prev')">Preview</button>
   </div>
-  <div class="ap-body">
-    <div class="ap-pane active" data-pane="steps"><div id="ap-steps"><div class="ap-empty">No agent run yet. Send a message with VV selected.</div></div></div>
-    <div class="ap-pane" data-pane="files">
-      <div class="ap-files-wrap">
-        <div class="ap-files-toolbar">
-          <button class="ap-btn" onclick="AgentUI.downloadZip()">Download .zip</button>
-          <button class="ap-btn" onclick="AgentUI.tab('prev')">Open Preview</button>
-          <button class="ap-btn" onclick="AgentUI.clear()">Clear</button>
-        </div>
-        <div class="ap-files-split">
-          <div class="ap-tree" id="ap-tree"><div class="ap-empty">Empty</div></div>
-          <div class="ap-viewer" id="ap-viewer"><div class="ap-viewer-empty">Select a file</div></div>
-        </div>
+  <div style="flex:1;overflow:hidden;position:relative;">
+    <div class="ws-pane active" data-pane="files" style="position:absolute;inset:0;display:flex;flex-direction:column;">
+      <div style="display:flex;height:100%;min-height:0;">
+        <div id="ws-tree" style="width:38%;border-right:1px solid #1a1530;overflow-y:auto;padding:8px 6px;flex-shrink:0;"><div class="ap-empty">Empty</div></div>
+        <div id="ws-viewer" style="flex:1;overflow:auto;background:#06060c;padding:12px;"><div class="ap-viewer-empty">Select a file</div></div>
       </div>
     </div>
-    <div class="ap-pane" data-pane="term"><div class="ap-term" id="ap-term"><div class="ap-empty">Terminal log will stream here.</div></div></div>
-    <div class="ap-pane" data-pane="prev">
-      <div class="ap-preview-wrap">
-        <div class="ap-preview-toolbar">
-          <button class="ap-btn" onclick="AgentUI.refreshPreview()">Refresh</button>
-          <div class="ap-preview-entry" id="ap-preview-entry">no entry</div>
-        </div>
-        <iframe class="ap-preview-frame" id="ap-preview-frame" sandbox="allow-scripts allow-modals allow-forms" srcdoc="<body style='font-family:system-ui;color:#888;padding:24px'>No preview yet.</body>"></iframe>
+    <div class="ws-pane" data-pane="prev" style="position:absolute;inset:0;display:none;flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1a1530;flex-shrink:0;">
+        <button class="ap-btn" onclick="AgentUI.refreshPreview()">Refresh</button>
+        <span id="ws-preview-entry" style="flex:1;font-size:11.5px;color:#aaa;font-family:Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
       </div>
+      <iframe id="ws-preview-frame" sandbox="allow-scripts allow-modals allow-forms" style="flex:1;width:100%;border:none;background:#fff;" srcdoc="<body style='font-family:system-ui;color:#888;padding:24px'>No preview yet.</body>"></iframe>
     </div>
   </div>
 </div>
 
 
 <script>
-/* ─── VV AGENT UI ─────────────────────────────────────────────── */
+/* ─── VV AGENT UI (inline terminal + workspace page) ────────────── */
 window.AgentUI = (function(){
   const state = {
     workspace: { files: {}, entry: '' },
-    steps: [],
     selected: null,
     busy: false,
+    /* per-generation terminal lines rendered inline in the pending row */
+    termLines: [],
+    currentAiId: null,
   };
   const STORAGE_KEY = '0vai_vv_workspaces';
 
@@ -2353,65 +2348,133 @@ window.AgentUI = (function(){
     const ws = map[convoId()];
     state.workspace = ws && ws.files ? { files: { ...ws.files }, entry: ws.entry || '' } : { files: {}, entry: '' };
     state.selected = null;
-    renderTree(); renderViewer();
   }
 
-  function open(){
-    const p = document.getElementById('agent-panel'), ov = document.getElementById('agent-panel-overlay');
-    if(!p) return;
-    p.classList.add('open'); ov.classList.add('show'); p.setAttribute('aria-hidden','false');
-    renderTree(); renderViewer(); renderSteps(); refreshPreview();
+  /* ── Inline terminal in chat ── */
+  function getTermEl(){
+    if(!state.currentAiId) return null;
+    return document.getElementById(state.currentAiId + 'term');
   }
-  function close(){
-    const p = document.getElementById('agent-panel'), ov = document.getElementById('agent-panel-overlay');
-    if(!p) return;
-    p.classList.remove('open'); ov.classList.remove('show'); p.setAttribute('aria-hidden','true');
+  function appendTermLine(text, level){
+    state.termLines.push({ text, level: level || 'info' });
+    const el = getTermEl(); if(!el) return;
+    const div = document.createElement('div');
+    div.className = 'vv-term-line ' + (level||'info');
+    div.textContent = text;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+    /* scroll chat */
+    if(window.S && S.settings && S.settings.autoscroll !== false){
+      const ca = document.getElementById('chat-area');
+      if(ca) ca.scrollTop = ca.scrollHeight;
+    }
   }
-  function tab(name){
-    document.querySelectorAll('#agent-panel .ap-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
-    document.querySelectorAll('#agent-panel .ap-pane').forEach(p=>p.classList.toggle('active', p.dataset.pane===name));
+
+  /* ── Workspace page ── */
+  function openPage(){
+    const pg = document.getElementById('ws-page'); if(!pg) return;
+    pg.style.display = 'flex';
+    requestAnimationFrame(()=>{ pg.style.opacity = '1'; });
+    renderWsTree(); renderWsViewer(); refreshPreview();
+    /* hide app scroll during page view */
+    const app = document.getElementById('app');
+    if(app){ app.style.pointerEvents = 'none'; }
+  }
+  function closePage(){
+    const pg = document.getElementById('ws-page'); if(!pg) return;
+    pg.style.opacity = '0';
+    setTimeout(()=>{ pg.style.display = 'none'; }, 260);
+    const app = document.getElementById('app');
+    if(app){ app.style.pointerEvents = ''; }
+  }
+  function wsTab(name){
+    document.querySelectorAll('.ws-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    document.querySelectorAll('.ws-pane').forEach(p=>{ p.style.display = p.dataset.pane===name ? 'flex' : 'none'; p.classList.toggle('active', p.dataset.pane===name); });
     if(name==='prev') refreshPreview();
   }
 
-  function setBusy(b){
-    state.busy = !!b;
-    const btn = document.getElementById('agent-btn');
-    if(btn) btn.classList.toggle('busy', !!b);
+  function renderWsTree(){
+    const el = document.getElementById('ws-tree'); if(!el) return;
+    const paths = Object.keys(state.workspace.files).sort();
+    if(!paths.length){ el.innerHTML = '<div class="ap-empty">No files yet</div>'; return; }
+    el.innerHTML = paths.map(p =>
+      '<button class="ap-tree-item'+(p===state.selected?' sel':'')+'" onclick="AgentUI.select(\''+escAttr(p)+'\')">'+escHtml(p)+'</button>'
+    ).join('');
+  }
+  function renderWsViewer(){
+    const el = document.getElementById('ws-viewer'); if(!el) return;
+    if(!state.selected || !(state.selected in state.workspace.files)){
+      el.innerHTML = '<div class="ap-viewer-empty">Select a file</div>'; return;
+    }
+    const c = state.workspace.files[state.selected] || '';
+    el.innerHTML = '<pre style="font-family:Menlo,monospace;font-size:11.5px;line-height:1.55;color:#dcd4f0;white-space:pre-wrap;word-break:break-word;margin:0;">'+escHtml(c)+'</pre>';
+  }
+  function refreshPreview(){
+    const f = document.getElementById('ws-preview-frame');
+    const lab = document.getElementById('ws-preview-entry');
+    if(!f) return;
+    const entry = state.workspace.entry || pickDefaultEntry();
+    if(lab) lab.textContent = entry || 'no entry';
+    if(!entry){ f.srcdoc = "<body style='font-family:system-ui;color:#888;padding:24px'>No preview yet.</body>"; return; }
+    f.srcdoc = inlineWorkspace(state.workspace.files[entry] || '');
+  }
+  function pickDefaultEntry(){
+    const cands = Object.keys(state.workspace.files);
+    return cands.find(p => /^index\.html?$/i.test(p)) || cands.find(p => /\.html?$/i.test(p)) || '';
+  }
+  function inlineWorkspace(html){
+    if(!html) return '';
+    let out = String(html);
+    out = out.replace(/<link\s+[^>]*rel=["']?stylesheet["']?[^>]*>/gi, function(tag){
+      const m = tag.match(/href=["']([^"']+)["']/i); if(!m) return tag;
+      const path = m[1].replace(/^\.?\//,'');
+      if(!(path in state.workspace.files)) return tag;
+      return '<style>\n'+state.workspace.files[path]+'\n</style>';
+    });
+    out = out.replace(/<script\s+[^>]*src=["']([^"']+)["'][^>]*>\s*<\/script>/gi, function(tag, src){
+      const path = src.replace(/^\.?\//,'');
+      if(!(path in state.workspace.files)) return tag;
+      return '<scr'+'ipt>\n'+state.workspace.files[path]+'\n</scr'+'ipt>';
+    });
+    return out;
+  }
+  function select(p){ state.selected = p; renderWsTree(); renderWsViewer(); }
+
+  /* ── "Show" button injected into chat message when done ── */
+  function injectShowBtn(aiId){
+    /* find the ai-body of the pending row */
+    const row = document.getElementById(aiId); if(!row) return;
+    const body = row.querySelector('.ai-body'); if(!body) return;
+    /* don't add twice */
+    if(body.querySelector('.vv-show-btn')) return;
+    const btn = document.createElement('button');
+    btn.className = 'vv-show-btn';
+    btn.textContent = 'Show';
+    btn.onclick = function(e){ e.stopPropagation(); AgentUI.openPage(); };
+    body.appendChild(btn);
   }
 
-  function syncTrigger(){
-    const btn = document.getElementById('agent-btn');
-    const tb = document.getElementById('think-btn');
-    const isVV = (window.S && S.model === 'VV');
-    if(btn) btn.style.display = isVV ? 'inline-flex' : 'none';
-    if(tb)  tb.style.display  = isVV ? 'none' : '';
-  }
-
-  /* ── Event ingestion (called from ingestMeta) ── */
+  /* ── Event ingestion ── */
   function handle(ev){
     if(!ev || typeof ev !== 'object') return;
     switch(ev.type){
-      case 'plan':
-        state.steps = Array.isArray(ev.steps) ? ev.steps : [];
-        renderSteps();
-        break;
       case 'log':
-        appendTerm(ev.line || '', ev.level || 'info');
+        appendTermLine(ev.line || '', ev.level || 'info');
         break;
       case 'tool_call':
-        appendTerm('→ ' + (ev.name||'?') + '(' + summarizeArgs(ev.args) + ')', 'tool');
+        appendTermLine('→ ' + (ev.name||'?') + '(' + summarizeArgs(ev.args) + ')', 'tool');
         break;
       case 'tool_result':
-        appendTerm('  ' + (ev.ok?'✓':'✗') + ' ' + (ev.name||'') + ' — ' + (ev.summary||''), ev.ok?'tool':'tool fail');
+        appendTermLine((ev.ok?'✓ ':'✗ ') + (ev.name||'') + ' — ' + (ev.summary||''), ev.ok ? 'tool' : 'error');
         break;
       case 'workspace':
         state.workspace = { files: { ...(ev.files||{}) }, entry: ev.entry || state.workspace.entry || '' };
-        renderTree(); renderViewer(); persist();
+        persist();
         break;
       case 'done':
-        appendTerm('● done — ' + (ev.summary||'agent finished'), 'info');
+        appendTermLine('● done — ' + (ev.summary||'agent finished'), 'done');
         setBusy(false);
-        refreshPreview();
+        if(state.currentAiId) injectShowBtn(state.currentAiId);
         break;
     }
   }
@@ -2422,88 +2485,36 @@ window.AgentUI = (function(){
       const parts = [];
       for(const k of Object.keys(a)){
         let v = a[k];
-        if(typeof v === 'string') v = v.length > 60 ? v.slice(0,57)+'…' : v;
+        if(typeof v === 'string') v = v.length > 50 ? v.slice(0,47)+'…' : v;
         else if(Array.isArray(v)) v = '['+v.length+']';
         else if(typeof v === 'object') v = '{…}';
         parts.push(k+'='+JSON.stringify(v));
       }
       const s = parts.join(', ');
-      return s.length > 140 ? s.slice(0,137)+'…' : s;
+      return s.length > 120 ? s.slice(0,117)+'…' : s;
     } catch(_){ return ''; }
   }
 
-  /* ── Renderers ── */
-  function renderSteps(){
-    const el = document.getElementById('ap-steps'); if(!el) return;
-    if(!state.steps.length){ el.innerHTML = '<div class="ap-empty">No agent run yet.</div>'; return; }
-    el.innerHTML = state.steps.map(s =>
-      '<div class="ap-step" data-status="'+(s.status||'pending')+'"><span class="ap-step-icon"></span><span>'+escHtml(s.title||'')+'</span></div>'
-    ).join('');
+  function setBusy(b){
+    state.busy = !!b;
   }
-  function renderTree(){
-    const el = document.getElementById('ap-tree'); if(!el) return;
-    const paths = Object.keys(state.workspace.files).sort();
-    if(!paths.length){ el.innerHTML = '<div class="ap-empty">Empty</div>'; return; }
-    el.innerHTML = paths.map(p =>
-      '<button class="ap-tree-item'+(p===state.selected?' sel':'')+'" onclick="AgentUI.select(\''+escAttr(p)+'\')">'+escHtml(p)+'</button>'
-    ).join('');
+
+  function syncTrigger(){
+    const btn = document.getElementById('agent-btn');
+    const tb = document.getElementById('think-btn');
+    const isVV = (window.S && S.model === 'VV');
+    if(btn) btn.style.display = 'none'; /* agent-btn no longer used */
+    if(tb)  tb.style.display  = isVV ? 'none' : '';
   }
-  function renderViewer(){
-    const el = document.getElementById('ap-viewer'); if(!el) return;
-    if(!state.selected || !(state.selected in state.workspace.files)){
-      el.innerHTML = '<div class="ap-viewer-empty">Select a file</div>'; return;
+
+  function onSendStart(aiId){
+    if(window.S && S.model === 'VV'){
+      state.busy = true;
+      state.termLines = [];
+      state.currentAiId = aiId || null;
     }
-    const c = state.workspace.files[state.selected] || '';
-    el.innerHTML = '<pre>'+escHtml(c)+'</pre>';
   }
-  function appendTerm(line, level){
-    const el = document.getElementById('ap-term'); if(!el) return;
-    if(el.querySelector('.ap-empty')) el.innerHTML = '';
-    const t = new Date(), ts = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
-    const div = document.createElement('div');
-    div.className = 'ap-term-line ' + (level||'info');
-    div.innerHTML = '<span class="t-time">'+ts+'</span>'+escHtml(line);
-    el.appendChild(div);
-    el.scrollTop = el.scrollHeight;
-  }
-  function refreshPreview(){
-    const f = document.getElementById('ap-preview-frame'); const lab = document.getElementById('ap-preview-entry');
-    if(!f || !lab) return;
-    const entry = state.workspace.entry || pickDefaultEntry();
-    if(!entry){ lab.textContent = 'no entry'; f.srcdoc = "<body style='font-family:system-ui;color:#888;padding:24px'>No preview yet.</body>"; return; }
-    lab.textContent = entry;
-    const html = state.workspace.files[entry] || '';
-    f.srcdoc = inlineWorkspace(html);
-  }
-  function pickDefaultEntry(){
-    const cands = Object.keys(state.workspace.files);
-    return cands.find(p => /^index\.html?$/i.test(p)) || cands.find(p => /\.html?$/i.test(p)) || '';
-  }
-  function inlineWorkspace(html){
-    if(!html) return '';
-    // Inline same-workspace <link rel="stylesheet" href="..."> and <script src="...">.
-    let out = String(html);
-    out = out.replace(/<link\s+[^>]*rel=["']?stylesheet["']?[^>]*>/gi, function(tag){
-      const m = tag.match(/href=["']([^"']+)["']/i);
-      if(!m) return tag;
-      const path = m[1].replace(/^\.?\//,'');
-      if(!(path in state.workspace.files)) return tag;
-      return '<style>\n'+state.workspace.files[path]+'\n</style>';
-    });
-    out = out.replace(/<script\s+[^>]*src=["']([^"']+)["'][^>]*>\s*<\/script>/gi, function(tag, src){
-      const path = src.replace(/^\.?\//,'');
-      if(!(path in state.workspace.files)) return tag;
-      // Use end tag with split to avoid embedded <\/script> issues.
-      return '<scr'+'ipt>\n'+state.workspace.files[path]+'\n</scr'+'ipt>';
-    });
-    return out;
-  }
-  function select(p){ state.selected = p; renderTree(); renderViewer(); }
-  function clear(){
-    if(!confirm('Clear the VV workspace for this conversation?')) return;
-    state.workspace = { files: {}, entry: '' }; state.selected = null;
-    renderTree(); renderViewer(); refreshPreview(); persist();
-  }
+
   async function downloadZip(){
     const paths = Object.keys(state.workspace.files);
     if(!paths.length){ alert('Workspace is empty.'); return; }
@@ -2527,21 +2538,17 @@ window.AgentUI = (function(){
 
   function escHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function escAttr(s){ return String(s).replace(/'/g, "\\'"); }
-
   function getWorkspace(){ return { files: { ...state.workspace.files }, entry: state.workspace.entry || '' }; }
-  function onSendStart(){
-    if(window.S && S.model === 'VV'){ setBusy(true); }
-  }
 
-  // Switch active workspace when conversation changes.
+  // Switch workspace when conversation changes
   let lastConvo = null;
   setInterval(()=>{
     const cid = convoId();
-    if(cid !== lastConvo){ lastConvo = cid; load(); refreshPreview(); }
+    if(cid !== lastConvo){ lastConvo = cid; load(); }
     syncTrigger();
   }, 700);
 
-  return { open, close, tab, handle, select, clear, downloadZip, refreshPreview, getWorkspace, onSendStart, syncTrigger, _state: state };
+  return { openPage, closePage, wsTab, handle, select, downloadZip, refreshPreview, getWorkspace, onSendStart, syncTrigger, _state: state };
 })();
 </script>
 
@@ -2557,65 +2564,36 @@ function viewCode(btn){
   else if(lang==='json'){try{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}</style></head><body>${esc(JSON.stringify(JSON.parse(code),null,2))}</body></html>`;}catch(e){html=`<body style="background:#111;color:#f66;padding:20px">Invalid JSON</body>`;}}
   else if(lang==='svg'){html=`<!DOCTYPE html><html><head><style>body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style></head><body>${code}</body></html>`;}
   else{html=`<!DOCTYPE html><html><head><style>body{font-family:monospace;background:#111;color:#eee;padding:20px;white-space:pre-wrap;font-size:13px}
-/* ── VV Agent Panel ───────────────────────────────────────────── */
-#agent-panel{position:fixed;top:0;right:0;bottom:0;width:min(560px,92vw);background:#0a0a10;border-left:1px solid #1a1530;z-index:6000;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);}
-#agent-panel.open{transform:translateX(0);}
-#agent-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:5999;opacity:0;pointer-events:none;transition:opacity .25s;}
-#agent-panel-overlay.show{opacity:1;pointer-events:auto;}
-.ap-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #1a1530;}
-.ap-title{font-size:13px;font-weight:700;letter-spacing:.5px;color:#ff2d78;flex:1;}
-.ap-close{background:#15102a;color:#ddd;border-radius:6px;padding:4px 9px;font-size:12px;}
-.ap-tabs{display:flex;gap:0;border-bottom:1px solid #1a1530;background:#080810;}
-.ap-tab{flex:1;padding:9px 6px;text-align:center;font-size:11.5px;font-weight:600;color:#7a6aaa;background:transparent;border-bottom:2px solid transparent;letter-spacing:.4px;text-transform:uppercase;}
-.ap-tab.active{color:#ff2d78;border-bottom-color:#ff2d78;background:#0d0a18;}
-.ap-body{flex:1;overflow:hidden;position:relative;}
-.ap-pane{position:absolute;inset:0;overflow:auto;display:none;padding:10px 12px;}
-.ap-pane.active{display:block;}
-/* Steps */
-.ap-step{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-bottom:1px dashed #1a1530;font-size:12.5px;line-height:1.45;color:#cfc8e8;}
-.ap-step:last-child{border-bottom:none;}
-.ap-step-icon{width:14px;height:14px;border-radius:50%;flex-shrink:0;margin-top:3px;border:1.5px solid #555;}
-.ap-step[data-status="running"] .ap-step-icon{border-color:#ff2d78;background:radial-gradient(circle,#ff2d78 30%,transparent 35%);animation:apPulse 1.2s ease-in-out infinite;}
-.ap-step[data-status="done"] .ap-step-icon{border-color:#4ade80;background:#4ade80;}
-.ap-step[data-status="failed"] .ap-step-icon{border-color:#ff5577;background:#ff5577;}
-@keyframes apPulse{50%{box-shadow:0 0 0 4px rgba(255,45,120,.18);}}
+/* ── VV Inline Terminal ── */
+.vv-term{font-family:Menlo,monospace;font-size:11.5px;line-height:1.6;color:#9b8acc;background:#06040e;border:1px solid #1a1530;border-radius:10px;padding:10px 12px;margin-bottom:8px;max-height:220px;overflow-y:auto;word-break:break-word;}
+.vv-term:empty{display:none;}
+.vv-term-line{padding:1.5px 0;}
+.vv-term-line.tool{color:#4a9eff;}
+.vv-term-line.error{color:#ff5577;}
+.vv-term-line.warn{color:#fbbf24;}
+.vv-term-line.done{color:#4ade80;}
+/* "Show" button that appears in chat when VV finishes */
+.vv-show-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 16px;background:none;border:1.5px solid #3a1030;border-radius:10px;color:#ff2d78;font-size:12px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:background .15s,border-color .15s;}
+.vv-show-btn:active{background:#15060e;border-color:#ff2d78;}
+.vv-show-btn::before{content:'';width:7px;height:7px;border-radius:50%;background:#ff2d78;box-shadow:0 0 6px #ff2d78;flex-shrink:0;}
+/* Workspace page tabs */
+.ws-tab{flex:1;padding:9px 6px;text-align:center;font-size:11.5px;font-weight:600;color:#7a6aaa;background:transparent;border:none;border-bottom:2px solid transparent;letter-spacing:.4px;text-transform:uppercase;cursor:pointer;}
+.ws-tab.active{color:#ff2d78;border-bottom-color:#ff2d78;background:#0d0a18;}
+/* Shared workspace/file UI */
 .ap-empty{color:#5a4f7a;font-size:12px;text-align:center;padding:24px 12px;font-style:italic;}
-/* Files */
-.ap-files-wrap{display:flex;flex-direction:column;height:100%;}
-.ap-files-toolbar{display:flex;gap:6px;padding-bottom:8px;border-bottom:1px solid #1a1530;margin-bottom:8px;flex-wrap:wrap;}
-.ap-btn{background:#15102a;color:#ff2d78;border:1px solid #2a1c4a;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;letter-spacing:.3px;}
-.ap-btn:hover{background:#1f1838;}
-.ap-btn:disabled{opacity:.4;pointer-events:none;}
-.ap-files-split{display:grid;grid-template-columns:38% 62%;gap:8px;flex:1;min-height:0;}
-.ap-tree{overflow:auto;border-right:1px solid #1a1530;padding-right:6px;}
-.ap-tree-item{display:block;width:100%;text-align:left;padding:4px 6px;border-radius:4px;font-size:12px;color:#bcb0e0;font-family:Menlo,monospace;word-break:break-all;}
-.ap-tree-item:hover{background:#15102a;color:#fff;}
-.ap-tree-item.sel{background:#2a1030;color:#ff2d78;}
-.ap-viewer{overflow:auto;background:#06060c;border-radius:6px;padding:10px;}
-.ap-viewer pre{font-family:Menlo,monospace;font-size:11.5px;line-height:1.55;color:#dcd4f0;white-space:pre-wrap;word-break:break-word;margin:0;}
 .ap-viewer-empty{color:#5a4f7a;font-size:12px;text-align:center;padding:20px;font-style:italic;}
-/* Terminal */
-.ap-term{font-family:Menlo,monospace;font-size:11.5px;line-height:1.5;color:#cfc8e8;white-space:pre-wrap;word-break:break-word;}
-.ap-term-line{padding:2px 0;border-bottom:1px dotted #15102a;}
-.ap-term-line.warn{color:#fbbf24;}
-.ap-term-line.error{color:#ff5577;}
-.ap-term-line.tool{color:#4a9eff;}
-.ap-term-line.tool.fail{color:#ff5577;}
-.ap-term-line .t-time{color:#5a4f7a;margin-right:6px;}
-/* Preview */
-.ap-preview-wrap{display:flex;flex-direction:column;height:100%;}
-.ap-preview-toolbar{display:flex;gap:6px;align-items:center;padding-bottom:8px;border-bottom:1px solid #1a1530;margin-bottom:8px;}
-.ap-preview-entry{flex:1;font-size:11.5px;color:#aaa;font-family:Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ap-preview-frame{flex:1;width:100%;border:1px solid #1a1530;border-radius:6px;background:#fff;}
-/* Trigger button (replaces think when VV active) */
-.agent-btn{height:28px;padding:0 11px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;background:transparent;color:#ff2d78;border:2px solid #3a1030;font-size:12px;font-weight:700;letter-spacing:.4px;flex-shrink:0;}
-.agent-btn:hover{background:#150a18;}
-.agent-btn .ap-dot{width:7px;height:7px;border-radius:50%;background:#ff2d78;box-shadow:0 0 6px #ff2d78;}
-.agent-btn.busy .ap-dot{animation:apPulse 1s ease-in-out infinite;}
+.ap-btn{background:#15102a;color:#ff2d78;border:1px solid #2a1c4a;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;letter-spacing:.3px;cursor:pointer;}
+.ap-btn:hover{background:#1f1838;}
+.ap-tree-item{display:block;width:100%;text-align:left;padding:5px 8px;border-radius:6px;font-size:12px;color:#bcb0e0;font-family:Menlo,monospace;word-break:break-all;border:none;background:none;cursor:pointer;}
+.ap-tree-item:active{background:#15102a;color:#fff;}
+.ap-tree-item.sel{background:#2a1030;color:#ff2d78;}
+@keyframes apPulse{50%{box-shadow:0 0 0 4px rgba(255,45,120,.18);}}
+/* ── VV Agent Panel (old — removed) ── */
+#agent-panel{display:none!important;}
+#agent-panel-overlay{display:none!important;}
+.agent-btn{display:none!important;}
 @media (max-width:520px){
-  #agent-panel{width:100vw;}
-  .ap-files-split{grid-template-columns:1fr;grid-template-rows:34% 66%;}
-  .ap-tree{border-right:none;border-bottom:1px solid #1a1530;padding-right:0;padding-bottom:6px;}
+  .ws-tab{font-size:10.5px;padding:8px 4px;}
 }
 
 </style></head><body>${esc(code)}</body></html>`;}
@@ -2956,6 +2934,8 @@ function appendPending(id,isCodeMode){
   row.id=id;
   if(isCodeMode)row.dataset.codemode='true';
 
+  const isVV = (S.model === 'VV');
+
   if(m.hasThink && modeOn('think')){
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
       <div class="ai-think streaming" id="${id}think" onclick="event.stopPropagation()"><div class="ai-think-hdr" onclick="event.stopPropagation();this.closest('.ai-think').classList.toggle('open')">
@@ -2965,7 +2945,13 @@ function appendPending(id,isCodeMode){
       <div class="answer-waiting" id="${id}aw"><div class="answer-waiting-dots"><span></span><span></span><span></span></div><span class="answer-waiting-lbl">Answer on the way…</span></div>
       <div class="ai-txt" id="${id}txt" style="display:none"></div>
     </div></div></div></div>`;
-  }else{
+  } else if(isVV){
+    /* VV: inline terminal replaces Typing... */
+    row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
+      <div class="vv-term" id="${id}term"></div>
+      <div class="ai-txt" id="${id}txt"></div>
+    </div></div></div></div>`;
+  } else {
     const aState=isCodeMode?'coding':'writing';
     const aLabel=isCodeMode?'Writing Code':'Typing';
     row.innerHTML=`<div class="msg-in"><div class="msg-content"><img class="ai-av" src="icon.webp" alt=""/><div class="ai-body">
@@ -3104,7 +3090,7 @@ async function generate(convo,aiId,userSearchData,userQuery,userWantsSearch,cont
   contMode=contMode||false;
   if(isCodeMode===undefined)isCodeMode=modeOn('code');
   S.busy=true;
-  if(window.AgentUI)window.AgentUI.onSendStart();
+  if(window.AgentUI)window.AgentUI.onSendStart(aiId);
   const txtEl=document.getElementById(aiId+'txt');
   const thinkEl=document.getElementById(aiId+'think');
   const thCont=document.getElementById(aiId+'thcont');
