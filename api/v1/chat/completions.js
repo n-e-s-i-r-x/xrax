@@ -362,7 +362,7 @@ const RESPONSE_FORMAT_RULES = `RESPONSE LAYOUT — MANDATORY
 - Do not pad with restatements, recap sentences, or "let me know if…" closers.
 - Never use decorative emoji. Functional symbols inside code blocks are fine.`;
 
-const API_KEY_RE = /^(void_sk_[a-z0-9]{17}|sk-or-[a-zA-Z0-9\-_]{20,})$/;
+const API_KEY_RE = /^void_sk_[a-z0-9]{17,20}$/;
 const OR_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 
 export default async function handler(req) {
