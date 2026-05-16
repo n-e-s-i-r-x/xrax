@@ -448,20 +448,10 @@ function jsonErr(status, msg) {
 }
 
 async function readAll(res) {
-  const dec = new TextDecoder();
-  let text = '', buf = '';
-  const reader = res.body.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop() || '';
-    for (const line of lines) {
-      const l = line.trim();
-      if (!l.startsWith('data:') || l === 'data: [DONE]') continue;
-      try { const d = JSON.parse(l.slice(5).trim()); text += d?.choices?.[0]?.delta?.content || ''; } catch {}
-    }
+  try {
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content || '';
+  } catch {
+    return '';
   }
-  return text;
 }
