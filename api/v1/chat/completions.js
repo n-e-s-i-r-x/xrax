@@ -77,7 +77,7 @@ const RESPONSE_FORMAT_RULES = `RESPONSE LAYOUT — MANDATORY
 - Never use decorative emoji. Functional symbols inside code blocks are fine.`;
 
 const API_KEY_RE = /^void_sk_[a-z0-9]{17,20}$/;
-const OR_MODEL = 'deepseek/deepseek-v4-flash:free';
+const OR_MODEL = 'deepseek-v4-flash-free';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return corsOk();
@@ -97,16 +97,14 @@ export default async function handler(req) {
   const systemMsg = { role: 'system', content: VVV_PERSONA + CAPABILITIES_BLOCK + RESPONSE_FORMAT_RULES };
   const orBody = { model: OR_MODEL, messages: [systemMsg, ...messages], temperature, max_tokens, stream };
 
-  const apiKey = typeof process !== 'undefined' ? process.env?.OPENROUTER_API_KEY : undefined;
+  const apiKey = typeof process !== 'undefined' ? process.env?.OPENCODE_API_KEY : undefined;
   if (!apiKey) return jsonErr(500, 'Server configuration error');
 
-  const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const orRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://0vai.vercel.app',
-      'X-Title': '0vAI',
     },
     body: JSON.stringify(orBody),
   });
