@@ -2562,7 +2562,7 @@ if(typeof DOMPurify==="undefined")window.DOMPurify={sanitize:s=>s};
 
 /* Configure marked once: GFM tables/strikethrough + soft-break to <br>. */
 try{ if(window.marked && typeof marked.setOptions==='function'){
-  marked.setOptions({ breaks:true, gfm:true, headerIds:false, mangle:false });
+  marked.setOptions({ breaks:false, gfm:true, headerIds:false, mangle:false });
 } }catch(_){}
 
 /* Auto-paragraph: if a model returns a wall-of-text (no blank lines, no
@@ -3265,7 +3265,7 @@ function buildMsg(msg,idx){
 }
 
 function attachCodeBtns(){
-  document.querySelectorAll('.ai-txt pre').forEach(pre=>{
+  document.querySelectorAll('.ai-txt pre, .msg-row pre').forEach(pre=>{
     if(pre.closest('.code-wrap'))return;
     const code=pre.querySelector('code');const lang=(code?.className||'').replace('language-','').replace(/\s.*$/,'')||'code';
     const msgRow=pre.closest('.msg-row');
@@ -3279,6 +3279,36 @@ function attachCodeBtns(){
 }
 
 function cpyCode(btn){const code=btn.closest('.code-wrap').querySelector('code').innerText;copyText(code,()=>{const orig=btn.innerHTML;btn.innerHTML='Copied';setTimeout(()=>{btn.innerHTML=orig;},1800);});}
+
+function toggleMsgCopy(row,e){
+  if(!row)return;
+  const btn=row.querySelector('.msg-copy-btn');
+  if(!btn)return;
+  // If click came from inside the button itself, don't toggle — let copyMsgTxt handle it
+  if(e&&e.target&&e.target.closest('.msg-copy-btn'))return;
+  // If click came from a code-wrap, don't toggle
+  if(e&&e.target&&e.target.closest('.code-wrap'))return;
+  const isShown=btn.classList.contains('show');
+  // Hide all other open copy buttons first
+  document.querySelectorAll('.msg-copy-btn.show').forEach(b=>{if(b!==btn)b.classList.remove('show');});
+  btn.classList.toggle('show',!isShown);
+}
+
+function copyMsgTxt(btn,e){
+  if(e){e.stopPropagation();}
+  const row=btn.closest('.msg-row');if(!row)return;
+  // Prefer the raw text content of the ai-txt or u-bubble
+  const aiTxt=row.querySelector('.ai-txt');
+  const uBubble=row.querySelector('.u-bubble');
+  const src=aiTxt||uBubble;
+  if(!src)return;
+  const text=src.innerText||src.textContent||'';
+  copyText(text.trim(),()=>{
+    const orig=btn.innerHTML;
+    btn.innerHTML='<svg width="10" height="10" viewBox="0 0 6 6" fill="currentColor"><rect x="1" y="3" width="2" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/></svg>Copied';
+    setTimeout(()=>{btn.innerHTML=orig;},1800);
+  });
+}
 const EXT={html:'html',htm:'html',css:'css',scss:'scss',javascript:'js',js:'js',jsx:'jsx',typescript:'ts',ts:'ts',tsx:'tsx',python:'py',py:'py',java:'java',c:'c',cpp:'cpp',csharp:'cs',cs:'cs',go:'go',rust:'rs',rs:'rs',ruby:'rb',rb:'rb',php:'php',swift:'swift',kotlin:'kt',kt:'kt',sql:'sql',json:'json',xml:'xml',yaml:'yml',yml:'yml',markdown:'md',md:'md',bash:'sh',sh:'sh',shell:'sh',vue:'vue',svelte:'svelte',dart:'dart',lua:'lua'};
 function downloadCode(btn){
   const codeEl=btn.closest('.code-wrap').querySelector('code');if(!codeEl)return;
