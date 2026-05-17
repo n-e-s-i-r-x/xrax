@@ -11,10 +11,10 @@ export const config = { runtime: 'edge' };
 const MODEL_MAP = {
   '0':         { id: 'minimax-m2.5-free',         hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
   '00':        { id: 'poolside/laguna-xs.2:free',  hasReasoning:true,  hasPromptedThink:false, minTokens:10000 },
-  '000':       { id: 'hy3-preview-free',           hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
-  'V':         { id: 'ling-2.6-flash-free',        hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  '000':       { id: 'nemotron-3-super-free',           hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'V':         { id: 'minimax-m2.5-free',        hasReasoning:true, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
   'VV':        { id: 'deepseek-v4-flash-free', hasReasoning:true,  hasPromptedThink:false, minTokens:10000, contextWindow:100000, useOpenCode:true },
-  'VVV':       { id: 'nemotron-3-super-free',      hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'VVV':       { id: 'deepseek-v4-flash-free',      hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
   'humanizer': { id: 'openai/gpt-oss-120b:free',  hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
