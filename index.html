@@ -1036,12 +1036,14 @@ body.themed .speed-timer {
         <div class="ak-mini-title">Request body</div>
         <div class="ak-table">
           <div class="ak-tr ak-th"><div>Field</div><div>Type</div><div>Default</div></div>
-          <div class="ak-tr"><div><code>messages</code> <span class="ak-req">required</span></div><div>array</div><div>—</div></div>
+          <div class="ak-tr"><div><code>messages</code></div><div>array</div><div>—</div></div>
           <div class="ak-tr"><div><code>stream</code></div><div>boolean</div><div><code>true</code></div></div>
-          <div class="ak-tr"><div><code>max_tokens</code></div><div>number</div><div><code>32000</code></div></div>
-          <div class="ak-tr"><div><code>temperature</code></div><div>number</div><div><code>0.3</code></div></div>
+
+          <div class="ak-tr"><div><code>tools</code></div><div>array</div><div>—</div></div>
+          <div class="ak-tr"><div><code>tool_choice</code></div><div>string | object</div><div><code>auto</code></div></div>
+          <div class="ak-tr"><div><code>response_format</code></div><div>object</div><div>—</div></div>
         </div>
-        <div class="ak-hint">A <code>model</code> field, if sent, is ignored — this endpoint always serves <code>void/voidv1-flash</code>. The system prompt is also injected server-side.</div>
+        <div class="ak-hint">A <code>model</code> field, if sent, is ignored — this endpoint always serves <code>void/voidv1-flash</code>.</div>
 
         <div class="ak-mini-title">Example request</div>
         <div class="ak-tabs">
@@ -1095,10 +1097,75 @@ print(r.json())'><svg width="10" height="10" viewBox="0 0 7 8" fill="currentColo
 }</pre>
 
         <div class="ak-mini-title">Streaming response <span class="ak-tag">stream: true (default)</span></div>
-        <div class="ak-hint" style="margin:0 0 8px;">Returns <code>text/event-stream</code>. Each event is an OpenAI-style chunk; the stream ends with <code>data: [DONE]</code>.</div>
-        <pre class="ak-code-example">data: {"choices":[{"delta":{"content":"Hel"}}]}
-data: {"choices":[{"delta":{"content":"lo"}}]}
+        <div class="ak-hint" style="margin:0 0 8px;">Returns <code>text/event-stream</code>. Each chunk is an OpenAI-compatible SSE event. The stream ends with <code>data: [DONE]</code>.</div>
+        <pre class="ak-code-example">data: {"id":"chatcmpl-...","choices":[{"delta":{"role":"assistant","content":"Hel"},"index":0}]}
+data: {"choices":[{"delta":{"content":"lo!"},"index":0}]}
+data: {"choices":[{"delta":{},"finish_reason":"stop","index":0}]}
 data: [DONE]</pre>
+
+        <div class="ak-mini-title">Tool calls <span class="ak-tag">tools</span></div>
+        <div class="ak-hint" style="margin:0 0 8px;">Pass a <code>tools</code> array using the OpenAI function-calling schema. The model will return a <code>tool_calls</code> field in the choice message when it wants to invoke a function.</div>
+        <pre class="ak-code-example">{
+  "messages": [{ "role": "user", "content": "What is 42 * 7?" }],
+  "stream": false,
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "multiply",
+        "description": "Multiply two numbers",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "a": { "type": "number" },
+            "b": { "type": "number" }
+          },
+          "required": ["a", "b"]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto"
+}</pre>
+        <div class="ak-hint" style="margin:8px 0 0;">Tool call response — the model returns <code>tool_calls</code> instead of <code>content</code>:</div>
+        <pre class="ak-code-example">{
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [{
+        "id": "call_abc123",
+        "type": "function",
+        "function": { "name": "multiply", "arguments": "{"a":42,"b":7}" }
+      }]
+    },
+    "finish_reason": "tool_calls"
+  }]
+}</pre>
+
+        <div class="ak-mini-title">Structured output <span class="ak-tag">response_format</span></div>
+        <div class="ak-hint" style="margin:0 0 8px;">Force JSON output that matches a schema by setting <code>response_format</code>. The model will always respond with valid JSON conforming to your schema.</div>
+        <pre class="ak-code-example">{
+  "messages": [{ "role": "user", "content": "Give me a user object" }],
+  "stream": false,
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "user",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name":  { "type": "string" },
+          "email": { "type": "string" },
+          "age":   { "type": "integer" }
+        },
+        "required": ["name", "email", "age"],
+        "additionalProperties": false
+      }
+    }
+  }
+}</pre>
       </div>
     </div>
 
@@ -1107,10 +1174,13 @@ data: [DONE]</pre>
       <div class="ak-table">
         <div class="ak-tr ak-tr-2 ak-th"><div>Status</div><div>Meaning</div></div>
         <div class="ak-tr ak-tr-2"><div><code>400</code></div><div>Invalid JSON body, or <code>messages</code> array missing.</div></div>
-        <div class="ak-tr ak-tr-2"><div><code>401</code></div><div>Missing/invalid <code>Authorization</code> header, or invalid API key format.</div></div>
-        <div class="ak-tr ak-tr-2"><div><code>405</code></div><div>Method not allowed (only <code>POST</code> and <code>OPTIONS</code>).</div></div>
-        <div class="ak-tr ak-tr-2"><div><code>500</code></div><div>Server configuration error.</div></div>
-        <div class="ak-tr ak-tr-2"><div><code>5xx</code></div><div>Upstream failure forwarded from the model provider.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>401</code></div><div>Missing or invalid <code>Authorization</code> header, or invalid API key format.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>403</code></div><div>Access denied — your key does not have permission for this action.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>405</code></div><div>Method not allowed — only <code>POST</code> and <code>OPTIONS</code> are accepted.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>429</code></div><div>Rate limit reached — slow down your requests and retry.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>500</code></div><div>The model encountered an internal error.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>503</code></div><div>Model is temporarily unavailable — try again later.</div></div>
+        <div class="ak-tr ak-tr-2"><div><code>504</code></div><div>Request timed out — try a shorter prompt or retry.</div></div>
       </div>
       <div class="ak-mini-title">Error envelope</div>
       <pre class="ak-code-example">{ "error": { "message": "...", "type": "api_error", "code": 401 } }</pre>
@@ -1206,7 +1276,7 @@ data: [DONE]</pre>
 .ak-ep-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:8px;line-height:1.5;}
 .ak-mini-title{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:rgba(255,255,255,.4);margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
 .ak-tag{font-size:9.5px;font-weight:600;letter-spacing:.3px;text-transform:none;color:rgba(255,255,255,.5);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-family:var(--app-font);}
-.ak-req{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#f87171;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);padding:1px 5px;border-radius:4px;margin-left:6px;vertical-align:middle;}
+
 .ak-table{border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden;font-family:var(--app-font);}
 .ak-tr{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;padding:8px 10px;font-size:11px;color:rgba(255,255,255,.6);border-top:1px solid rgba(255,255,255,.05);align-items:center;}
 .ak-tr:first-child{border-top:none;}
