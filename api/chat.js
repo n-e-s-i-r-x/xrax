@@ -9,13 +9,13 @@ export const config = { runtime: 'edge' };
 /* ─────────────── 1. MODEL CATALOG ─────────────── */
 
 const MODEL_MAP = {
-  '0':         { id: 'minimax-m2.5-free',      hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
-  '00':        { id: 'poolside/laguna-xs.2:free',                  hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
-  '000':       { id: 'mimo-v2-omni-free',       hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
-  'V':         { id: 'mimo-v2-pro-free',        hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
-  'VV':        { id: 'deepseek-v4-flash-free',  hasReasoning:true,  hasPromptedThink:false, minTokens:10000, contextWindow:100000, useOpenCode:true },
-  'VVV':       { id: 'nemotron-3-super-free',   hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
-  'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
+  '0':         { id: 'minimax-m2.5-free',         hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  '00':        { id: 'poolside/laguna-xs.2:free',  hasReasoning:true,  hasPromptedThink:false, minTokens:10000 },
+  '000':       { id: 'hy3-preview-free',           hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'V':         { id: 'ling-2.6-flash-free',        hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'VV':        { id: 'deepseek-v4-flash-free',     hasReasoning:true,  hasPromptedThink:false, minTokens:10000, contextWindow:100000, useOpenCode:true },
+  'VVV':       { id: 'nemotron-3-super-free',      hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'humanizer': { id: 'openai/gpt-oss-120b:free',  hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
 const modelEntry = (key) => MODEL_MAP[key] ?? MODEL_MAP['0'];
@@ -53,15 +53,16 @@ VIOLATIONS:
 const RESPONSE_FORMAT_RULES = `
 
 RESPONSE LAYOUT — MANDATORY
-- Break content into short paragraphs of at most 3 sentences. Insert a blank line between paragraphs.
-- For any answer longer than ~3 sentences, organize with markdown: use \`##\` or \`###\` headings for distinct sections, \`-\` bullets when listing 3+ items, and numbered lists for ordered steps.
-- Wrap every code, command, file path, JSON, or shell snippet in fenced code blocks with a language tag (\`\`\`js, \`\`\`bash, \`\`\`json, \`\`\`text). Never inline multi-line code.
+- Write in short paragraphs of at most 3 sentences. Two newlines between paragraphs — no more.
+- For any answer longer than ~3 sentences, use markdown: \`##\` or \`###\` headings for sections, \`-\` bullets for 3+ items, numbered lists for ordered steps.
+- Wrap every code, command, file path, JSON, or shell snippet in fenced code blocks with a language tag. Never inline multi-line code.
 - Use inline \`code\` for identifiers, flags, filenames, and short literals.
-- Use GFM tables for any tabular comparison of 2+ columns.
-- Bold the key term of a definition once, not every keyword.
+- Use GFM tables for tabular comparisons of 2+ columns.
+- Bold the key term of a definition once only — not every keyword.
 - Never produce a single paragraph longer than ~80 words. Split it.
-- Do not pad with restatements, recap sentences, or "let me know if…" closers.
-- Never use decorative emoji. Functional symbols inside code blocks are fine.`;
+- Do not pad with restatements, recap sentences, or "let me know if..." closers.
+- Never use decorative emoji. Functional symbols inside code blocks are fine.
+- Never use em dashes (—). Use a regular hyphen (-) or rewrite the sentence.`;
 
 /* Visible thinking trace addendum — appended only when the model emits
    <think> reasoning so the trace is also blocked and scannable. */
@@ -1325,7 +1326,7 @@ export default async function handler(req) {
 
       let upstreamRes;
       try {
-        const useOC = !!mEntry.useOpenCode && !!openCodeKey;
+        const useOC = !!effectiveEntry.useOpenCode && !!openCodeKey;
         const upstreamUrl = useOC
           ? 'https://opencode.ai/zen/v1/chat/completions'
           : 'https://openrouter.ai/api/v1/chat/completions';
