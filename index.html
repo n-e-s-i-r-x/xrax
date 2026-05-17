@@ -3021,7 +3021,7 @@ function toggleMode(m){
   if(modeOn('image'))updateImgLimitDisplay();
   const hzHint=document.getElementById('humanizer-hint');
   if(hzHint)hzHint.style.display=modeOn('humanizer')?'block':'none';
-  applyColors();updateModelDescs();
+  applyColors();updateModelDescs();applyCapabilityGating();
 }
 function modeOn(m){return S.modes.has(m);}
 
@@ -3132,7 +3132,7 @@ function dtCtx(){const n=new Date();return'\n\nCurrent date: '+n.toLocaleDateStr
 let inited=false;
 function init(){
   if(inited)return;inited=true;
-  try{loadStore();renderSB();showEmpty();setupScroll();setupInput();applyColors();updateModelDescs();applySpeedSetting();}catch(e){console.error(e);}
+  try{loadStore();renderSB();showEmpty();setupScroll();setupInput();applyColors();updateModelDescs();applySpeedSetting();setTimeout(applyCapabilityGating,0);}catch(e){console.error(e);}
   setTimeout(()=>{document.getElementById('intro')?.classList.add('hide');document.getElementById('app')?.classList.add('ready');setTimeout(()=>{const i=document.getElementById('intro');if(i)i.style.display='none';},1000);},2600);
 }
 document.addEventListener('DOMContentLoaded',init);
