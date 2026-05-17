@@ -9,12 +9,12 @@ export const config = { runtime: 'edge' };
 /* ─────────────── 1. MODEL CATALOG ─────────────── */
 
 const MODEL_MAP = {
-  '0':         { id: 'z-ai/glm-4.5-air:free',       hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
+  '0':         { id: 'minimax-m2.5-free',      hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
   '00':        { id: 'poolside/laguna-xs.2:free',                  hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
-  '000':       { id: 'openai/gpt-oss-120b:free',                 hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
-  'V':         { id: 'z-ai/glm-4.5-air:free',              hasReasoning:false, hasPromptedThink:false, minTokens:10000 },
-  'VV':        { id: 'deepseek/deepseek-v4-flash:free',         hasReasoning:true,  hasPromptedThink:false, minTokens:10000, contextWindow:100000 },
-  'VVV':       { id: 'nvidia/nemotron-3-super-120b-a12b:free',   hasReasoning:true, hasPromptedThink:false, minTokens:10000 },
+  '000':       { id: 'mimo-v2-omni-free',       hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'V':         { id: 'mimo-v2-pro-free',        hasReasoning:false, hasPromptedThink:false, minTokens:10000, useOpenCode:true },
+  'VV':        { id: 'deepseek-v4-flash-free',  hasReasoning:true,  hasPromptedThink:false, minTokens:10000, contextWindow:100000, useOpenCode:true },
+  'VVV':       { id: 'nemotron-3-super-free',   hasReasoning:true,  hasPromptedThink:false, minTokens:10000, useOpenCode:true },
   'humanizer': { id: 'openai/gpt-oss-120b:free',                 hasReasoning:false, hasPromptedThink:false, minTokens:10000, temperature:1.5 },
 };
 const VISION_MODEL_ID = 'meta-llama/llama-3.2-11b-vision-instruct';
@@ -1143,6 +1143,9 @@ export default async function handler(req) {
               ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) return sseError('Missing API key.');
 
+  const openCodeKey = (typeof process !== 'undefined' ? process.env?.OPENCODE_API_KEY : undefined)
+                   ?? (typeof globalThis !== 'undefined' ? globalThis.OPENCODE_API_KEY : undefined);
+
   const mEntry = modelEntry(modelKey);
 
   /* VV router: detect casual vs build request, then route accordingly. */
@@ -1322,18 +1325,20 @@ export default async function handler(req) {
 
       let upstreamRes;
       try {
+        const useOC = !!mEntry.useOpenCode && !!openCodeKey;
+        const upstreamUrl = useOC
+          ? 'https://opencode.ai/zen/v1/chat/completions'
+          : 'https://openrouter.ai/api/v1/chat/completions';
+        const upstreamHeaders = useOC
+          ? { 'Authorization': `Bearer ${openCodeKey}`, 'Content-Type': 'application/json' }
+          : { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://0vai.vercel.app', 'X-Title': '0vAI' };
         upstreamRes = await fetchWithRetry(
-          'https://openrouter.ai/api/v1/chat/completions',
+          upstreamUrl,
           {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'https://0vai.vercel.app',
-              'X-Title': '0vAI',
-            },
+            headers: upstreamHeaders,
             body: JSON.stringify(reqBody),
-            signal: req.signal,   // forward client abort to upstream
+            signal: req.signal,
           },
           4
         );
