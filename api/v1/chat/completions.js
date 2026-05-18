@@ -22,6 +22,28 @@ const API_KEY_RE   = /^.{8,}$/;
 const UPSTREAM_ID  = 'deepseek-v4-flash-free';
 const UPSTREAM_URL = 'https://opencode.ai/zen/v1/chat/completions';
 
+// ── API Key Pool (rotates automatically on error/rate-limit) ─────────────────
+const API_KEYS = [
+  'sk-s1drxz7SI85JoRGVHzYeyLwY0iTuwSwDT7r4hpeyN5iDos0hlhaMhSZIYKC5tk8b',
+  'sk-Kp21c95wzZS5ocyQwmq0ITxdgYB5OATJ5FI7V1fYNCk3y5PluH1zv9EmDyXv9wCm',
+  'sk-nitMD6TV0O9C4pNWCCfWVbY8Bx0pc2en95FmAXQ8ra9HHnfzdXZQpWzVZtVj6RLk',
+  'sk-dNoFYbd44tSkdKXO2Ti7suPbdwvGbp1wibP97x4G6oP8JpU1mbSEjWgHcLQ7B87p',
+  'sk-TfhQc966OFJj5myCAGIa9vzVizWmCGDUsA3rWEJXbEV8AxALvs1sbCinWRwTGwM6',
+  'sk-RGmm7MZ2ooXy8usYF6jz2rVNhpdEEQA4DKchksDQCB35EofEpOd6KGl7lnTwETel',
+  'sk-cJQ6Np5mnjahzvXTIswoz5injEBhx6rRKotk4Nlr4haELWpWh15KTBtULT2DFhJy',
+  'sk-7So4xL8vdgeiGLHVDbSzalyaoglNIMDB6iR75wzitZW6dunptyaYj6fRpwoZ8a3w',
+  'sk-PtftPt3wJHldnFgDG0hMSTguJN4KXFBxjewvEG51ivACIow3sD3dIx4hWcCony6N',
+  'sk-3YPPMLHREJXlfV1UcwtU8kVnrqZEruRESjg0JLbuZhutMmKnOuTxCwL0BzRlpYCF',
+];
+let keyIndex = 0;
+function getNextKey() {
+  const key = API_KEYS[keyIndex % API_KEYS.length];
+  keyIndex = (keyIndex + 1) % API_KEYS.length;
+  return key;
+}
+// Statuses that should trigger a key rotation
+const ROTATE_ON = new Set([401, 403, 429, 500, 502, 503]);
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -229,25 +251,32 @@ export default async function handler(req) {
     ...(response_format && { response_format }),
   };
 
-  const apiKey = typeof process !== 'undefined' ? process.env?.OPENCODE_API_KEY : undefined;
-  if (!apiKey) return jsonErr(500, 'Server configuration error');
-
+  // ── Key-rotating upstream fetch (tries every key before giving up) ──────────
   let upstreamRes;
-  try {
-    upstreamRes = await fetch(UPSTREAM_URL, {
-      method:  'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify(upstreamBody),
-    });
-  } catch {
-    return jsonErr(503, 'Upstream connection failed');
+  let lastStatus = 503;
+  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+    const apiKey = getNextKey();
+    try {
+      upstreamRes = await fetch(UPSTREAM_URL, {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify(upstreamBody),
+      });
+    } catch {
+      lastStatus = 503;
+      continue; // network error, try next key
+    }
+    if (upstreamRes.ok) break; // success!
+    lastStatus = upstreamRes.status;
+    if (!ROTATE_ON.has(lastStatus)) break; // non-retryable, stop
+    // rate-limited / auth error / server error → rotate to next key
   }
 
-  if (!upstreamRes.ok)
-    return jsonErr(upstreamRes.status, upstreamErrorToVoid(upstreamRes.status));
+  if (!upstreamRes || !upstreamRes.ok)
+    return jsonErr(lastStatus, upstreamErrorToVoid(lastStatus));
 
   // ── Streaming ──────────────────────────────────────────────────────────────
   if (stream) {
