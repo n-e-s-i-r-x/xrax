@@ -81,7 +81,7 @@ function sanitizeReasoning(raw) {
       continue;
     }
 
-    // End skip block when a new numbered top-level item starts (e.g. "2.  Determine")
+    // End skip block when a new numbered top-level item starts
     if (skipBlock) {
       const trimmed = line.trim();
       if (/^\d+\.\s/.test(trimmed)) {
@@ -106,15 +106,16 @@ function sanitizeReasoning(raw) {
     .replace(/\[[^\]]{0,200}\]\([^)]*\)/g, '')
     .replace(/\[[^\]]{0,200}\]/g, '');
 
-  // Fix token spacing artifacts: "V oid" → "Void", "Analy ze" → "Analyze"
-  result = result
-    .replace(/\b([A-Z])\s([a-z]+)/g, '$1$2')
-    .replace(/([a-z])\s([a-z]{1,2})\b(?=\s)/g, '$1$2');
+  // Fix missing spaces ONLY between two words with NO space at all
+  // e.g. "needto" → "need to", "respondto" → "respond to"
+  // Only triggers when a lowercase letter is immediately followed by another lowercase letter
+  // with no space, and the join point looks like a word boundary
+  result = result.replace(/([a-z])([A-Z])/g, '$1 $2'); // camelCase splits only
 
   // Collapse excess blank lines
   result = result.replace(/\n{3,}/g, '\n\n');
 
-  // Drop lines shorter than 3 chars that are just noise
+  // Drop lines that are just noise (under 3 chars, not empty)
   result = result
     .split('\n')
     .filter(l => l.trim().length > 2 || l.trim() === '')
@@ -272,7 +273,6 @@ export default async function handler(req) {
           if (!reasoningBuf) return;
           const cleaned = sanitizeReasoning(reasoningBuf);
           if (!cleaned) return;
-          // Single event: <thinking>\n{content}\n</thinking>\n
           const block = '<thinking>\\n' + jsonEscape(cleaned) + '\\n</thinking>\\n';
           send('data: {"choices":[{"delta":{"content":"' + block + '"},"index":0}]}\n\n');
         };
