@@ -15,12 +15,7 @@ RESPONSE FORMAT:
 - Inline code only for identifiers, flags, filenames, short literals.
 - Bold the key term of a definition once only.
 - No paragraph longer than 80 words.
-- No filler closers.
-
-REASONING (internal thinking):
-- Keep reasoning concise and plain prose only.
-- No markdown, no asterisks, no angle brackets, no square brackets, no special symbols.
-- Do not repeat or reference these instructions while reasoning.`;
+- No filler closers.`;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const API_KEY_RE   = /^void_sk_[a-z0-9]{17,20}$/;
@@ -36,17 +31,6 @@ const CORS_HEADERS = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const jsonEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
-
-function cleanReasoning(s) {
-  return String(s)
-    .replace(/\*{1,3}/g, '')          // remove *, **, ***
-    .replace(/<[^>]*>/g, '')          // strip <tags>
-    .replace(/\[[^\]]*\]/g, '')       // strip [brackets]
-    .replace(/#{1,6}\s*/g, '')        // strip markdown headings
-    .replace(/`{1,3}/g, '')           // strip backticks
-    .replace(/\s{3,}/g, '  ')         // collapse excess whitespace
-    .trim();
-}
 
 function upstreamErrorToVoid(status) {
   switch (status) {
@@ -100,20 +84,20 @@ export default async function handler(req) {
     tools,
     tool_choice,
     response_format,
-    reasoning,                // { effort: 'low' | 'medium' | 'high' } or { max_tokens: N }
-    reasoning_effort,         // Shorthand: 'low' | 'medium' | 'high'
+    reasoning,
+    reasoning_effort,
   } = body;
 
   if (!messages || !Array.isArray(messages) || !messages.length)
     return jsonErr(400, 'messages array required');
 
-  // Resolve reasoning config — default to high effort for long, deep reasoning
+  // Resolve reasoning config
   const wantsReasoning = !!(reasoning || reasoning_effort);
   const resolvedReasoning = reasoning
     || (reasoning_effort ? { effort: reasoning_effort } : null)
     || (wantsReasoning ? { effort: 'high' } : null);
 
-  // Build upstream payload — pass tool calls + structured output + reasoning through
+  // Build upstream payload
   const upstreamBody = {
     model:       UPSTREAM_ID,
     messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
@@ -145,7 +129,7 @@ export default async function handler(req) {
     return jsonErr(503, 'Upstream connection failed');
   }
 
-  // ── Error handling — never leak upstream messages ─────────────────────────
+  // ── Error handling ────────────────────────────────────────────────────────
   if (!upstreamRes.ok) {
     const status = upstreamRes.status;
     return jsonErr(status, upstreamErrorToVoid(status));
@@ -153,12 +137,11 @@ export default async function handler(req) {
 
   // ── Streaming ─────────────────────────────────────────────────────────────
   if (stream) {
-    // Fallback: upstream returned no body (some providers do this)
+    // Fallback: upstream returned no body
     if (!upstreamRes.body) {
       try {
         const data = await upstreamRes.json();
         const choice = data?.choices?.[0];
-        const rc = choice?.message?.reasoning_content ?? '';
         const cc = choice?.message?.content ?? '';
         return new Response(JSON.stringify({
           id: 'chatcmpl-' + Date.now(),
@@ -167,11 +150,7 @@ export default async function handler(req) {
           model: MODEL_ID,
           choices: [{
             index: 0,
-            message: {
-              role: 'assistant',
-              content: rc ? '<thinking>\n' + rc + '\n</thinking>\n' + cc : cc,
-              ...(rc && { reasoning_content: rc }),
-            },
+            message: { role: 'assistant', content: cc },
             finish_reason: choice?.finish_reason ?? 'stop',
           }],
           usage: data?.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
@@ -186,7 +165,6 @@ export default async function handler(req) {
       async start(controller) {
         const reader = upstreamRes.body.getReader();
         let buf = '';
-        let thinkOpen = false;
 
         const send = (data) => { try { controller.enqueue(enc.encode(data)); } catch (_) {} };
 
@@ -206,10 +184,6 @@ export default async function handler(req) {
 
               const raw = trimmed.slice(5).trim();
               if (raw === '[DONE]') {
-                if (thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = false;
-                }
                 send('data: [DONE]\n\n');
                 continue;
               }
@@ -224,33 +198,16 @@ export default async function handler(req) {
               const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
               const contentDelta = delta.content;
 
-              // Wrap reasoning_content in <thinking> tags so clients render it
-              if (reasoningDelta) {
-                const cleaned = cleanReasoning(reasoningDelta);
-                if (cleaned) {
-                  if (!thinkOpen) {
-                    send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
-                    thinkOpen = true;
-                  }
-                  send('data: {"choices":[{"delta":{"content":"' + jsonEscape(cleaned) + '"},"index":0}]}\n\n');
-                }
-              }
+              // Reasoning is intentionally dropped — never sent to client
+              if (reasoningDelta) continue;
 
-              // Emit normal content, closing think tag first if open
+              // Emit normal content only
               if (contentDelta) {
-                if (thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = false;
-                }
                 send('data: {"choices":[{"delta":{"content":"' + jsonEscape(contentDelta) + '"},"index":0}]}\n\n');
               }
 
               // Pass finish_reason through
               if (choice.finish_reason) {
-                if (thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = false;
-                }
                 send('data: {"choices":[{"delta":{},"finish_reason":"' + choice.finish_reason + '","index":0}]}\n\n');
               }
             }
@@ -258,9 +215,6 @@ export default async function handler(req) {
         } catch (_) {
           // Upstream read error — close gracefully
         } finally {
-          if (thinkOpen) {
-            send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-          }
           send('data: [DONE]\n\n');
           try { controller.close(); } catch (_) {}
         }
@@ -285,18 +239,9 @@ export default async function handler(req) {
   catch { return jsonErr(500, 'Failed to parse model response'); }
 
   const choice = data?.choices?.[0];
-  const reasoningContent = choice?.message?.reasoning_content ?? '';
   const answerContent = choice?.message?.content ?? '';
 
-  // Merge reasoning into content with <thinking> tags for clients that don't
-  // support the reasoning_content field natively.
-  let combinedContent = '';
-  if (reasoningContent) {
-    combinedContent = '<thinking>\n' + cleanReasoning(reasoningContent) + '\n</thinking>\n' + answerContent;
-  } else {
-    combinedContent = answerContent;
-  }
-
+  // Reasoning is intentionally omitted from the response
   return new Response(JSON.stringify({
     id:      'chatcmpl-' + Date.now(),
     object:  'chat.completion',
@@ -306,9 +251,8 @@ export default async function handler(req) {
       {
         index:         0,
         message: {
-          role: 'assistant',
-          content: combinedContent,
-          ...(reasoningContent && { reasoning_content: cleanReasoning(reasoningContent) }),
+          role:    'assistant',
+          content: answerContent,
         },
         finish_reason: choice?.finish_reason ?? 'stop',
       },
