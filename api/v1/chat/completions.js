@@ -32,6 +32,36 @@ const CORS_HEADERS = {
 
 const jsonEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
 
+// Cleans a fully-assembled reasoning string (used in non-streaming path)
+function cleanReasoning(s) {
+  return String(s)
+    // Fix missing spaces between words: "HelloWorld" or "Hello.World" → "Hello World"
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([.!?,;])([A-Za-z])/g, '$1 $2')
+    // Remove markdown symbols that don't belong in reasoning
+    .replace(/\*{1,3}([^*]*)\*{1,3}/g, '$1')   // bold/italic
+    .replace(/#{1,6}\s*/g, '')                   // headings
+    .replace(/`{1,3}/g, '')                      // backticks
+    .replace(/<[^>]{0,80}>/g, '')                // html/xml tags
+    .replace(/\[[^\]]{0,200}\]/g, '')            // [brackets]
+    // Collapse excess whitespace
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Fixes spacing on a streaming reasoning chunk relative to the previous chunk
+function fixChunkSpacing(prev, curr) {
+  if (!prev || !curr) return curr;
+  const lastChar = prev[prev.length - 1];
+  const firstChar = curr[0];
+  // Insert space if two word characters are jammed together across chunk boundary
+  if (/\w/.test(lastChar) && /\w/.test(firstChar)) {
+    return ' ' + curr;
+  }
+  return curr;
+}
+
 function upstreamErrorToVoid(status) {
   switch (status) {
     case 400: return 'Bad request — check your messages and parameters';
@@ -142,6 +172,7 @@ export default async function handler(req) {
       try {
         const data = await upstreamRes.json();
         const choice = data?.choices?.[0];
+        const rc = cleanReasoning(choice?.message?.reasoning_content ?? '');
         const cc = choice?.message?.content ?? '';
         return new Response(JSON.stringify({
           id: 'chatcmpl-' + Date.now(),
@@ -150,7 +181,11 @@ export default async function handler(req) {
           model: MODEL_ID,
           choices: [{
             index: 0,
-            message: { role: 'assistant', content: cc },
+            message: {
+              role: 'assistant',
+              content: rc ? '<thinking>\n' + rc + '\n</thinking>\n' + cc : cc,
+              ...(rc && { reasoning_content: rc }),
+            },
             finish_reason: choice?.finish_reason ?? 'stop',
           }],
           usage: data?.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
@@ -165,6 +200,8 @@ export default async function handler(req) {
       async start(controller) {
         const reader = upstreamRes.body.getReader();
         let buf = '';
+        let thinkOpen = false;
+        let lastReasoningChunk = '';
 
         const send = (data) => { try { controller.enqueue(enc.encode(data)); } catch (_) {} };
 
@@ -184,6 +221,10 @@ export default async function handler(req) {
 
               const raw = trimmed.slice(5).trim();
               if (raw === '[DONE]') {
+                if (thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = false;
+                }
                 send('data: [DONE]\n\n');
                 continue;
               }
@@ -198,16 +239,44 @@ export default async function handler(req) {
               const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
               const contentDelta = delta.content;
 
-              // Reasoning is intentionally dropped — never sent to client
-              if (reasoningDelta) continue;
+              // Emit reasoning inside <thinking> tags, with spacing fix per chunk
+              if (reasoningDelta) {
+                // Strip junk markdown symbols from this chunk
+                const stripped = String(reasoningDelta)
+                  .replace(/\*{1,3}([^*]*)\*{1,3}/g, '$1')
+                  .replace(/#{1,6}\s*/g, '')
+                  .replace(/`{1,3}/g, '')
+                  .replace(/<[^>]{0,80}>/g, '')
+                  .replace(/\[[^\]]{0,200}\]/g, '');
 
-              // Emit normal content only
+                // Fix spacing across chunk boundaries
+                const spaced = fixChunkSpacing(lastReasoningChunk, stripped);
+                lastReasoningChunk = stripped;
+
+                if (spaced) {
+                  if (!thinkOpen) {
+                    send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
+                    thinkOpen = true;
+                  }
+                  send('data: {"choices":[{"delta":{"content":"' + jsonEscape(spaced) + '"},"index":0}]}\n\n');
+                }
+              }
+
+              // Emit normal content, closing <thinking> first if open
               if (contentDelta) {
+                if (thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = false;
+                }
                 send('data: {"choices":[{"delta":{"content":"' + jsonEscape(contentDelta) + '"},"index":0}]}\n\n');
               }
 
               // Pass finish_reason through
               if (choice.finish_reason) {
+                if (thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = false;
+                }
                 send('data: {"choices":[{"delta":{},"finish_reason":"' + choice.finish_reason + '","index":0}]}\n\n');
               }
             }
@@ -215,6 +284,9 @@ export default async function handler(req) {
         } catch (_) {
           // Upstream read error — close gracefully
         } finally {
+          if (thinkOpen) {
+            send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+          }
           send('data: [DONE]\n\n');
           try { controller.close(); } catch (_) {}
         }
@@ -239,9 +311,13 @@ export default async function handler(req) {
   catch { return jsonErr(500, 'Failed to parse model response'); }
 
   const choice = data?.choices?.[0];
+  const reasoningContent = cleanReasoning(choice?.message?.reasoning_content ?? '');
   const answerContent = choice?.message?.content ?? '';
 
-  // Reasoning is intentionally omitted from the response
+  const combinedContent = reasoningContent
+    ? '<thinking>\n' + reasoningContent + '\n</thinking>\n' + answerContent
+    : answerContent;
+
   return new Response(JSON.stringify({
     id:      'chatcmpl-' + Date.now(),
     object:  'chat.completion',
@@ -252,7 +328,8 @@ export default async function handler(req) {
         index:         0,
         message: {
           role:    'assistant',
-          content: answerContent,
+          content: combinedContent,
+          ...(reasoningContent && { reasoning_content: reasoningContent }),
         },
         finish_reason: choice?.finish_reason ?? 'stop',
       },
