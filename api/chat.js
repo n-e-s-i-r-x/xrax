@@ -1144,8 +1144,25 @@ export default async function handler(req) {
               ?? (typeof globalThis !== 'undefined' ? globalThis.OPENROUTER_API_KEY : undefined);
   if (!apiKey) return sseError('Missing API key.');
 
-  const openCodeKey = (typeof process !== 'undefined' ? process.env?.OPENCODE_API_KEY : undefined)
-                   ?? (typeof globalThis !== 'undefined' ? globalThis.OPENCODE_API_KEY : undefined);
+  const OPENCODE_KEYS = [
+    'sk-s1drxz7SI85JoRGVHzYeyLwY0iTuwSwDT7r4hpeyN5iDos0hlhaMhSZIYKC5tk8b',
+    'sk-Kp21c95wzZS5ocyQwmq0ITxdgYB5OATJ5FI7V1fYNCk3y5PluH1zv9EmDyXv9wCm',
+    'sk-nitMD6TV0O9C4pNWCCfWVbY8Bx0pc2en95FmAXQ8ra9HHnfzdXZQpWzVZtVj6RLk',
+    'sk-dNoFYbd44tSkdKXO2Ti7suPbdwvGbp1wibP97x4G6oP8JpU1mbSEjWgHcLQ7B87p',
+    'sk-TfhQc966OFJj5myCAGIa9vzVizWmCGDUsA3rWEJXbEV8AxALvs1sbCinWRwTGwM6',
+    'sk-RGmm7MZ2ooXy8usYF6jz2rVNhpdEEQA4DKchksDQCB35EofEpOd6KGl7lnTwETel',
+    'sk-cJQ6Np5mnjahzvXTIswoz5injEBhx6rRKotk4Nlr4haELWpWh15KTBtULT2DFhJy',
+    'sk-7So4xL8vdgeiGLHVDbSzalyaoglNIMDB6iR75wzitZW6dunptyaYj6fRpwoZ8a3w',
+    'sk-PtftPt3wJHldnFgDG0hMSTguJN4KXFBxjewvEG51ivACIow3sD3dIx4hWcCony6N',
+    'sk-3YPPMLHREJXlfV1UcwtU8kVnrqZEruRESjg0JLbuZhutMmKnOuTxCwL0BzRlpYCF',
+  ];
+  let _ocKeyIndex = Math.floor(Math.random() * OPENCODE_KEYS.length);
+  function getOpenCodeKey() {
+    const k = OPENCODE_KEYS[_ocKeyIndex % OPENCODE_KEYS.length];
+    _ocKeyIndex = (_ocKeyIndex + 1) % OPENCODE_KEYS.length;
+    return k;
+  }
+  const openCodeKey = getOpenCodeKey();
 
   const mEntry = modelEntry(modelKey);
 
@@ -1324,28 +1341,42 @@ export default async function handler(req) {
         send(`data: {"meta":{"sources":${JSON.stringify(initSources)}}}\n\n`);
       }
 
+      const useOC = !!effectiveEntry.useOpenCode;
+      const OC_ROTATE_ON = new Set([401, 403, 429, 500, 502, 503]);
       let upstreamRes;
-      try {
-        const useOC = !!effectiveEntry.useOpenCode && !!openCodeKey;
+      let _lastStatus = 503;
+      const _keysToTry = useOC ? OPENCODE_KEYS.length : 1;
+      for (let _attempt = 0; _attempt < _keysToTry; _attempt++) {
+        const _ocKey = useOC ? getOpenCodeKey() : null;
         const upstreamUrl = useOC
           ? 'https://opencode.ai/zen/v1/chat/completions'
           : 'https://openrouter.ai/api/v1/chat/completions';
         const upstreamHeaders = useOC
-          ? { 'Authorization': `Bearer ${openCodeKey}`, 'Content-Type': 'application/json' }
+          ? { 'Authorization': `Bearer ${_ocKey}`, 'Content-Type': 'application/json' }
           : { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://0vai.vercel.app', 'X-Title': '0vAI' };
-        upstreamRes = await fetchWithRetry(
-          upstreamUrl,
-          {
-            method: 'POST',
-            headers: upstreamHeaders,
-            body: JSON.stringify(reqBody),
-            signal: req.signal,
-          },
-          4
-        );
-      } catch (err) {
-        send(sseContent(req.signal?.aborted ? '\n[Stopped]' : 'Network error. Please try again.'));
-        send(sseDone); try { controller.close(); } catch (_) {} return;
+        try {
+          upstreamRes = await fetchWithRetry(
+            upstreamUrl,
+            {
+              method: 'POST',
+              headers: upstreamHeaders,
+              body: JSON.stringify(reqBody),
+              signal: req.signal,
+            },
+            4
+          );
+        } catch (err) {
+          if (!useOC || _attempt === _keysToTry - 1) {
+            send(sseContent(req.signal?.aborted ? '\n[Stopped]' : 'Network error. Please try again.'));
+            send(sseDone); try { controller.close(); } catch (_) {} return;
+          }
+          _lastStatus = 503;
+          continue;
+        }
+        if (upstreamRes.ok) break;
+        _lastStatus = upstreamRes.status;
+        if (!useOC || !OC_ROTATE_ON.has(_lastStatus)) break;
+        try { await upstreamRes.text(); } catch (_) {} // drain body before retry
       }
 
       if (!upstreamRes.ok) {
