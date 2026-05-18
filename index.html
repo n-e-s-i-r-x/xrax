@@ -57,7 +57,7 @@ input,textarea{outline:none;border:none;background:none;}
 #intro-pulse{position:absolute;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.05);animation:iPulse 1.5s ease-out infinite;}
 @keyframes iPulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.5);opacity:0}}
 
-#app{position:fixed;left:0;top:0;width:100%;height:var(--app-height,100%);display:flex;flex-direction:column;background:#000;opacity:0;transition:opacity 0.4s ease;}
+#app{position:fixed;left:0;top:0;width:100%;height:var(--app-height,100%);display:flex;flex-direction:column;background:#000;opacity:0;transition:opacity .35s ease;}
 #app.ready{opacity:1;}
 
 /* ── TOPBAR ── */
@@ -1536,9 +1536,9 @@ data: [DONE]</pre>
 .bench-card:hover{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.04);}
 .bench-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .bench-card-name{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.75);letter-spacing:.2px;font-family:var(--app-font);}
-.bench-card-score{font-size:14px;font-weight:800;color:#4ade80;font-family:var(--app-font);letter-spacing:.3px;}
+.bench-card-score{font-size:14px;font-weight:800;color:rgba(255,255,255,.7);font-family:var(--app-font);letter-spacing:.3px;}
 .bench-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:2px;}
-.bench-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width .6s cubic-bezier(.4,0,.2,1);}
+.bench-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.35),rgba(255,255,255,.55));transition:width .6s cubic-bezier(.4,0,.2,1);}
 .bench-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
 .bench-stat{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;text-align:center;}
 .bench-stat-val{font-size:16px;font-weight:800;color:#fff;font-family:var(--app-font);letter-spacing:.2px;}
@@ -3385,7 +3385,7 @@ let inited=false;
 function init(){
   if(inited)return;inited=true;
   try{loadStore();renderSB();showEmpty();setupScroll();setupInput();applyColors();updateModelDescs();applySpeedSetting();setTimeout(applyCapabilityGating,0);}catch(e){console.error(e);}
-  setTimeout(()=>{document.getElementById('intro')?.classList.add('hide');document.getElementById('app')?.classList.add('ready');setTimeout(()=>{const i=document.getElementById('intro');if(i)i.style.display='none';},1000);},2600);
+  setTimeout(()=>{document.getElementById('intro')?.classList.add('hide');setTimeout(()=>{document.getElementById('app')?.classList.add('ready');const i=document.getElementById('intro');if(i)i.style.display='none';},1000);},2600);
 }
 document.addEventListener('DOMContentLoaded',init);
 if(document.readyState!=='loading')init();
