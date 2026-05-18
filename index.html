@@ -1038,6 +1038,8 @@ body.themed .speed-timer {
           <div class="ak-tr ak-th"><div>Field</div><div>Type</div><div>Default</div></div>
           <div class="ak-tr"><div><code>messages</code></div><div>array</div><div>—</div></div>
           <div class="ak-tr"><div><code>stream</code></div><div>boolean</div><div><code>true</code></div></div>
+          <div class="ak-tr"><div><code>reasoning</code></div><div>object</div><div>—</div></div>
+          <div class="ak-tr"><div><code>reasoning_effort</code></div><div>string</div><div>—</div></div>
 
           <div class="ak-tr"><div><code>tools</code></div><div>array</div><div>—</div></div>
           <div class="ak-tr"><div><code>tool_choice</code></div><div>string | object</div><div><code>auto</code></div></div>
@@ -1166,6 +1168,44 @@ data: [DONE]</pre>
     }
   }
 }</pre>
+
+        <div class="ak-mini-title">Reasoning <span class="ak-tag">reasoning</span></div>
+        <div class="ak-hint" style="margin:0 0 8px;">Enable the model to show its reasoning process before answering. Pass a <code>reasoning</code> object with an <code>effort</code> field, or use the shorthand <code>reasoning_effort</code> string. The model will emit a <code>&lt;thinking&gt;</code> block with its chain-of-thought, then the answer.</div>
+        <div class="ak-table">
+          <div class="ak-tr ak-th"><div>Field</div><div>Value</div><div>Description</div></div>
+          <div class="ak-tr"><div><code>reasoning.effort</code></div><div><code>low</code> | <code>medium</code> | <code>high</code></div><div>Reasoning depth. <code>high</code> produces the longest, most thorough reasoning.</div></div>
+          <div class="ak-tr"><div><code>reasoning_effort</code></div><div><code>low</code> | <code>medium</code> | <code>high</code></div><div>Shorthand — same as <code>reasoning: { effort: "..." }</code></div></div>
+        </div>
+
+        <div class="ak-hint" style="margin:8px 0 0;">When reasoning is enabled, the response includes a <code>&lt;thinking&gt;...&lt;/thinking&gt;</code> block before the answer. In non-streaming mode, <code>reasoning_content</code> is also returned as a separate field on the message object.</div>
+
+        <pre class="ak-code-example">{
+  "messages": [{ "role": "user", "content": "Solve: if x^2 + 5x + 6 = 0, what is x?" }],
+  "stream": true,
+  "reasoning": { "effort": "high" }
+}</pre>
+
+        <div class="ak-mini-title">Streaming reasoning response <span class="ak-tag">reasoning + stream</span></div>
+        <div class="ak-hint" style="margin:0 0 8px;">Reasoning chunks appear as <code>&lt;thinking&gt;</code>-wrapped content deltas, followed by the answer deltas.</div>
+        <pre class="ak-code-example">data: {"choices":[{"delta":{"content":"<thinking>\n"},"index":0}]}
+data: {"choices":[{"delta":{"content":"The equation x^2 + 5x + 6 = 0 is a quadratic..."},"index":0}]}
+data: {"choices":[{"delta":{"content":"Factoring: (x+2)(x+3) = 0, so x = -2 or x = -3.\n</thinking>\n"},"index":0}]}
+data: {"choices":[{"delta":{"content":"The solutions are **x = -2** and **x = -3**."},"index":0}]}
+data: {"choices":[{"delta":{},"finish_reason":"stop","index":0}]}
+data: [DONE]</pre>
+
+        <div class="ak-mini-title">Non-streaming reasoning response <span class="ak-tag">reasoning + stream: false</span></div>
+        <pre class="ak-code-example">{
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "<thinking>\nThe equation x^2 + 5x + 6 = 0...\nFactoring: (x+2)(x+3) = 0, so x = -2 or x = -3.\n</thinking>\nThe solutions are **x = -2** and **x = -3**.",
+      "reasoning_content": "The equation x^2 + 5x + 6 = 0...\nFactoring: (x+2)(x+3) = 0, so x = -2 or x = -3."
+    },
+    "finish_reason": "stop"
+  }]
+}</pre>
+
       </div>
     </div>
 
@@ -3018,7 +3058,7 @@ function toggleMode(m){
   const inp=document.getElementById('user-input');
   if(inp)inp.placeholder=modeOn('code')?'Code with '+S.model+'...':mDef.placeholder;
   document.getElementById('image-notice')?.classList.toggle('show',modeOn('image'));
-  if(modeOn('image'))updateImgLimitDisplay();
+  if(modeOn('image')){if(typeof updateImgLimitDisplay==='function')updateImgLimitDisplay();else{const _ild=document.getElementById('img-limit-display');if(_ild)_ild.textContent='1 image per message';}}
   const hzHint=document.getElementById('humanizer-hint');
   if(hzHint)hzHint.style.display=modeOn('humanizer')?'block':'none';
   applyColors();updateModelDescs();applyCapabilityGating();
