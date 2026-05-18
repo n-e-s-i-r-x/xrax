@@ -18,7 +18,7 @@ RESPONSE FORMAT:
 - No filler closers.`;
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const API_KEY_RE   = /^void_sk_[a-z0-9]{17,20}$/;
+const API_KEY_RE   = /^.{8,}$/;
 const UPSTREAM_ID  = 'deepseek-v4-flash-free';
 const UPSTREAM_URL = 'https://opencode.ai/zen/v1/chat/completions';
 
@@ -172,6 +172,14 @@ export default async function handler(req) {
   // ── Models endpoint ────────────────────────────────────────────────────────
   if (url.pathname.endsWith('/models') && req.method === 'GET') {
     return modelsResponse();
+  }
+
+  // Allow GET probes (e.g. from Codex verifying the base URL)
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ object: 'chat.completions', status: 'ok' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    });
   }
 
   if (req.method !== 'POST') return jsonErr(405, 'Method not allowed');
