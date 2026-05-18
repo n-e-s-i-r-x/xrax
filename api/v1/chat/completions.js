@@ -28,39 +28,134 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Reasoning sanitizer ───────────────────────────────────────────────────────
+//
+// Strategy: buffer the ENTIRE reasoning string, then:
+//   1. Detect and remove any block where the model reflects on formatting rules,
+//      identity instructions, or system-prompt-style content.
+//   2. Remove markdown symbols that don't belong in plain reasoning prose.
+//   3. Fix broken spacing (tokens jammed together or split mid-word).
+//   4. Collapse noise lines.
+//
+// We do this on the complete string (non-streaming) and on a rolling buffer
+// that we flush sentence-by-sentence in the streaming path.
 
-const jsonEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
+// Patterns that indicate the model is narrating the system prompt back
+const SYSTEM_REFLECTION_PATTERNS = [
+  /format(?:ting)?\s*rules?/i,
+  /response\s*format/i,
+  /short\s*paragraph/i,
+  /max\s*3\s*sentences/i,
+  /blank\s*line\s*between/i,
+  /fenced\s*code\s*block/i,
+  /no\s*filler\s*clos/i,
+  /bold\s*the\s*key\s*term/i,
+  /no\s*paragraph\s*longer/i,
+  /identity\s*clause/i,
+  /when\s*asked\s*about\s*(?:your|my)\s*identity/i,
+  /internali[sz]e/i,
+  /current\s*input/i,
+  /draft(?:ing)?\s*(?:the\s*)?response/i,
+  /formulate\s*response/i,
+  /finaliz(?:e|ing)\s*text/i,
+  /output\s*generation/i,
+  /check\s*(?:the\s*)?(?:formatting|word\s*count)/i,
+  /word\s*count/i,
+  /matches\s*all\s*constraints/i,
+  /let'?s\s*(?:check|refine|gently|revise)/i,
+  /revised\s*draft/i,
+  /over.?zealous/i,
+];
 
-// Cleans a fully-assembled reasoning string (used in non-streaming path)
-function cleanReasoning(s) {
-  return String(s)
-    // Fix missing spaces between words: "HelloWorld" or "Hello.World" → "Hello World"
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/([.!?,;])([A-Za-z])/g, '$1 $2')
-    // Remove markdown symbols that don't belong in reasoning
-    .replace(/\*{1,3}([^*]*)\*{1,3}/g, '$1')   // bold/italic
-    .replace(/#{1,6}\s*/g, '')                   // headings
-    .replace(/`{1,3}/g, '')                      // backticks
-    .replace(/<[^>]{0,80}>/g, '')                // html/xml tags
-    .replace(/\[[^\]]{0,200}\]/g, '')            // [brackets]
-    // Collapse excess whitespace
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-// Fixes spacing on a streaming reasoning chunk relative to the previous chunk
-function fixChunkSpacing(prev, curr) {
-  if (!prev || !curr) return curr;
-  const lastChar = prev[prev.length - 1];
-  const firstChar = curr[0];
-  // Insert space if two word characters are jammed together across chunk boundary
-  if (/\w/.test(lastChar) && /\w/.test(firstChar)) {
-    return ' ' + curr;
+// Remove a numbered or bulleted list item line if it contains a reflection pattern
+function sanitizeReasoningLine(line) {
+  for (const pat of SYSTEM_REFLECTION_PATTERNS) {
+    if (pat.test(line)) return null; // drop this line
   }
-  return curr;
+  return line;
 }
+
+// Full sanitize pass on a complete reasoning string
+function sanitizeReasoning(raw) {
+  // Split into lines, filter reflection lines, rejoin
+  const lines = raw.split('\n');
+  const kept = [];
+  let skipIndentBlock = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Detect a numbered/bulleted section header that is a reflection trigger
+    const isReflectionHeader = SYSTEM_REFLECTION_PATTERNS.some(p => p.test(line));
+    if (isReflectionHeader) {
+      skipIndentBlock = true;
+      continue;
+    }
+
+    // If we were skipping an indented block under a reflection header, continue
+    // skipping until we hit a non-indented, non-empty line that starts a new section
+    if (skipIndentBlock) {
+      const trimmed = line.trim();
+      // A new numbered item or a non-indented non-empty line ends the skip block
+      if (/^\d+\./.test(trimmed) || (trimmed.length > 0 && !/^\s/.test(line) && !/^[\s\-\*]/.test(line))) {
+        skipIndentBlock = false;
+        // Don't skip this line — fall through to normal processing
+      } else {
+        continue;
+      }
+    }
+
+    // Line-level reflection check
+    const cleaned = sanitizeReasoningLine(line);
+    if (cleaned === null) continue;
+
+    kept.push(cleaned);
+  }
+
+  let result = kept.join('\n');
+
+  // Strip markdown formatting symbols
+  result = result
+    .replace(/\*{1,3}([^*\n]*)\*{1,3}/g, '$1')   // bold/italic → plain
+    .replace(/^#{1,6}\s*/gm, '')                   // headings
+    .replace(/`{1,3}/g, '')                        // backticks
+    .replace(/<[^>]{0,80}>/g, '')                  // html/xml tags
+    .replace(/\[[^\]]{0,200}\]\([^)]*\)/g, '')     // markdown links
+    .replace(/\[[^\]]{0,200}\]/g, '');             // bare brackets
+
+  // Fix spacing artifacts: letters jammed together across token boundaries
+  // e.g. "Analy ze" → "Analyze", "V oid" → "Void"
+  // Strategy: collapse single spaces between letters that form common patterns
+  result = result
+    .replace(/([A-Za-z])\s([a-z]{1,3})\b/g, (m, a, b) => {
+      // Only collapse if the combined word looks like a real word split
+      // Heuristic: if the second part is very short (1-3 chars) and lowercase
+      // and follows a capital or lowercase letter, it's likely a split token
+      return a + b;
+    })
+    // Fix "V oid" → "Void" style (capital + space + lowercase continuation)
+    .replace(/\b([A-Z])\s([a-z]+)/g, '$1$2');
+
+  // Collapse 3+ blank lines to 2
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  // Remove lines that are just punctuation/symbols with no content
+  result = result
+    .split('\n')
+    .filter(l => l.trim().length > 2 || l.trim() === '')
+    .join('\n');
+
+  return result.trim();
+}
+
+// ── Other helpers ─────────────────────────────────────────────────────────────
+
+const jsonEscape = (s) => String(s)
+  .replace(/\\/g, '\\\\')
+  .replace(/"/g, '\\"')
+  .replace(/\n/g, '\\n')
+  .replace(/\r/g, '')
+  .replace(/\t/g, '\\t');
 
 function upstreamErrorToVoid(status) {
   switch (status) {
@@ -88,7 +183,7 @@ function jsonErr(status, msg) {
   );
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────────────────────
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return corsOk();
   if (req.method !== 'POST')   return jsonErr(405, 'Method not allowed');
@@ -121,13 +216,11 @@ export default async function handler(req) {
   if (!messages || !Array.isArray(messages) || !messages.length)
     return jsonErr(400, 'messages array required');
 
-  // Resolve reasoning config
   const wantsReasoning = !!(reasoning || reasoning_effort);
   const resolvedReasoning = reasoning
     || (reasoning_effort ? { effort: reasoning_effort } : null)
     || (wantsReasoning ? { effort: 'high' } : null);
 
-  // Build upstream payload
   const upstreamBody = {
     model:       UPSTREAM_ID,
     messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
@@ -140,11 +233,9 @@ export default async function handler(req) {
     ...(response_format && { response_format }),
   };
 
-  // Upstream key
   const apiKey = typeof process !== 'undefined' ? process.env?.OPENCODE_API_KEY : undefined;
   if (!apiKey) return jsonErr(500, 'Server configuration error');
 
-  // Call opencode zen
   let upstreamRes;
   try {
     upstreamRes = await fetch(UPSTREAM_URL, {
@@ -159,20 +250,17 @@ export default async function handler(req) {
     return jsonErr(503, 'Upstream connection failed');
   }
 
-  // ── Error handling ────────────────────────────────────────────────────────
   if (!upstreamRes.ok) {
-    const status = upstreamRes.status;
-    return jsonErr(status, upstreamErrorToVoid(status));
+    return jsonErr(upstreamRes.status, upstreamErrorToVoid(upstreamRes.status));
   }
 
-  // ── Streaming ─────────────────────────────────────────────────────────────
+  // ── Streaming ──────────────────────────────────────────────────────────────
   if (stream) {
-    // Fallback: upstream returned no body
     if (!upstreamRes.body) {
       try {
         const data = await upstreamRes.json();
         const choice = data?.choices?.[0];
-        const rc = cleanReasoning(choice?.message?.reasoning_content ?? '');
+        const rc = sanitizeReasoning(choice?.message?.reasoning_content ?? '');
         const cc = choice?.message?.content ?? '';
         return new Response(JSON.stringify({
           id: 'chatcmpl-' + Date.now(),
@@ -200,10 +288,26 @@ export default async function handler(req) {
       async start(controller) {
         const reader = upstreamRes.body.getReader();
         let buf = '';
+
+        // Buffer ALL reasoning, sanitize and emit only after reasoning is done
+        let reasoningBuf = '';
+        let reasoningDone = false;
         let thinkOpen = false;
-        let lastReasoningChunk = '';
 
         const send = (data) => { try { controller.enqueue(enc.encode(data)); } catch (_) {} };
+
+        const flushReasoning = () => {
+          if (!reasoningBuf) return;
+          const cleaned = sanitizeReasoning(reasoningBuf);
+          if (cleaned) {
+            send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
+            // Send in one shot so sanitization works on the full string
+            send('data: {"choices":[{"delta":{"content":"' + jsonEscape(cleaned) + '"},"index":0}]}\n\n');
+            send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+          }
+          reasoningBuf = '';
+          reasoningDone = true;
+        };
 
         try {
           while (true) {
@@ -221,10 +325,7 @@ export default async function handler(req) {
 
               const raw = trimmed.slice(5).trim();
               if (raw === '[DONE]') {
-                if (thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = false;
-                }
+                if (!reasoningDone) flushReasoning();
                 send('data: [DONE]\n\n');
                 continue;
               }
@@ -239,44 +340,19 @@ export default async function handler(req) {
               const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
               const contentDelta = delta.content;
 
-              // Emit reasoning inside <thinking> tags, with spacing fix per chunk
+              // Accumulate reasoning into buffer — don't emit yet
               if (reasoningDelta) {
-                // Strip junk markdown symbols from this chunk
-                const stripped = String(reasoningDelta)
-                  .replace(/\*{1,3}([^*]*)\*{1,3}/g, '$1')
-                  .replace(/#{1,6}\s*/g, '')
-                  .replace(/`{1,3}/g, '')
-                  .replace(/<[^>]{0,80}>/g, '')
-                  .replace(/\[[^\]]{0,200}\]/g, '');
-
-                // Fix spacing across chunk boundaries
-                const spaced = fixChunkSpacing(lastReasoningChunk, stripped);
-                lastReasoningChunk = stripped;
-
-                if (spaced) {
-                  if (!thinkOpen) {
-                    send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
-                    thinkOpen = true;
-                  }
-                  send('data: {"choices":[{"delta":{"content":"' + jsonEscape(spaced) + '"},"index":0}]}\n\n');
-                }
+                reasoningBuf += reasoningDelta;
               }
 
-              // Emit normal content, closing <thinking> first if open
+              // When content starts, reasoning is done — flush sanitized reasoning first
               if (contentDelta) {
-                if (thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = false;
-                }
+                if (!reasoningDone) flushReasoning();
                 send('data: {"choices":[{"delta":{"content":"' + jsonEscape(contentDelta) + '"},"index":0}]}\n\n');
               }
 
-              // Pass finish_reason through
               if (choice.finish_reason) {
-                if (thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = false;
-                }
+                if (!reasoningDone) flushReasoning();
                 send('data: {"choices":[{"delta":{},"finish_reason":"' + choice.finish_reason + '","index":0}]}\n\n');
               }
             }
@@ -284,9 +360,7 @@ export default async function handler(req) {
         } catch (_) {
           // Upstream read error — close gracefully
         } finally {
-          if (thinkOpen) {
-            send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-          }
+          if (!reasoningDone) flushReasoning();
           send('data: [DONE]\n\n');
           try { controller.close(); } catch (_) {}
         }
@@ -305,13 +379,13 @@ export default async function handler(req) {
     });
   }
 
-  // ── Non-streaming ─────────────────────────────────────────────────────────
+  // ── Non-streaming ──────────────────────────────────────────────────────────
   let data;
   try { data = await upstreamRes.json(); }
   catch { return jsonErr(500, 'Failed to parse model response'); }
 
   const choice = data?.choices?.[0];
-  const reasoningContent = cleanReasoning(choice?.message?.reasoning_content ?? '');
+  const reasoningContent = sanitizeReasoning(choice?.message?.reasoning_content ?? '');
   const answerContent = choice?.message?.content ?? '';
 
   const combinedContent = reasoningContent
@@ -323,17 +397,15 @@ export default async function handler(req) {
     object:  'chat.completion',
     created: Math.floor(Date.now() / 1000),
     model:   MODEL_ID,
-    choices: [
-      {
-        index:         0,
-        message: {
-          role:    'assistant',
-          content: combinedContent,
-          ...(reasoningContent && { reasoning_content: reasoningContent }),
-        },
-        finish_reason: choice?.finish_reason ?? 'stop',
+    choices: [{
+      index:         0,
+      message: {
+        role:    'assistant',
+        content: combinedContent,
+        ...(reasoningContent && { reasoning_content: reasoningContent }),
       },
-    ],
+      finish_reason: choice?.finish_reason ?? 'stop',
+    }],
     usage: data?.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
   }), {
     status:  200,
