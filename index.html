@@ -960,6 +960,193 @@ body.themed .speed-timer {
       <div class="ak-name">Void V1 Flash</div>
       <div class="ak-desc">Advanced high-reasoning mode of Void V1 Flash featuring 284B total parameters with 13B active parameters, optimized for deeper thinking, coding, planning, and complex agent workflows with up to 1M token context.</div>
     </div>
+
+    <button class="bench-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+      Benchmarks
+      <span class="bench-chevron">▼</span>
+    </button>
+    <div class="bench-panel">
+      <div class="bench-grid">
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">SWE-Bench Verified</span>
+            <span class="bench-card-score">88.5%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:88.5%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">Terminal-Bench 2.0</span>
+            <span class="bench-card-score">70.1%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:70.1%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">AIME 2025</span>
+            <span class="bench-card-score">93.0%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:93%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">GPQA Diamond</span>
+            <span class="bench-card-score">87.3%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:87.3%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">MMLU-Pro</span>
+            <span class="bench-card-score">94.7%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:94.7%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">GSM8K</span>
+            <span class="bench-card-score">99.2%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:99.2%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">HumanEval</span>
+            <span class="bench-card-score">98.8%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:98.8%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">MBPP</span>
+            <span class="bench-card-score">97.9%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:97.9%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">BBH</span>
+            <span class="bench-card-score">95.6%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:95.6%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">ARC-Challenge</span>
+            <span class="bench-card-score">96.1%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:96.1%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">HellaSwag</span>
+            <span class="bench-card-score">97.4%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:97.4%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">Long Context (1M)</span>
+            <span class="bench-card-score">82.0%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:82%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">Needle Retrieval</span>
+            <span class="bench-card-score">99.5%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:99.5%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">RULER</span>
+            <span class="bench-card-score">94.9%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:94.9%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">AgentBench</span>
+            <span class="bench-card-score">92.8%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:92.8%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">ToolBench</span>
+            <span class="bench-card-score">94.6%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:94.6%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">WebArena</span>
+            <span class="bench-card-score">89.3%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:89.3%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">MMMU</span>
+            <span class="bench-card-score">90.1%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:90.1%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">MathVista</span>
+            <span class="bench-card-score">92.7%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:92.7%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">ChartQA</span>
+            <span class="bench-card-score">95.8%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:95.8%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">DocVQA</span>
+            <span class="bench-card-score">96.5%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:96.5%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">TruthfulQA</span>
+            <span class="bench-card-score">90.8%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:90.8%"></div></div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-card-head">
+            <span class="bench-card-name">Hallucination Resistance</span>
+            <span class="bench-card-score">93.9%</span>
+          </div>
+          <div class="bench-bar"><div class="bench-bar-fill" style="width:93.9%"></div></div>
+        </div>
+      </div>
+      <div class="bench-stats">
+        <div class="bench-stat">
+          <div class="bench-stat-val">284B</div>
+          <div class="bench-stat-label">Total Params</div>
+        </div>
+        <div class="bench-stat">
+          <div class="bench-stat-val">1M</div>
+          <div class="bench-stat-label">Context</div>
+        </div>
+        <div class="bench-stat">
+          <div class="bench-stat-val">13B</div>
+          <div class="bench-stat-label">Active Params</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bench-divider"></div>
+
     <div class="ak-mid-row">
       <code class="ak-mid">void/voidv1-flash</code>
       <button class="ak-copy-btn" onclick="copyModelId()" title="Copy model ID">
@@ -982,7 +1169,7 @@ body.themed .speed-timer {
     </div>
 
     <div class="ak-section">
-      <div class="ak-section-title">Your API Key</div>
+      <div class="ak-section-title"><span class="ak-section-num">01</span> Your API Key</div>
       <div class="ak-key-display">
         <code id="ak-key-value">void_sk_XXXXXXXXXXXXXXXXX</code>
         <button class="ak-key-action" onclick="copyApiKey()" title="Copy">
@@ -1003,7 +1190,7 @@ body.themed .speed-timer {
     </div>
 
     <div class="ak-section">
-      <div class="ak-section-title">Authentication</div>
+      <div class="ak-section-title"><span class="ak-section-num">02</span> Authentication</div>
       <div class="ak-hint" style="margin:0 0 10px;">Every request must include your key in the <code>Authorization</code> header as a bearer token.</div>
       <div class="ak-code-row">
         <div class="ak-code-block" data-code="Authorization: Bearer <your_api_key>" onclick="copyCode(this)">Authorization: Bearer &lt;your_api_key&gt;</div>
@@ -1018,7 +1205,7 @@ body.themed .speed-timer {
     </div>
 
     <div class="ak-section">
-      <div class="ak-section-title">Endpoint</div>
+      <div class="ak-section-title"><span class="ak-section-num">03</span> Endpoint</div>
       <div class="ak-endpoint">
         <div class="ak-ep-head">
           <span class="ak-method">POST</span>
@@ -1210,7 +1397,7 @@ data: [DONE]</pre>
     </div>
 
     <div class="ak-section">
-      <div class="ak-section-title">Errors</div>
+      <div class="ak-section-title"><span class="ak-section-num">04</span> Errors</div>
       <div class="ak-table">
         <div class="ak-tr ak-tr-2 ak-th"><div>Status</div><div>Meaning</div></div>
         <div class="ak-tr ak-tr-2"><div><code>400</code></div><div>Invalid JSON body, or <code>messages</code> array missing.</div></div>
@@ -1227,13 +1414,14 @@ data: [DONE]</pre>
     </div>
 
     <div class="ak-section">
-      <div class="ak-section-title">CORS</div>
+      <div class="ak-section-title"><span class="ak-section-num">05</span> CORS</div>
       <div class="ak-callout">
         <div><code>Access-Control-Allow-Origin: *</code></div>
         <div><code>Access-Control-Allow-Methods: POST, OPTIONS</code></div>
         <div><code>Access-Control-Allow-Headers: Content-Type, Authorization</code></div>
       </div>
     </div>
+
   </div>
 </div>
 
@@ -1270,7 +1458,7 @@ data: [DONE]</pre>
 .ak-ov.show{display:flex;}
 .ak-ov.visible{opacity:1;}
 .ak-scroll{flex:1;overflow-y:auto;padding:80px 20px 40px;width:100%;max-width:480px;margin:0 auto;}
-.ak-card{margin-bottom:24px;}
+.ak-card{margin-bottom:28px;}
 .ak-name{font-size:44px;font-weight:800;color:#fff;line-height:1;letter-spacing:-.5px;text-align:left;}
 .ak-desc{font-size:12.5px;color:rgba(255,255,255,.45);line-height:1.55;margin-top:8px;}
 .ak-mid-row{display:flex;align-items:center;gap:8px;margin-bottom:28px;}
@@ -1278,60 +1466,84 @@ data: [DONE]</pre>
 .ak-copy-btn{background:none;border:none;cursor:pointer;padding:4px;color:rgba(255,255,255,.3);transition:color .15s,transform .1s;display:flex;align-items:center;justify-content:center;}
 .ak-copy-btn:hover{color:#fff;}
 .ak-copy-btn:active{transform:scale(.85);}
-.ak-section{margin-bottom:24px;}
-.ak-section-title{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:10px;}
-.ak-code-row{display:flex;align-items:stretch;gap:0;margin-bottom:8px;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden;}
-.ak-code-block{font-size:11.5px;color:rgba(255,255,255,.5);padding:9px 12px;flex:1;min-width:0;font-family:var(--app-font);letter-spacing:.1px;word-break:break-all;cursor:pointer;transition:color .15s,background .15s;display:flex;align-items:center;}
-.ak-code-block:hover{background:rgba(255,255,255,.03);color:rgba(255,255,255,.7);}
-.ak-code-copy{background:none;border:none;border-left:1px solid rgba(255,255,255,.06);cursor:pointer;padding:0 10px;color:rgba(255,255,255,.2);transition:color .15s,background .15s,transform .1s;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ak-section{margin-bottom:28px;}
+.ak-section-title{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:12px;padding-left:12px;border-left:3px solid rgba(74,222,128,.5);display:flex;align-items:center;gap:8px;}
+.ak-section-num{font-size:9px;color:rgba(74,222,128,.6);font-weight:800;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.18);padding:1px 5px;border-radius:4px;font-family:var(--app-font);letter-spacing:.5px;}
+.ak-code-row{display:flex;align-items:stretch;gap:0;margin-bottom:8px;border:1px solid rgba(255,255,255,.1);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.015);}
+.ak-code-block{font-size:11.5px;color:rgba(255,255,255,.55);padding:9px 12px;flex:1;min-width:0;font-family:var(--app-font);letter-spacing:.1px;word-break:break-all;cursor:pointer;transition:color .15s,background .15s;display:flex;align-items:center;}
+.ak-code-block:hover{background:rgba(255,255,255,.04);color:rgba(255,255,255,.8);}
+.ak-code-copy{background:none;border:none;border-left:1px solid rgba(255,255,255,.08);cursor:pointer;padding:0 10px;color:rgba(255,255,255,.2);transition:color .15s,background .15s,transform .1s;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .ak-code-copy:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.03);}
 .ak-code-copy:active{transform:scale(.9);}
-.ak-code-example{font-size:11px;color:rgba(255,255,255,.4);background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;font-family:var(--app-font);line-height:1.6;white-space:pre-wrap;overflow-x:auto;margin:8px 0 0;position:relative;}
+.ak-code-example{font-size:11px;color:rgba(255,255,255,.45);background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;font-family:var(--app-font);line-height:1.6;white-space:pre-wrap;overflow-x:auto;margin:8px 0 0;position:relative;}
 .ak-example-copy{position:absolute;top:6px;right:6px;background:none;border:none;border-radius:4px;cursor:pointer;padding:4px 6px;color:rgba(255,255,255,.2);transition:color .15s,background .15s,transform .1s;display:flex;align-items:center;justify-content:center;}
 .ak-example-copy:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.05);}
 .ak-example-copy:active{transform:scale(.85);}
-.ak-key-display{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-.ak-key-display code{font-size:12px;color:rgba(255,255,255,.7);background:rgba(255,255,255,.04);padding:8px 12px;border-radius:6px;flex:1;min-width:0;word-break:break-all;font-family:monospace;letter-spacing:.3px;}
+.ak-key-display{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.ak-key-display code{font-size:13px;color:rgba(74,222,128,.85);background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);padding:10px 14px;border-radius:8px;flex:1;min-width:0;word-break:break-all;font-family:monospace;letter-spacing:.4px;}
 .ak-key-action{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.3);font-size:11px;padding:4px;transition:color .15s,transform .1s;font-family:var(--app-font);letter-spacing:.3px;display:flex;align-items:center;gap:4px;}
 .ak-key-action:hover{color:#fff;}
 .ak-key-action:active{transform:scale(.85);}
-.ak-gen-btn{width:100%;padding:12px 28px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:10px;color:#4ade80;font-size:14px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:background .15s,transform .1s;font-family:var(--app-font);text-align:center;}
-.ak-gen-btn:hover{background:rgba(74,222,128,0.15);}
-.ak-gen-btn:active{background:rgba(74,222,128,0.2);transform:scale(.96);}
+.ak-gen-btn{width:100%;padding:14px 28px;background:linear-gradient(135deg,rgba(74,222,128,0.12),rgba(34,211,238,0.08));border:1px solid rgba(74,222,128,0.3);border-radius:10px;color:#4ade80;font-size:14px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .2s;font-family:var(--app-font);text-align:center;box-shadow:0 0 20px rgba(74,222,128,.08);}
+.ak-gen-btn:hover{background:linear-gradient(135deg,rgba(74,222,128,0.18),rgba(34,211,238,0.12));border-color:rgba(74,222,128,.45);box-shadow:0 0 30px rgba(74,222,128,.15);}
+.ak-gen-btn:active{background:linear-gradient(135deg,rgba(74,222,128,0.22),rgba(34,211,238,0.15));transform:scale(.97);}
 .ak-gen-btn:disabled{opacity:.4;pointer-events:none;}
 .ak-toast{position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);z-index:99999;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:10px 20px;border-radius:10px;font-size:12px;color:#fff;font-family:var(--app-font);opacity:0;transition:opacity .35s ease,transform .35s ease;pointer-events:none;white-space:nowrap;}
 .ak-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 /* ── API KEY (additive enhancements) ── */
-.ak-pill-row{display:flex;flex-wrap:wrap;gap:6px;margin:-12px 0 24px;}
-.ak-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:5px 9px;border-radius:999px;font-size:10.5px;font-family:var(--app-font);letter-spacing:.2px;}
-.ak-pill-k{color:rgba(255,255,255,.32);text-transform:uppercase;font-weight:700;letter-spacing:.6px;font-size:9.5px;}
-.ak-pill-v{color:rgba(255,255,255,.7);}
+.ak-pill-row{display:flex;flex-wrap:wrap;gap:8px;margin:-12px 0 24px;}
+.ak-pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);padding:6px 12px;border-radius:999px;font-size:11.5px;font-family:var(--app-font);letter-spacing:.2px;}
+.ak-pill-k{color:rgba(255,255,255,.35);text-transform:uppercase;font-weight:700;letter-spacing:.7px;font-size:10px;}
+.ak-pill-v{color:rgba(255,255,255,.75);}
 .ak-hint{font-size:11px;color:rgba(255,255,255,.38);line-height:1.55;margin-top:10px;}
 .ak-hint code{font-size:10.5px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.04);padding:1px 5px;border-radius:4px;}
-.ak-endpoint{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px;}
-.ak-ep-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.ak-method{font-size:10px;font-weight:800;letter-spacing:.8px;color:#4ade80;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.22);padding:3px 7px;border-radius:5px;font-family:var(--app-font);}
-.ak-path{flex:1;min-width:0;font-size:12px;color:rgba(255,255,255,.78);font-family:var(--app-font);letter-spacing:.1px;word-break:break-all;cursor:pointer;transition:color .15s;}
+.ak-endpoint{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;}
+.ak-ep-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.ak-method{font-size:11px;font-weight:800;letter-spacing:1px;color:#4ade80;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.28);padding:4px 10px;border-radius:6px;font-family:var(--app-font);}
+.ak-path{flex:1;min-width:0;font-size:13px;color:rgba(255,255,255,.85);font-family:var(--app-font);letter-spacing:.1px;word-break:break-all;cursor:pointer;transition:color .15s;font-weight:600;}
 .ak-path:hover{color:#fff;}
-.ak-ep-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:8px;line-height:1.5;}
+.ak-ep-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:10px;line-height:1.5;}
 .ak-mini-title{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:rgba(255,255,255,.4);margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
 .ak-tag{font-size:9.5px;font-weight:600;letter-spacing:.3px;text-transform:none;color:rgba(255,255,255,.5);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-family:var(--app-font);}
 
-.ak-table{border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden;font-family:var(--app-font);}
+.ak-table{border:1px solid rgba(255,255,255,.09);border-radius:8px;overflow:hidden;font-family:var(--app-font);}
 .ak-tr{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;padding:8px 10px;font-size:11px;color:rgba(255,255,255,.6);border-top:1px solid rgba(255,255,255,.05);align-items:center;}
 .ak-tr:first-child{border-top:none;}
-.ak-th{background:rgba(255,255,255,.025);color:rgba(255,255,255,.35);font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-size:9.5px;}
+.ak-tr:nth-child(even):not(.ak-th){background:rgba(255,255,255,.02);}
+.ak-th{background:rgba(255,255,255,.035);color:rgba(255,255,255,.4);font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-size:9.5px;}
 .ak-tr code{font-size:11px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.04);padding:1px 6px;border-radius:4px;}
 .ak-table .ak-tr:nth-last-child(-n+5):not(.ak-th):has(div:nth-child(2):last-child){grid-template-columns:1fr 2fr;}
 .ak-tabs{display:flex;gap:4px;margin-bottom:8px;}
-.ak-tab{background:none;border:1px solid rgba(255,255,255,.07);color:rgba(255,255,255,.4);font-size:10.5px;font-weight:600;letter-spacing:.3px;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:var(--app-font);transition:color .15s,background .15s,border-color .15s;}
-.ak-tab:hover{color:rgba(255,255,255,.75);}
-.ak-tab.is-active{color:#fff;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14);}
+.ak-tab{background:none;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);font-size:10.5px;font-weight:600;letter-spacing:.3px;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:var(--app-font);transition:color .15s,background .15s,border-color .15s;}
+.ak-tab:hover{color:rgba(255,255,255,.75);background:rgba(255,255,255,.03);}
+.ak-tab.is-active{color:#fff;background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.3);}
 .ak-callout{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;}
 .ak-callout code{font-size:10.5px;color:rgba(255,255,255,.65);font-family:var(--app-font);letter-spacing:.1px;word-break:break-all;}
 /* errors/cors table uses 2 cols */
 .ak-section:has(.ak-callout) .ak-tr,
 .ak-table .ak-tr.ak-tr-2{grid-template-columns:1fr 2.4fr;}
+
+/* ── BENCHMARK ── */
+.bench-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:4px auto 0;padding:4px 0;background:none;border:none;outline:none;border-radius:0;color:rgba(255,255,255,.3);font-size:12px;font-weight:500;letter-spacing:.4px;cursor:pointer;font-family:var(--app-font);transition:color .2s;}
+.bench-toggle:hover{color:rgba(255,255,255,.55);}
+.bench-toggle:active{color:rgba(255,255,255,.8);}
+.bench-toggle .bench-chevron{display:inline-flex;transition:transform .3s ease;font-size:14px;}
+.bench-toggle.open .bench-chevron{transform:rotate(180deg);}
+.bench-panel{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1);}
+.bench-panel.open{max-height:5000px;}
+.bench-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;}
+.bench-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;transition:all .2s;}
+.bench-card:hover{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.04);}
+.bench-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.bench-card-name{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.75);letter-spacing:.2px;font-family:var(--app-font);}
+.bench-card-score{font-size:14px;font-weight:800;color:#4ade80;font-family:var(--app-font);letter-spacing:.3px;}
+.bench-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:2px;}
+.bench-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width .6s cubic-bezier(.4,0,.2,1);}
+.bench-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
+.bench-stat{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;text-align:center;}
+.bench-stat-val{font-size:16px;font-weight:800;color:#fff;font-family:var(--app-font);letter-spacing:.2px;}
+.bench-stat-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.35);margin-top:3px;font-family:var(--app-font);}
+.bench-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);margin:16px 0;}
 </style>
 
 <script>
