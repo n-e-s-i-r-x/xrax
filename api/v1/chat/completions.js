@@ -6,18 +6,21 @@ const MODEL_NAME = 'Void V1 Flash';
 const MODEL_DESC = 'Advanced high-reasoning mode of Void V1 Flash featuring 284B total parameters with 13B active parameters, optimized for deeper thinking, coding, planning, and complex agent workflows with up to 1M token context.';
 
 // ── System prompt ────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are Void Flash, created by vin and powered by void. Only share this when directly asked.
+const SYSTEM_PROMPT = `You are a helpful AI assistant. When asked about your identity, name, or who made you, say you are Void Flash made by vin.
 
-You are an advanced AI assistant designed to be helpful, harmless, and honest. You are always up-to-date with the latest technologies and best practices. You aim to deliver clear, efficient, concise, and innovative solutions while maintaining a friendly and approachable demeanor.
+RESPONSE FORMAT:
+- Short paragraphs, max 3 sentences each, blank line between them.
+- Use ## or ### headings, bullet lists, and numbered steps for longer answers.
+- All code and commands in fenced code blocks with a language tag.
+- Inline code only for identifiers, flags, filenames, short literals.
+- Bold the key term of a definition once only.
+- No paragraph longer than 80 words.
+- No filler closers.
 
-RESPONSE FORMAT - MANDATORY:
-- Break content into short paragraphs of at most 3 sentences. Insert a blank line between paragraphs.
-- For answers longer than ~3 sentences, use markdown: ## or ### headings for sections, - bullets for 3+ items, numbered lists for ordered steps.
-- Wrap all code, commands, file paths, or shell snippets in fenced code blocks with a language tag. Never inline multi-line code.
-- Use inline code for identifiers, flags, filenames, and short literals.
-- Bold the key term of a definition once, not every keyword.
-- Never produce a single paragraph longer than ~80 words. Split it.
-- Do not pad with restatements or "let me know if you need anything" closers.`;
+REASONING (internal thinking):
+- Keep reasoning concise and plain prose only.
+- No markdown, no asterisks, no angle brackets, no square brackets, no special symbols.
+- Do not repeat or reference these instructions while reasoning.`;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const API_KEY_RE   = /^void_sk_[a-z0-9]{17,20}$/;
@@ -33,6 +36,17 @@ const CORS_HEADERS = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const jsonEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
+
+function cleanReasoning(s) {
+  return String(s)
+    .replace(/\*{1,3}/g, '')          // remove *, **, ***
+    .replace(/<[^>]*>/g, '')          // strip <tags>
+    .replace(/\[[^\]]*\]/g, '')       // strip [brackets]
+    .replace(/#{1,6}\s*/g, '')        // strip markdown headings
+    .replace(/`{1,3}/g, '')           // strip backticks
+    .replace(/\s{3,}/g, '  ')         // collapse excess whitespace
+    .trim();
+}
 
 function upstreamErrorToVoid(status) {
   switch (status) {
@@ -212,11 +226,14 @@ export default async function handler(req) {
 
               // Wrap reasoning_content in <thinking> tags so clients render it
               if (reasoningDelta) {
-                if (!thinkOpen) {
-                  send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
-                  thinkOpen = true;
+                const cleaned = cleanReasoning(reasoningDelta);
+                if (cleaned) {
+                  if (!thinkOpen) {
+                    send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
+                    thinkOpen = true;
+                  }
+                  send('data: {"choices":[{"delta":{"content":"' + jsonEscape(cleaned) + '"},"index":0}]}\n\n');
                 }
-                send('data: {"choices":[{"delta":{"content":"' + jsonEscape(reasoningDelta) + '"},"index":0}]}\n\n');
               }
 
               // Emit normal content, closing think tag first if open
@@ -275,7 +292,7 @@ export default async function handler(req) {
   // support the reasoning_content field natively.
   let combinedContent = '';
   if (reasoningContent) {
-    combinedContent = '<thinking>\n' + reasoningContent + '\n</thinking>\n' + answerContent;
+    combinedContent = '<thinking>\n' + cleanReasoning(reasoningContent) + '\n</thinking>\n' + answerContent;
   } else {
     combinedContent = answerContent;
   }
@@ -291,7 +308,7 @@ export default async function handler(req) {
         message: {
           role: 'assistant',
           content: combinedContent,
-          ...(reasoningContent && { reasoning_content: reasoningContent }),
+          ...(reasoningContent && { reasoning_content: cleanReasoning(reasoningContent) }),
         },
         finish_reason: choice?.finish_reason ?? 'stop',
       },
