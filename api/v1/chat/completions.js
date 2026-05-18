@@ -29,19 +29,7 @@ const CORS_HEADERS = {
 };
 
 // ── Reasoning sanitizer ───────────────────────────────────────────────────────
-//
-// Strategy: buffer the ENTIRE reasoning string, then:
-//   1. Detect and remove any block where the model reflects on formatting rules,
-//      identity instructions, or system-prompt-style content.
-//   2. Remove markdown symbols that don't belong in plain reasoning prose.
-//   3. Fix broken spacing (tokens jammed together or split mid-word).
-//   4. Collapse noise lines.
-//
-// We do this on the complete string (non-streaming) and on a rolling buffer
-// that we flush sentence-by-sentence in the streaming path.
-
-// Patterns that indicate the model is narrating the system prompt back
-const SYSTEM_REFLECTION_PATTERNS = [
+const REFLECTION_PATTERNS = [
   /format(?:ting)?\s*rules?/i,
   /response\s*format/i,
   /short\s*paragraph/i,
@@ -62,84 +50,71 @@ const SYSTEM_REFLECTION_PATTERNS = [
   /check\s*(?:the\s*)?(?:formatting|word\s*count)/i,
   /word\s*count/i,
   /matches\s*all\s*constraints/i,
-  /let'?s\s*(?:check|refine|gently|revise)/i,
+  /let'?s\s*(?:check|refine|gently|revise|test|look\s*at|draft)/i,
   /revised\s*draft/i,
   /over.?zealous/i,
+  /format\s*constraints/i,
+  /let\s+(?:check|draft|refine|test)/i,
+  /let'?s\s+refine/i,
+  /check\s+the\s+format/i,
+  /check\s+format\s+rules/i,
+  /check\s+the\s+specific\s+words/i,
+  /following\s+the\s+formatting\s+rules/i,
+  /formatting\s+instructions/i,
+  /max\s+80\s+words/i,
+  /fulfil(?:l)?\s+the\s+basic\s+premise/i,
+  /the\s+instruction\s+says/i,
+  /per\s+(?:the\s+)?instructions?/i,
+  /preferences\s+tells?\s+me/i,
 ];
 
-// Remove a numbered or bulleted list item line if it contains a reflection pattern
-function sanitizeReasoningLine(line) {
-  for (const pat of SYSTEM_REFLECTION_PATTERNS) {
-    if (pat.test(line)) return null; // drop this line
-  }
-  return line;
-}
-
-// Full sanitize pass on a complete reasoning string
 function sanitizeReasoning(raw) {
-  // Split into lines, filter reflection lines, rejoin
   const lines = raw.split('\n');
   const kept = [];
-  let skipIndentBlock = false;
+  let skipBlock = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const line of lines) {
+    const isReflection = REFLECTION_PATTERNS.some(p => p.test(line));
 
-    // Detect a numbered/bulleted section header that is a reflection trigger
-    const isReflectionHeader = SYSTEM_REFLECTION_PATTERNS.some(p => p.test(line));
-    if (isReflectionHeader) {
-      skipIndentBlock = true;
+    if (isReflection) {
+      skipBlock = true;
       continue;
     }
 
-    // If we were skipping an indented block under a reflection header, continue
-    // skipping until we hit a non-indented, non-empty line that starts a new section
-    if (skipIndentBlock) {
+    // End skip block when a new numbered top-level item starts (e.g. "2.  Determine")
+    if (skipBlock) {
       const trimmed = line.trim();
-      // A new numbered item or a non-indented non-empty line ends the skip block
-      if (/^\d+\./.test(trimmed) || (trimmed.length > 0 && !/^\s/.test(line) && !/^[\s\-\*]/.test(line))) {
-        skipIndentBlock = false;
-        // Don't skip this line — fall through to normal processing
+      if (/^\d+\.\s/.test(trimmed)) {
+        skipBlock = false;
+        // fall through and process this line
       } else {
         continue;
       }
     }
 
-    // Line-level reflection check
-    const cleaned = sanitizeReasoningLine(line);
-    if (cleaned === null) continue;
-
-    kept.push(cleaned);
+    kept.push(line);
   }
 
   let result = kept.join('\n');
 
-  // Strip markdown formatting symbols
+  // Strip markdown symbols
   result = result
-    .replace(/\*{1,3}([^*\n]*)\*{1,3}/g, '$1')   // bold/italic → plain
-    .replace(/^#{1,6}\s*/gm, '')                   // headings
-    .replace(/`{1,3}/g, '')                        // backticks
-    .replace(/<[^>]{0,80}>/g, '')                  // html/xml tags
-    .replace(/\[[^\]]{0,200}\]\([^)]*\)/g, '')     // markdown links
-    .replace(/\[[^\]]{0,200}\]/g, '');             // bare brackets
+    .replace(/\*{1,3}([^*\n]*)\*{1,3}/g, '$1')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/`{1,3}/g, '')
+    .replace(/<[^>]{0,80}>/g, '')
+    .replace(/\[[^\]]{0,200}\]\([^)]*\)/g, '')
+    .replace(/\[[^\]]{0,200}\]/g, '');
 
-  // Fix spacing artifacts: letters jammed together across token boundaries
-  // e.g. "Analy ze" → "Analyze", "V oid" → "Void"
-  // Strategy: collapse single spaces between letters that form common patterns
+  // Fix token spacing artifacts: "V oid" → "Void", "Analy ze" → "Analyze"
   result = result
-    .replace(/([A-Za-z])\s([a-z]{1,3})\b/g, (m, a, b) => {
-      // Only collapse if the combined word looks like a real word split
-      // Heuristic: if the second part is very short (1-3 chars) and lowercase
-      // and follows a capital or lowercase letter, it's likely a split token
-      return a + b;
-    })
-    // Fix "V oid" → "Void" style (capital + space + lowercase continuation)
-    .replace(/\b([A-Z])\s([a-z]+)/g, '$1$2');
+    .replace(/\b([A-Z])\s([a-z]+)/g, '$1$2')
+    .replace(/([a-z])\s([a-z]{1,2})\b(?=\s)/g, '$1$2');
 
-  // Collapse 3+ blank lines to 2
+  // Collapse excess blank lines
   result = result.replace(/\n{3,}/g, '\n\n');
 
-  // Remove lines that are just punctuation/symbols with no content
+  // Drop lines shorter than 3 chars that are just noise
   result = result
     .split('\n')
     .filter(l => l.trim().length > 2 || l.trim() === '')
@@ -188,7 +163,6 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') return corsOk();
   if (req.method !== 'POST')   return jsonErr(405, 'Method not allowed');
 
-  // Auth
   const auth = req.headers.get('authorization') || '';
   if (!auth.startsWith('Bearer '))
     return jsonErr(401, 'Missing or invalid Authorization header');
@@ -196,7 +170,6 @@ export default async function handler(req) {
   if (!API_KEY_RE.test(key))
     return jsonErr(401, 'Invalid API key format');
 
-  // Parse body
   let body;
   try { body = await req.json(); }
   catch { return jsonErr(400, 'Invalid JSON body'); }
@@ -250,9 +223,8 @@ export default async function handler(req) {
     return jsonErr(503, 'Upstream connection failed');
   }
 
-  if (!upstreamRes.ok) {
+  if (!upstreamRes.ok)
     return jsonErr(upstreamRes.status, upstreamErrorToVoid(upstreamRes.status));
-  }
 
   // ── Streaming ──────────────────────────────────────────────────────────────
   if (stream) {
@@ -288,25 +260,21 @@ export default async function handler(req) {
       async start(controller) {
         const reader = upstreamRes.body.getReader();
         let buf = '';
-
-        // Buffer ALL reasoning, sanitize and emit only after reasoning is done
         let reasoningBuf = '';
-        let reasoningDone = false;
-        let thinkOpen = false;
+        let reasoningFlushed = false;
 
         const send = (data) => { try { controller.enqueue(enc.encode(data)); } catch (_) {} };
 
+        // Flush all buffered reasoning as ONE single SSE content event
         const flushReasoning = () => {
+          if (reasoningFlushed) return;
+          reasoningFlushed = true;
           if (!reasoningBuf) return;
           const cleaned = sanitizeReasoning(reasoningBuf);
-          if (cleaned) {
-            send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
-            // Send in one shot so sanitization works on the full string
-            send('data: {"choices":[{"delta":{"content":"' + jsonEscape(cleaned) + '"},"index":0}]}\n\n');
-            send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
-          }
-          reasoningBuf = '';
-          reasoningDone = true;
+          if (!cleaned) return;
+          // Single event: <thinking>\n{content}\n</thinking>\n
+          const block = '<thinking>\\n' + jsonEscape(cleaned) + '\\n</thinking>\\n';
+          send('data: {"choices":[{"delta":{"content":"' + block + '"},"index":0}]}\n\n');
         };
 
         try {
@@ -325,7 +293,7 @@ export default async function handler(req) {
 
               const raw = trimmed.slice(5).trim();
               if (raw === '[DONE]') {
-                if (!reasoningDone) flushReasoning();
+                flushReasoning();
                 send('data: [DONE]\n\n');
                 continue;
               }
@@ -340,27 +308,27 @@ export default async function handler(req) {
               const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
               const contentDelta = delta.content;
 
-              // Accumulate reasoning into buffer — don't emit yet
+              // Buffer reasoning — do not emit yet
               if (reasoningDelta) {
                 reasoningBuf += reasoningDelta;
               }
 
-              // When content starts, reasoning is done — flush sanitized reasoning first
+              // First content delta — flush sanitized reasoning first, then stream content
               if (contentDelta) {
-                if (!reasoningDone) flushReasoning();
+                flushReasoning();
                 send('data: {"choices":[{"delta":{"content":"' + jsonEscape(contentDelta) + '"},"index":0}]}\n\n');
               }
 
               if (choice.finish_reason) {
-                if (!reasoningDone) flushReasoning();
+                flushReasoning();
                 send('data: {"choices":[{"delta":{},"finish_reason":"' + choice.finish_reason + '","index":0}]}\n\n');
               }
             }
           }
         } catch (_) {
-          // Upstream read error — close gracefully
+          // close gracefully
         } finally {
-          if (!reasoningDone) flushReasoning();
+          flushReasoning();
           send('data: [DONE]\n\n');
           try { controller.close(); } catch (_) {}
         }
