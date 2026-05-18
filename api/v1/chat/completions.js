@@ -24,7 +24,7 @@ const UPSTREAM_URL = 'https://opencode.ai/zen/v1/chat/completions';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -75,18 +75,12 @@ function sanitizeReasoning(raw) {
 
   for (const line of lines) {
     const isReflection = REFLECTION_PATTERNS.some(p => p.test(line));
+    if (isReflection) { skipBlock = true; continue; }
 
-    if (isReflection) {
-      skipBlock = true;
-      continue;
-    }
-
-    // End skip block when a new numbered top-level item starts
     if (skipBlock) {
       const trimmed = line.trim();
       if (/^\d+\.\s/.test(trimmed)) {
         skipBlock = false;
-        // fall through and process this line
       } else {
         continue;
       }
@@ -97,25 +91,16 @@ function sanitizeReasoning(raw) {
 
   let result = kept.join('\n');
 
-  // Strip markdown symbols
   result = result
     .replace(/\*{1,3}([^*\n]*)\*{1,3}/g, '$1')
     .replace(/^#{1,6}\s*/gm, '')
     .replace(/`{1,3}/g, '')
     .replace(/<[^>]{0,80}>/g, '')
     .replace(/\[[^\]]{0,200}\]\([^)]*\)/g, '')
-    .replace(/\[[^\]]{0,200}\]/g, '');
+    .replace(/\[[^\]]{0,200}\]/g, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\n{3,}/g, '\n\n');
 
-  // Fix missing spaces ONLY between two words with NO space at all
-  // e.g. "needto" → "need to", "respondto" → "respond to"
-  // Only triggers when a lowercase letter is immediately followed by another lowercase letter
-  // with no space, and the join point looks like a word boundary
-  result = result.replace(/([a-z])([A-Z])/g, '$1 $2'); // camelCase splits only
-
-  // Collapse excess blank lines
-  result = result.replace(/\n{3,}/g, '\n\n');
-
-  // Drop lines that are just noise (under 3 chars, not empty)
   result = result
     .split('\n')
     .filter(l => l.trim().length > 2 || l.trim() === '')
@@ -124,7 +109,7 @@ function sanitizeReasoning(raw) {
   return result.trim();
 }
 
-// ── Other helpers ─────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const jsonEscape = (s) => String(s)
   .replace(/\\/g, '\\\\')
@@ -159,11 +144,39 @@ function jsonErr(status, msg) {
   );
 }
 
+function modelsResponse() {
+  return new Response(JSON.stringify({
+    object: 'list',
+    data: [
+      {
+        id:          MODEL_ID,
+        object:      'model',
+        created:     1700000000,
+        owned_by:    'void',
+        name:        MODEL_NAME,
+        description: MODEL_DESC,
+      },
+    ],
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  });
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 export default async function handler(req) {
-  if (req.method === 'OPTIONS') return corsOk();
-  if (req.method !== 'POST')   return jsonErr(405, 'Method not allowed');
+  const url = new URL(req.url);
 
+  if (req.method === 'OPTIONS') return corsOk();
+
+  // ── Models endpoint ────────────────────────────────────────────────────────
+  if (url.pathname.endsWith('/models') && req.method === 'GET') {
+    return modelsResponse();
+  }
+
+  if (req.method !== 'POST') return jsonErr(405, 'Method not allowed');
+
+  // Auth
   const auth = req.headers.get('authorization') || '';
   if (!auth.startsWith('Bearer '))
     return jsonErr(401, 'Missing or invalid Authorization header');
@@ -171,6 +184,7 @@ export default async function handler(req) {
   if (!API_KEY_RE.test(key))
     return jsonErr(401, 'Invalid API key format');
 
+  // Parse body
   let body;
   try { body = await req.json(); }
   catch { return jsonErr(400, 'Invalid JSON body'); }
@@ -266,7 +280,6 @@ export default async function handler(req) {
 
         const send = (data) => { try { controller.enqueue(enc.encode(data)); } catch (_) {} };
 
-        // Flush all buffered reasoning as ONE single SSE content event
         const flushReasoning = () => {
           if (reasoningFlushed) return;
           reasoningFlushed = true;
@@ -308,12 +321,8 @@ export default async function handler(req) {
               const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
               const contentDelta = delta.content;
 
-              // Buffer reasoning — do not emit yet
-              if (reasoningDelta) {
-                reasoningBuf += reasoningDelta;
-              }
+              if (reasoningDelta) reasoningBuf += reasoningDelta;
 
-              // First content delta — flush sanitized reasoning first, then stream content
               if (contentDelta) {
                 flushReasoning();
                 send('data: {"choices":[{"delta":{"content":"' + jsonEscape(contentDelta) + '"},"index":0}]}\n\n');
