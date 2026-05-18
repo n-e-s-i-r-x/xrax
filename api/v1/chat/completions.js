@@ -30,6 +30,36 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const jsonEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '').replace(/\t/g, '\\t');
+
+function upstreamErrorToVoid(status) {
+  switch (status) {
+    case 400: return 'Bad request — check your messages and parameters';
+    case 401: return 'Authentication failed — verify your API key';
+    case 403: return 'Access denied — your key does not have permission';
+    case 404: return 'Model not found';
+    case 429: return 'Rate limit reached — please slow down your requests';
+    case 500: return 'The model encountered an internal error';
+    case 502: return 'Model gateway error — try again shortly';
+    case 503: return 'Model is temporarily unavailable — try again later';
+    case 504: return 'Request timed out — try a shorter prompt or retry';
+    default:  return `Request failed (${status}) — try again later`;
+  }
+}
+
+function corsOk() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function jsonErr(status, msg) {
+  return new Response(
+    JSON.stringify({ error: { message: msg, type: 'api_error', code: status } }),
+    { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } },
+  );
+}
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return corsOk();
@@ -56,18 +86,27 @@ export default async function handler(req) {
     tools,
     tool_choice,
     response_format,
+    reasoning,                // { effort: 'low' | 'medium' | 'high' } or { max_tokens: N }
+    reasoning_effort,         // Shorthand: 'low' | 'medium' | 'high'
   } = body;
 
   if (!messages || !Array.isArray(messages) || !messages.length)
     return jsonErr(400, 'messages array required');
 
-  // Build upstream payload — pass tool calls + structured output through
+  // Resolve reasoning config — default to high effort for long, deep reasoning
+  const wantsReasoning = !!(reasoning || reasoning_effort);
+  const resolvedReasoning = reasoning
+    || (reasoning_effort ? { effort: reasoning_effort } : null)
+    || (wantsReasoning ? { effort: 'high' } : null);
+
+  // Build upstream payload — pass tool calls + structured output + reasoning through
   const upstreamBody = {
     model:       UPSTREAM_ID,
     messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
     temperature,
     max_tokens,
     stream,
+    ...(resolvedReasoning && { reasoning: resolvedReasoning }),
     ...(tools           && { tools }),
     ...(tool_choice     && { tool_choice }),
     ...(response_format && { response_format }),
@@ -100,8 +139,119 @@ export default async function handler(req) {
 
   // ── Streaming ─────────────────────────────────────────────────────────────
   if (stream) {
-    return new Response(upstreamRes.body, {
-      status:  200,
+    // Fallback: upstream returned no body (some providers do this)
+    if (!upstreamRes.body) {
+      try {
+        const data = await upstreamRes.json();
+        const choice = data?.choices?.[0];
+        const rc = choice?.message?.reasoning_content ?? '';
+        const cc = choice?.message?.content ?? '';
+        return new Response(JSON.stringify({
+          id: 'chatcmpl-' + Date.now(),
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: MODEL_ID,
+          choices: [{
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: rc ? '<thinking>\n' + rc + '\n</thinking>\n' + cc : cc,
+              ...(rc && { reasoning_content: rc }),
+            },
+            finish_reason: choice?.finish_reason ?? 'stop',
+          }],
+          usage: data?.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }), { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+      } catch { return jsonErr(500, 'Failed to parse model response'); }
+    }
+
+    const enc = new TextEncoder();
+    const dec = new TextDecoder();
+
+    const readable = new ReadableStream({
+      async start(controller) {
+        const reader = upstreamRes.body.getReader();
+        let buf = '';
+        let thinkOpen = false;
+
+        const send = (data) => { try { controller.enqueue(enc.encode(data)); } catch (_) {} };
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith(':')) continue;
+              if (!trimmed.startsWith('data:')) continue;
+
+              const raw = trimmed.slice(5).trim();
+              if (raw === '[DONE]') {
+                if (thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = false;
+                }
+                send('data: [DONE]\n\n');
+                continue;
+              }
+
+              let parsed;
+              try { parsed = JSON.parse(raw); } catch (_) { continue; }
+
+              const choice = parsed?.choices?.[0];
+              if (!choice) continue;
+
+              const delta = choice.delta || {};
+              const reasoningDelta = delta.reasoning_content ?? delta.reasoning;
+              const contentDelta = delta.content;
+
+              // Wrap reasoning_content in <thinking> tags so clients render it
+              if (reasoningDelta) {
+                if (!thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"<thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = true;
+                }
+                send('data: {"choices":[{"delta":{"content":"' + jsonEscape(reasoningDelta) + '"},"index":0}]}\n\n');
+              }
+
+              // Emit normal content, closing think tag first if open
+              if (contentDelta) {
+                if (thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = false;
+                }
+                send('data: {"choices":[{"delta":{"content":"' + jsonEscape(contentDelta) + '"},"index":0}]}\n\n');
+              }
+
+              // Pass finish_reason through
+              if (choice.finish_reason) {
+                if (thinkOpen) {
+                  send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+                  thinkOpen = false;
+                }
+                send('data: {"choices":[{"delta":{},"finish_reason":"' + choice.finish_reason + '","index":0}]}\n\n');
+              }
+            }
+          }
+        } catch (_) {
+          // Upstream read error — close gracefully
+        } finally {
+          if (thinkOpen) {
+            send('data: {"choices":[{"delta":{"content":"\\n</thinking>\\n"},"index":0}]}\n\n');
+          }
+          send('data: [DONE]\n\n');
+          try { controller.close(); } catch (_) {}
+        }
+      },
+    });
+
+    return new Response(readable, {
+      status: 200,
       headers: {
         'Content-Type':      'text/event-stream',
         'Cache-Control':     'no-cache, no-transform',
@@ -118,6 +268,17 @@ export default async function handler(req) {
   catch { return jsonErr(500, 'Failed to parse model response'); }
 
   const choice = data?.choices?.[0];
+  const reasoningContent = choice?.message?.reasoning_content ?? '';
+  const answerContent = choice?.message?.content ?? '';
+
+  // Merge reasoning into content with <thinking> tags for clients that don't
+  // support the reasoning_content field natively.
+  let combinedContent = '';
+  if (reasoningContent) {
+    combinedContent = '<thinking>\n' + reasoningContent + '\n</thinking>\n' + answerContent;
+  } else {
+    combinedContent = answerContent;
+  }
 
   return new Response(JSON.stringify({
     id:      'chatcmpl-' + Date.now(),
@@ -127,7 +288,11 @@ export default async function handler(req) {
     choices: [
       {
         index:         0,
-        message:       choice?.message ?? { role: 'assistant', content: '' },
+        message: {
+          role: 'assistant',
+          content: combinedContent,
+          ...(reasoningContent && { reasoning_content: reasoningContent }),
+        },
         finish_reason: choice?.finish_reason ?? 'stop',
       },
     ],
@@ -136,32 +301,4 @@ export default async function handler(req) {
     status:  200,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function upstreamErrorToVoid(status) {
-  switch (status) {
-    case 400: return 'Bad request — check your messages and parameters';
-    case 401: return 'Authentication failed — verify your API key';
-    case 403: return 'Access denied — your key does not have permission';
-    case 404: return 'Model not found';
-    case 429: return 'Rate limit reached — please slow down your requests';
-    case 500: return 'The model encountered an internal error';
-    case 502: return 'Model gateway error — try again shortly';
-    case 503: return 'Model is temporarily unavailable — try again later';
-    case 504: return 'Request timed out — try a shorter prompt or retry';
-    default:  return `Request failed (${status}) — try again later`;
-  }
-}
-
-function corsOk() {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
-}
-
-function jsonErr(status, msg) {
-  return new Response(
-    JSON.stringify({ error: { message: msg, type: 'api_error', code: status } }),
-    { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } },
-  );
 }
